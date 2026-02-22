@@ -1,9 +1,8 @@
 import type { MDXContent } from "mdx/types"
+import type { TableOfContents } from "fumadocs-core/toc"
 import { notFound } from "next/navigation"
 
-import { Badge } from "@workspace/ui/components/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
-
+import { DocsToc } from "@/components/docs-toc"
 import { docsSource } from "@/lib/source"
 
 export const dynamic = "force-static"
@@ -37,29 +36,42 @@ export default async function DocsPage({
     notFound()
   }
 
-  const pageData = page.data as typeof page.data & { body: MDXContent }
+  const pageData = page.data as typeof page.data & {
+    body: MDXContent
+    toc?: TableOfContents
+  }
   const Body = pageData.body
-  const currentUrl = page.url
+  const toc = pageData.toc ?? []
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="mb-2">
-          <Badge variant="outline">Placeholder</Badge>
+    <div className="relative grid xl:grid-cols-[1fr_200px] gap-0">
+      {/* Content */}
+      <article className="min-w-0 px-8 lg:px-14 py-10 max-w-3xl">
+        <div className="pb-6 mb-8 border-b-[3px] border-black">
+          <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">DOCUMENTATION</span>
+          <h1 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl tracking-tight uppercase leading-[0.9]">
+            {page.data.title}
+          </h1>
+          {page.data.description ? (
+            <p className="mt-3 text-[13px] text-black/50 leading-relaxed max-w-xl">
+              {page.data.description}
+            </p>
+          ) : null}
         </div>
-        <CardTitle className="text-2xl">{page.data.title}</CardTitle>
-        {page.data.description ? (
-          <p className="text-sm text-muted-foreground">{page.data.description}</p>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4 leading-7 text-sm">
+
+        <div className="dec-prose">
           <Body />
         </div>
-        <p className="mt-6 text-xs text-muted-foreground">
-          Current route: <code>{currentUrl}</code>
-        </p>
-      </CardContent>
-    </Card>
+      </article>
+
+      {/* TOC — fixed to viewport */}
+      {toc.length > 0 && (
+        <aside className="hidden xl:block">
+          <div className="fixed top-[104px] w-[200px] pr-6 max-h-[calc(100vh-120px)] overflow-y-auto">
+            <DocsToc toc={toc} />
+          </div>
+        </aside>
+      )}
+    </div>
   )
 }

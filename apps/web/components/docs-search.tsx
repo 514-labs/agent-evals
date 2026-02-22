@@ -18,27 +18,28 @@ export function DocsSearch() {
   const { search, setSearch, query } = useDocsSearch(clientOptions)
 
   return (
-    <div className="space-y-3">
+    <div>
       <Input
         value={search}
         onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search docs"
+        placeholder="Search docs..."
         aria-label="Search documentation"
+        className="h-8 border border-black/15 bg-white text-[12px] font-[family-name:var(--font-body)] tracking-wide placeholder:text-black/30 focus-visible:border-[#FF10F0] focus-visible:ring-[#FF10F0]/20"
       />
 
       {query.error ? (
-        <p className="text-xs text-destructive">Search index is unavailable.</p>
+        <p className="mt-2 text-[11px] text-red-600">Search index is unavailable.</p>
       ) : null}
 
       {query.data && query.data !== "empty" ? (
-        <ul className="space-y-1 rounded-lg border p-2">
+        <ul className="mt-2 border border-black/15 bg-white">
           {query.data.slice(0, 8).map((result) => (
-            <li key={result.id}>
-              <Link href={result.url} className="block rounded-md p-2 text-sm hover:bg-muted">
+            <li key={result.id} className="border-b last:border-b-0 border-black/10">
+              <Link href={result.url} className="block px-3 py-2 text-[12px] text-black/70 hover:text-black hover:bg-black/[0.03] transition-colors">
                 <p className="line-clamp-1">{result.content}</p>
                 {result.breadcrumbs && result.breadcrumbs.length > 0 ? (
-                  <p className="line-clamp-1 text-xs text-muted-foreground">
-                    {result.breadcrumbs.join(" / ")}
+                  <p className="line-clamp-1 text-[10px] text-black/30 mt-0.5">
+                    {result.breadcrumbs.join(" → ")}
                   </p>
                 ) : null}
               </Link>
