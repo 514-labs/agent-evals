@@ -60,7 +60,7 @@ export default function HomePage() {
             </h1>
             <div className="pb-2 lg:pb-4 max-w-xs brutal-fade-in">
               <p className="text-[11px] uppercase leading-snug tracking-wider">
-                The open-source benchmark for evaluating an AI agent's ability to tackle real-world data engineering problems.
+                The open-source data engineering competency benchmark for evaluating an AI agent's ability to tackle real-world problems.
               </p>
             </div>
           </div>
