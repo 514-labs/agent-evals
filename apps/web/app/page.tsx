@@ -60,7 +60,7 @@ export default function HomePage() {
             </h1>
             <div className="pb-2 lg:pb-4 max-w-xs brutal-fade-in">
               <p className="text-[11px] uppercase leading-snug tracking-wider">
-                An open-source data engineering competency benchmark for evaluating an AI agent's ability to tackle real-world data problems.
+                An open-source <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">d</span>ata <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">e</span>ngineering <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">c</span>ompetency benchmark for evaluating an AI agent&#39;s ability to tackle real-world data problems.
               </p>
             </div>
           </div>
