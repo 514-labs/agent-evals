@@ -92,7 +92,7 @@ export default function HomePage() {
         <div className="border-[3px] border-black">
           <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.3em]">SCORING</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">GATE + 4 DIMENSIONS</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">1 GATE + 4 DIMENSIONS</span>
           </div>
 
           {/* Correctness Gate */}
