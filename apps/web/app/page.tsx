@@ -33,17 +33,20 @@ export default function HomePage() {
     <div className="relative min-h-screen bg-white text-black overflow-hidden font-[family-name:var(--font-body)]">
 
       {/* Navigation */}
-      <nav className="relative z-20 flex items-center justify-between px-6 lg:px-12 py-4 border-b-[3px] border-black">
+      <nav className="relative z-20 border-b-[3px] border-black">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-4 flex items-center justify-between">
         <AnimatedLogo />
         <div className="flex items-center gap-4">
           <Link href="/docs" className="text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-[#FF10F0] px-3 py-1.5 transition-colors">DOCS</Link>
           <Link href="/leaderboard" className="text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-[#FF10F0] px-3 py-1.5 transition-colors">LEADERBOARD</Link>
           <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold uppercase tracking-[0.15em] border-[2px] border-black px-3 py-1 hover:bg-black hover:text-white transition-all">GH ↗</a>
         </div>
+        </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative z-10 px-6 lg:px-12 pt-8 lg:pt-16 pb-4">
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 pt-8 lg:pt-16 pb-4">
         <div className="relative">
           <h1 className="font-[family-name:var(--font-display)] text-[clamp(6rem,25vw,20rem)] leading-[0.85] tracking-[-0.02em] uppercase brutal-slide-in">
             DEC
@@ -71,6 +74,7 @@ export default function HomePage() {
             READ DOCS →
           </Link>
         </div>
+        </div>
       </section>
 
       {/* Marquee */}
@@ -83,7 +87,8 @@ export default function HomePage() {
       </div>
 
       {/* Scoring */}
-      <section className="relative z-10 px-6 lg:px-12 py-16">
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
         <div className="border-[3px] border-black">
           <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.3em]">SCORING</span>
@@ -115,10 +120,12 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+        </div>
       </section>
 
       {/* Internal Analytics Scenarios */}
-      <section className="relative z-10 px-6 lg:px-12 py-16">
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
         <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-7xl tracking-tight uppercase">
           SCENARIOS
         </h2>
@@ -150,10 +157,12 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+        </div>
       </section>
 
       {/* User-Facing Analytics Scenarios */}
-      <section className="relative z-10 px-6 lg:px-12 pb-16">
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 pb-16">
         <div className="border-[3px] border-black">
           <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-[0.3em]">USER-FACING ANALYTICS</span>
@@ -176,10 +185,12 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+        </div>
       </section>
 
       {/* Agent Modes */}
-      <section className="relative z-10 px-6 lg:px-12 py-16">
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
         <div className="grid md:grid-cols-2">
           <div className="border-[3px] border-black p-8 bg-[#FF10F0]">
             <span className="text-[9px] font-bold uppercase tracking-[0.3em] block mb-4">PERSONA</span>
@@ -196,10 +207,12 @@ export default function HomePage() {
             </p>
           </div>
         </div>
+        </div>
       </section>
 
       {/* Data Stack */}
-      <section className="relative z-10 px-6 lg:px-12 py-16">
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
         <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-7xl tracking-tight uppercase">
           DATA STACK
         </h2>
@@ -232,6 +245,7 @@ export default function HomePage() {
           </div>
           <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/30">OPEN TO CONTRIBUTIONS</span>
         </div>
+        </div>
       </section>
 
       {/* Marquee 2 */}
@@ -244,7 +258,8 @@ export default function HomePage() {
       </div>
 
       {/* Final CTA */}
-      <section className="relative z-10 px-6 lg:px-12 py-24 text-center">
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-24 text-center">
         <h2 className="font-[family-name:var(--font-display)] text-5xl md:text-[8rem] tracking-tight uppercase leading-[0.85]">
           START<br />YOUR EVAL
         </h2>
@@ -259,10 +274,13 @@ export default function HomePage() {
             GET STARTED →
           </Link>
         </div>
+        </div>
       </section>
 
-      <footer className="border-t-[3px] border-black px-6 py-6 text-center text-[9px] font-bold uppercase tracking-[0.3em] text-black/40">
+      <footer className="border-t-[3px] border-black">
+        <div className="max-w-6xl mx-auto px-6 py-6 text-center text-[9px] font-bold uppercase tracking-[0.3em] text-black/40">
         BROUGHT TO YOU BY <a href="https://fiveonefour.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/70 transition-colors">FIVEONEFOUR</a> · <a href="https://fiveonefour.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-black/70 transition-colors">BECOME A SPONSOR</a>
+        </div>
       </footer>
     </div>
   )
