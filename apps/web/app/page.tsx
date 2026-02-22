@@ -58,9 +58,17 @@ export default function HomePage() {
             >
               BENCH
             </h1>
-            <div className="pb-2 lg:pb-4 max-w-xs brutal-fade-in">
-              <p className="text-[11px] uppercase leading-snug tracking-wider">
-                The open-source benchmark for evaluating an AI agent's ability to tackle real-world data engineering problems.
+            <div className="pb-2 lg:pb-4 max-w-sm brutal-fade-in">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-[3px] bg-[#FF10F0]" />
+                <p className="text-[10px] font-bold tracking-[0.25em] leading-none">
+                  <span className="border-b-2 border-[#FF10F0]">D</span>ATA{" "}
+                  <span className="border-b-2 border-[#FF10F0]">E</span>NGINEERING{" "}
+                  <span className="border-b-2 border-[#FF10F0]">C</span>OMPETENCY BENCH
+                </p>
+              </div>
+              <p className="text-[11px] uppercase leading-snug tracking-wider text-black/60">
+                The open-source benchmark for evaluating an AI agent&#39;s ability to tackle real-world data engineering problems.
               </p>
             </div>
           </div>
