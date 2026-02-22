@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Anton, Space_Mono } from "next/font/google"
 
-import "@workspace/ui/globals.css"
+import "@/styles/app.css"
 
 const fontDisplay = Anton({
   subsets: ["latin"],
@@ -28,6 +28,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body
         className={`${fontDisplay.variable} ${fontBody.variable} antialiased`}
         style={{ backgroundColor: "#ffffff" }}
