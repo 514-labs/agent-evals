@@ -24,7 +24,7 @@ pub enum OutputFormat {
 }
 
 pub async fn execute(args: ResultsArgs) -> Result<()> {
-    println!("RAD Bench Results");
+    println!("DEC Bench Results");
     println!("Results directory: {}", args.dir);
     if let Some(scenario) = &args.scenario {
         println!("Filtered by scenario: {}", scenario);
@@ -32,7 +32,7 @@ pub async fn execute(args: ResultsArgs) -> Result<()> {
     println!("Output format: {:?}", args.format);
     println!();
     println!("NOTE: Results collection not yet implemented.");
-    println!("      Run `rad-bench run` to generate results, then check the results/ directory.");
+    println!("      Run `dec-bench run` to generate results, then check the results/ directory.");
 
     Ok(())
 }
