@@ -3,7 +3,11 @@ import type { TableOfContents } from "fumadocs-core/toc"
 import { notFound } from "next/navigation"
 
 import { DocsToc } from "@/components/docs-toc"
+import { EmptyState } from "@/components/empty-state"
+import { RoadmapTimeline } from "@/components/roadmap-timeline"
 import { docsSource } from "@/lib/source"
+
+const mdxComponents = { EmptyState, RoadmapTimeline }
 
 export const dynamic = "force-static"
 export const dynamicParams = false
@@ -60,7 +64,7 @@ export default async function DocsPage({
         </div>
 
         <div className="dec-prose">
-          <Body />
+          <Body components={mdxComponents} />
         </div>
       </article>
 

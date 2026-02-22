@@ -5,8 +5,8 @@ use tracing_subscriber::EnvFilter;
 mod commands;
 
 #[derive(Parser)]
-#[command(name = "rad-bench")]
-#[command(about = "RAD Bench — Realtime, Analytical & Data Engineering Agent Evals")]
+#[command(name = "dec-bench")]
+#[command(about = "DEC Bench — Data Engineering Competency Agent Evals")]
 #[command(version)]
 struct Cli {
     #[command(subcommand)]

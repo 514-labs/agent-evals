@@ -1,4 +1,4 @@
-import type { BaselineMetrics, ObservedMetrics, ReferenceMetrics } from "@rad-bench/scenarios";
+import type { BaselineMetrics, ObservedMetrics, ReferenceMetrics } from "@dec-bench/scenarios";
 import {
   costImprovementRatio,
   latencyImprovementRatio,
@@ -43,7 +43,7 @@ export interface ScoreBreakdown {
 }
 
 /**
- * Compute the composite RAD Bench score for a single eval run.
+ * Compute the composite DEC Bench score for a single eval run.
  *
  * Formula (§7.1):
  *   score = w_task * task_completion

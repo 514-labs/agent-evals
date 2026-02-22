@@ -1,4 +1,4 @@
-import type { BaselineMetrics, ObservedMetrics, ReferenceMetrics } from "@rad-bench/scenarios";
+import type { BaselineMetrics, ObservedMetrics, ReferenceMetrics } from "@dec-bench/scenarios";
 
 /**
  * Latency improvement ratio: how much the agent improved query latency

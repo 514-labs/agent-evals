@@ -39,7 +39,7 @@ export default function HomePage() {
         <div className="flex items-center gap-4">
           <Link href="/docs" className="text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-[#FF10F0] px-3 py-1.5 transition-colors">DOCS</Link>
           <Link href="/leaderboard" className="text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-[#FF10F0] px-3 py-1.5 transition-colors">LEADERBOARD</Link>
-          <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold uppercase tracking-[0.15em] border-[2px] border-black px-3 py-1 hover:bg-black hover:text-white transition-all">GH ↗</a>
+          <a href="https://github.com/514-labs/agent-evals" target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold uppercase tracking-[0.15em] border-[2px] border-black px-3 py-1 hover:bg-black hover:text-white transition-all">GH ↗</a>
         </div>
         </div>
       </nav>
