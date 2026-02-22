@@ -9,7 +9,7 @@ function extractTextContent(node: ReactNode): string {
   if (typeof node === "string") return node
   if (typeof node === "number") return String(node)
   if (!isValidElement(node)) return ""
-  const children = node.props.children
+  const { children } = node.props as { children?: ReactNode }
   if (!children) return ""
   if (typeof children === "string") return children
   if (Array.isArray(children)) {
