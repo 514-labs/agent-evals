@@ -1,23 +1,24 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Anton, Space_Mono } from "next/font/google"
 
 import "@workspace/ui/globals.css"
-import { Providers } from "@/components/providers"
-import { SiteHeader } from "@/components/site-header"
 
-const fontSans = Geist({
+const fontDisplay = Anton({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-display",
+  weight: "400",
 })
 
-const fontMono = Geist_Mono({
+const fontBody = Space_Mono({
   subsets: ["latin"],
-  variable: "--font-mono",
+  variable: "--font-body",
+  weight: ["400", "700"],
 })
 
 export const metadata: Metadata = {
-  title: "rad-bench",
-  description: "Initial static-first scaffold for the rad-bench web app.",
+  title: "RAD Bench — Agent Evals for ClickHouse",
+  description:
+    "The open-source benchmark for evaluating AI agents on real-world ClickHouse data engineering tasks.",
 }
 
 export default function RootLayout({
@@ -26,14 +27,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}>
-        <Providers>
-          <div className="min-h-svh bg-background text-foreground">
-            <SiteHeader />
-            <main className="mx-auto w-full max-w-6xl px-4 py-8">{children}</main>
-          </div>
-        </Providers>
+    <html lang="en">
+      <body
+        className={`${fontDisplay.variable} ${fontBody.variable} antialiased`}
+        style={{ backgroundColor: "#ffffff" }}
+      >
+        {children}
       </body>
     </html>
   )
