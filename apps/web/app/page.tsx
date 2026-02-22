@@ -58,16 +58,23 @@ export default function HomePage() {
             >
               BENCH
             </h1>
-            <div className="pb-2 lg:pb-4 max-w-sm brutal-fade-in">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-[3px] bg-[#FF10F0]" />
-                <p className="text-[10px] font-bold tracking-[0.25em] leading-none">
-                  <span className="border-b-2 border-[#FF10F0]">D</span>ATA{" "}
-                  <span className="border-b-2 border-[#FF10F0]">E</span>NGINEERING{" "}
-                  <span className="border-b-2 border-[#FF10F0]">C</span>OMPETENCY BENCH
-                </p>
+            <div className="pb-2 lg:pb-4 brutal-fade-in">
+              <div className="mb-3 flex flex-col gap-[3px]">
+                <div className="flex items-center">
+                  <span className="inline-flex items-center justify-center w-[18px] h-[18px] bg-[#FF10F0] text-white text-[11px] font-bold leading-none shrink-0">D</span>
+                  <span className="text-[10px] font-bold tracking-[0.3em] ml-[6px]">ATA</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="inline-flex items-center justify-center w-[18px] h-[18px] bg-[#FF10F0] text-white text-[11px] font-bold leading-none shrink-0">E</span>
+                  <span className="text-[10px] font-bold tracking-[0.3em] ml-[6px]">NGINEERING</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="inline-flex items-center justify-center w-[18px] h-[18px] bg-[#FF10F0] text-white text-[11px] font-bold leading-none shrink-0">C</span>
+                  <span className="text-[10px] font-bold tracking-[0.3em] ml-[6px]">OMPETENCY</span>
+                </div>
               </div>
-              <p className="text-[11px] uppercase leading-snug tracking-wider text-black/60">
+              <div className="w-full h-[2px] bg-black/10 mb-3" />
+              <p className="text-[11px] uppercase leading-snug tracking-wider text-black/50 max-w-[28ch]">
                 The open-source benchmark for evaluating an AI agent&#39;s ability to tackle real-world data engineering problems.
               </p>
             </div>
