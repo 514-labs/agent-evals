@@ -60,7 +60,7 @@ export default function HomePage() {
             </h1>
             <div className="pb-2 lg:pb-4 max-w-xs brutal-fade-in">
               <p className="text-[11px] uppercase leading-snug tracking-wider">
-                The open-source benchmark for evaluating AI agent competency on real-world data engineering tasks and workloads.
+                An open-source <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">d</span>ata <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">e</span>ngineering <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">c</span>ompetency benchmark for evaluating an AI agent&#39;s ability to tackle real-world data problems.
               </p>
             </div>
           </div>
@@ -91,8 +91,8 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
         <div className="border-[3px] border-black">
           <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em]">SCORING</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">GATE + 4 DIMENSIONS</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em]">EVALUATION RUN SCORING METHODOLOGY</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">1 GATE + 4 DIMENSIONS</span>
           </div>
 
           {/* Correctness Gate */}
