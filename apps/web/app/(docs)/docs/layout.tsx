@@ -6,7 +6,6 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
   SidebarInset,
   SidebarTrigger,
@@ -52,9 +51,6 @@ export default function DocsLayout({
           <SidebarSeparator />
           <SidebarContent className="px-2">
             <SidebarGroup>
-              <SidebarGroupLabel className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 px-2 h-6 mb-0">
-                NAVIGATION
-              </SidebarGroupLabel>
               <SidebarGroupContent>
                 <DocsTreeNav tree={docsSource.pageTree} />
               </SidebarGroupContent>
