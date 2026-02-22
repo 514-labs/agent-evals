@@ -91,7 +91,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
         <div className="border-[3px] border-black">
           <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-[0.3em]">SCORING</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.3em]">EVALUATION RUN SCORING METHODOLOGY</span>
             <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">1 GATE + 4 DIMENSIONS</span>
           </div>
 
