@@ -16,7 +16,7 @@ export function SiteHeader() {
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <div className="flex items-center gap-2">
           <Link href="/" className="text-sm font-semibold tracking-tight">
-            rad-bench web
+            dec-bench web
           </Link>
           <Badge variant="outline">Scaffold</Badge>
         </div>
