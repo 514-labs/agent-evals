@@ -16,9 +16,9 @@ const fontBody = Space_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "RAD Bench — Agent Evals for ClickHouse",
+  title: "DEC Bench — Agent Evals for ClickHouse",
   description:
-    "The open-source benchmark for evaluating AI agents on real-world ClickHouse data engineering tasks.",
+    "The open-source benchmark for evaluating AI agent data engineering competency on real-world data engineering tasks and workloads.",
 }
 
 export default function RootLayout({
