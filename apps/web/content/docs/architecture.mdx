@@ -1,0 +1,79 @@
+---
+title: "Architecture"
+description: "Layered Docker images, harness scripts, and network policy."
+---
+
+Every benchmark image stacks four layers. Docker caches aggressively -- running ten agent/model combos against the same scenario downloads the scenario layer once.
+
+```text title="Layer hierarchy"
+base                          OS, runtimes, database CLIs, scoring framework
+  └── scenario                infrastructure, seed data, prompt, validation
+        └── harness           pre-installed tools
+              └── agent       agent CLI + runner script + model config
+```
+
+## Base
+
+Built on `debian:bookworm-slim` (Alpine's musl breaks too many tools).
+
+Includes:
+- **Runtimes**: Python 3, pip, venv, Node.js 22
+- **CLIs**: bash, curl, git, jq, psql, mysql-client, clickhouse-client
+- **Python packages**: psycopg2-binary, clickhouse-connect, kafka-python, sqlalchemy, pandas
+- **Infrastructure**: supervisord for running services inside the container
+- **Scoring**: gate assertion framework, session recording, efficiency metrics
+
+## Scenario
+
+A self-contained data engineering problem. The container boots infrastructure in a broken or incomplete state. The agent fixes it.
+
+Services run locally via supervisord -- Postgres, ClickHouse, Redpanda, all inside the container. Connection strings are exported as environment variables.
+
+## Harness
+
+A shell script that installs tools. That's the whole abstraction.
+
+```bash title="harnesses/dbt.sh"
+pip install dbt-core dbt-postgres dbt-clickhouse
+```
+
+The Dockerfile runs it at build time. Contributing a harness = writing a shell script.
+
+## Agent + Model
+
+A runner script baked into the image:
+
+```bash title="agents/claude-code/run.sh"
+claude -p "$(cat /scenario/prompt.md)" \
+  --model $MODEL \
+  --allowedTools "Bash(command:*)" \
+  --max-turns 50 \
+  2>&1 | tee /output/session.log
+```
+
+Custom agents mount or bake in their own runner. See [Running Evals](/docs/running-evals#custom-agents).
+
+## Network Access
+
+Outbound traffic is **open by default**. The agent can install packages, call APIs, and search the web -- just like a developer on a real machine.
+
+Pass `--network-policy=restricted` for stricter evaluations. In restricted mode, all outbound traffic is blocked except explicitly allowlisted endpoints:
+
+```bash title="Restricted mode: base rules"
+iptables -A OUTPUT -o lo -j ACCEPT
+iptables -P OUTPUT DROP
+```
+
+Each agent adds its LLM provider:
+
+```bash title="agents/claude-code/iptables.sh"
+iptables -I OUTPUT -d api.anthropic.com -j ACCEPT
+```
+
+Each harness adds endpoints for its tools:
+
+```bash title="harnesses/web-search/iptables.sh"
+iptables -I OUTPUT -d api.tavily.com -j ACCEPT
+```
+
+Rules stack. The final image allows the union of all endpoints from its agent and harness layers.

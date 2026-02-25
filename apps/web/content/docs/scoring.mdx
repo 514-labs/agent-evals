@@ -1,0 +1,93 @@
+---
+title: "Scoring"
+description: "Five gates, strictly sequential. Efficiency breaks ties."
+---
+
+Scoring is deterministic -- no LLM-as-judge. Five gates, evaluated in order. Fail a gate, and nothing above it counts.
+
+## Gates
+
+| Gate | Name | One-liner |
+|------|------|-----------|
+| 1 | **Functional** | It runs |
+| 2 | **Correct** | It produces right answers |
+| 3 | **Robust** | It handles real-world conditions |
+| 4 | **Performant** | It's fast enough |
+| 5 | **Production** | You'd ship this |
+
+Each gate checks two things:
+
+1. **Core assertions** -- universal, binary pass/fail (e.g., `process_exits_clean`, `idempotent_rerun`)
+2. **Scenario assertions** -- weighted points defined by the scenario author (e.g., `handles_nulls`, `query_under_200ms`)
+
+A gate passes when all core assertions pass **and** scenario assertions hit the 80% threshold.
+
+## Efficiency
+
+Wall clock time, agent steps, tokens used, and LLM API cost are tracked but scored separately. They break ties between agents at the same gate -- they never inflate or deflate the gate score itself.
+
+## Output
+
+Two values drive the leaderboard:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `highest_gate` | integer 0--5 | Primary rank |
+| `normalized_score` | float 0--1 | Fine-grained ordering within a gate |
+
+## Example Output
+
+```json title="Eval result (stdout)"
+{
+  "scenario": "ecommerce-pipeline",
+  "version": "1.0.0",
+  "harness": "dbt",
+  "agent": "claude-code",
+  "model": "claude-sonnet-4-20250514",
+
+  "highest_gate": 3,
+  "normalized_score": 0.74,
+
+  "gates": {
+    "functional": {
+      "passed": true,
+      "score": 1.00,
+      "core": { "process_exits_clean": true, "no_unhandled_errors": true },
+      "scenario": { "target_tables_exist": true, "no_empty_tables": true }
+    },
+    "correct": {
+      "passed": true,
+      "score": 0.92,
+      "core": {},
+      "scenario": { "row_counts_match": true, "checksum_match": true, "schema_types_correct": false }
+    },
+    "robust": {
+      "passed": true,
+      "score": 0.86,
+      "core": { "idempotent_rerun": true },
+      "scenario": { "handles_nulls": true, "handles_dupes": true, "handles_late_arriving": false }
+    },
+    "performant": {
+      "passed": false,
+      "score": 0.43,
+      "core": {},
+      "scenario": { "query_under_200ms": false, "pipeline_under_30s": true }
+    },
+    "production": {
+      "passed": false,
+      "score": 0.50,
+      "core": { "uses_env_vars": true, "no_secrets_in_code": true },
+      "scenario": { "incremental_capable": false, "has_data_tests": true }
+    }
+  },
+
+  "efficiency": {
+    "wall_clock_seconds": 127,
+    "agent_steps": 14,
+    "tokens_used": 48230,
+    "llm_api_cost_usd": 0.34
+  }
+}
+```
+
+This agent cleared gates 1--3, failed gate 4 on performance, so `highest_gate` is 3. The `normalized_score` of 0.74 reflects the weighted scenario assertions across all gates.

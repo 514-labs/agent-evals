@@ -6,8 +6,9 @@ import { DocsToc } from "@/components/docs-toc"
 import { EmptyState } from "@/components/empty-state"
 import { RoadmapTimeline } from "@/components/roadmap-timeline"
 import { docsSource } from "@/lib/source"
+import { useMDXComponents } from "@/mdx-components"
 
-const mdxComponents = { EmptyState, RoadmapTimeline }
+const mdxComponents = useMDXComponents({ EmptyState, RoadmapTimeline })
 
 export const dynamic = "force-static"
 export const dynamicParams = false

@@ -3,11 +3,12 @@ import { AnimatedLogo } from "../components/animated-logo"
 
 export const dynamic = "force-static"
 
-const dimensions = [
-  { label: "LATENCY", weight: "0.4", detail: "IMPROVEMENT OVER BASELINE" },
-  { label: "COST", weight: "0.3", detail: "IMPROVEMENT OVER BASELINE" },
-  { label: "QUALITY", weight: "0.2", detail: "SOLUTION QUALITY" },
-  { label: "EFFICIENCY", weight: "0.1", detail: "FEWER STEPS IS BETTER" },
+const gates = [
+  { label: "FUNCTIONAL", number: "01", detail: "IT RUNS" },
+  { label: "CORRECT", number: "02", detail: "IT PRODUCES RIGHT ANSWERS" },
+  { label: "ROBUST", number: "03", detail: "IT HANDLES REAL-WORLD CONDITIONS" },
+  { label: "PERFORMANT", number: "04", detail: "IT'S FAST ENOUGH" },
+  { label: "PRODUCTION", number: "05", detail: "YOU'D SHIP THIS" },
 ]
 
 const internalScenarios = [
@@ -89,33 +90,40 @@ export default function HomePage() {
       {/* Scoring */}
       <section className="relative z-10">
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
-        <div className="border-[3px] border-black">
-          <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
+        <div className="border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <div className="px-6 py-3 bg-black text-white flex items-center justify-between border-b-[3px] border-black">
             <span className="text-[10px] font-bold uppercase tracking-[0.3em]">EVALUATION RUN SCORING METHODOLOGY</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">1 GATE + 4 DIMENSIONS</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-[#FF10F0]">5 SEQUENTIAL GATES</span>
           </div>
 
-          {/* Correctness Gate */}
-          <div className="px-6 py-5 border-b-[2px] border-black/15 bg-[#FF10F0] flex items-center justify-between gap-4 flex-wrap">
+          {/* Efficiency Callout */}
+          <div className="px-6 py-6 border-b-[3px] border-black bg-[#FF10F0] flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <span className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl tracking-tight">CORRECTNESS</span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-0.5">GATE</span>
+              <span className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl tracking-tight uppercase">Efficiency is a tiebreaker</span>
+              <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-0.5 bg-black text-white">METRICS</span>
             </div>
-            <p className="text-[11px] uppercase tracking-wider text-black/60">
-              Fail correctness → score is <span className="font-bold text-black">zero</span>
+            <p className="text-[11px] uppercase tracking-wider text-black md:text-right max-w-sm font-medium">
+              Wall clock time, agent steps, tokens, and API cost are tracked separately. They never inflate the gate-based score.
             </p>
           </div>
 
-          {/* Weighted Dimensions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-x-0 lg:divide-x-[2px] divide-y-[2px] lg:divide-y-0 divide-black/15">
-            {dimensions.map((d) => (
+          {/* Sequential Gates */}
+          <div className="flex flex-col divide-y-[3px] divide-black">
+            {gates.map((g) => (
               <div
-                key={d.label}
-                className="p-6 group hover:bg-[#FF10F0] transition-colors duration-200"
+                key={g.label}
+                className="grid grid-cols-[100px_1fr] md:grid-cols-[150px_300px_1fr] items-stretch group hover:bg-black hover:text-white transition-colors duration-200"
               >
-                <div className="font-[family-name:var(--font-display)] text-5xl lg:text-6xl tracking-tight">{d.weight}</div>
-                <div className="mt-2 text-[11px] font-bold uppercase tracking-[0.2em]">{d.label}</div>
-                <div className="mt-1 text-[10px] text-black/50 group-hover:text-black/70 transition-colors">{d.detail}</div>
+                <div className="p-6 md:p-8 border-r-[3px] border-black flex items-center justify-center bg-black text-[#FF10F0] group-hover:bg-[#FF10F0] group-hover:text-black transition-colors duration-200">
+                  <div className="font-[family-name:var(--font-display)] text-5xl lg:text-7xl tracking-tight">{g.number}</div>
+                </div>
+                <div className="p-6 md:p-8 flex flex-col justify-center">
+                  <div className="text-[16px] md:text-[24px] font-[family-name:var(--font-display)] uppercase tracking-wide">{g.label}</div>
+                  <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-black/50 group-hover:text-white/50">GATE</div>
+                </div>
+                <div className="col-span-2 md:col-span-1 border-t-[3px] md:border-t-0 md:border-l-[3px] border-black p-6 md:p-8 flex items-center group-hover:border-white">
+                  <div className="text-[12px] md:text-[14px] uppercase tracking-widest text-black/70 group-hover:text-white/90 font-medium">→ {g.detail}</div>
+                </div>
               </div>
             ))}
           </div>
