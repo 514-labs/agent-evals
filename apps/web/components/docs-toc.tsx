@@ -28,13 +28,14 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
         <ScrollProvider containerRef={scrollRef}>
           <ul className="space-y-0.5">
             {toc.map((item) => (
-              <li key={item.url}>
+              <li key={item.url} className="relative">
                 <TOCItem
                   href={item.url}
-                  className="block py-1 text-[11px] tracking-wide transition-colors border-l-[2px] pl-3 text-black/35 hover:text-black/60 border-transparent data-[active=true]:font-bold data-[active=true]:text-black data-[active=true]:border-[#FF10F0]"
-                  style={{ paddingLeft: `${(item.depth - 2) * 0.5 + 0.75}rem` }}
+                  className="toc-link group/toc relative block py-1.5 text-[11px] tracking-wide"
+                  style={{ paddingLeft: `${(item.depth - 2) * 0.5 + 1}rem` }}
                 >
-                  {item.title}
+                  <span className="toc-indicator" />
+                  <span className="toc-label">{item.title}</span>
                 </TOCItem>
               </li>
             ))}
