@@ -13,6 +13,7 @@ import { ScenarioRegistry } from "@/components/scenario-registry"
 
 export function ScenarioRegistryBlock() {
   return (
+    <div className="not-prose">
     <ScenarioRegistry
       scenarios={scenarios}
       harnesses={harnesses}
@@ -23,5 +24,6 @@ export function ScenarioRegistryBlock() {
       tiers={tiers}
       startingStates={startingStates}
     />
+    </div>
   )
 }
