@@ -343,9 +343,9 @@ mod tests {
 
     #[test]
     fn extract_result_json_falls_back_when_no_json_found() {
-        let parsed = extract_result_json("no json here", "scenario-a", "dbt", 17);
+        let parsed = extract_result_json("no json here", "scenario-a", "classic-de", 17);
         assert_eq!(parsed["scenario"], "scenario-a");
-        assert_eq!(parsed["harness"], "dbt");
+        assert_eq!(parsed["harness"], "classic-de");
         assert_eq!(parsed["container_exit_code"], 17);
         assert!(parsed["error"].as_str().unwrap_or("").contains("No structured JSON"));
     }

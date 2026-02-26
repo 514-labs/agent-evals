@@ -180,7 +180,7 @@ mod tests {
         let temp = tempfile::tempdir().expect("temp dir");
         fs::write(
             temp.path().join("b.json"),
-            r#"{"scenario":"s2","harness":"dbt","highest_gate":2,"normalized_score":0.5}"#,
+            r#"{"scenario":"s2","harness":"classic-de","highest_gate":2,"normalized_score":0.5}"#,
         )
         .expect("write result file");
         fs::write(

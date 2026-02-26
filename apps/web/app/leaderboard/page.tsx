@@ -14,14 +14,14 @@ export const dynamic = "force-static"
 const gateNames = ["—", "FUNCTIONAL", "CORRECT", "ROBUST", "PERFORMANT", "PRODUCTION"]
 
 const entries = [
-  { rank: 1, agent: "CLAUDE CODE", model: "sonnet-4", harness: "dbt", highestGate: 5, normalizedScore: 0.96, wallClock: 98, steps: 11, tokens: 38200, cost: 0.27 },
+  { rank: 1, agent: "CLAUDE CODE", model: "sonnet-4", harness: "classic-de", highestGate: 5, normalizedScore: 0.96, wallClock: 98, steps: 11, tokens: 38200, cost: 0.27 },
   { rank: 2, agent: "CLAUDE CODE", model: "opus-4", harness: "bare", highestGate: 5, normalizedScore: 0.91, wallClock: 142, steps: 18, tokens: 62400, cost: 0.89 },
-  { rank: 3, agent: "CODEX", model: "gpt-4.1", harness: "dbt", highestGate: 4, normalizedScore: 0.88, wallClock: 115, steps: 14, tokens: 44100, cost: 0.38 },
-  { rank: 4, agent: "AIDER", model: "sonnet-4", harness: "full", highestGate: 4, normalizedScore: 0.82, wallClock: 167, steps: 22, tokens: 71300, cost: 0.51 },
+  { rank: 3, agent: "CODEX", model: "gpt-4.1", harness: "classic-de", highestGate: 4, normalizedScore: 0.88, wallClock: 115, steps: 14, tokens: 44100, cost: 0.38 },
+  { rank: 4, agent: "AIDER", model: "sonnet-4", harness: "classic-de", highestGate: 4, normalizedScore: 0.82, wallClock: 167, steps: 22, tokens: 71300, cost: 0.51 },
   { rank: 5, agent: "CODEX", model: "gpt-4.1", harness: "bare", highestGate: 3, normalizedScore: 0.74, wallClock: 131, steps: 16, tokens: 48200, cost: 0.34 },
   { rank: 6, agent: "CLAUDE CODE", model: "sonnet-4", harness: "bare", highestGate: 3, normalizedScore: 0.71, wallClock: 109, steps: 13, tokens: 41500, cost: 0.29 },
-  { rank: 7, agent: "AIDER", model: "gpt-4.1", harness: "dbt", highestGate: 2, normalizedScore: 0.63, wallClock: 189, steps: 26, tokens: 83100, cost: 0.58 },
-  { rank: 8, agent: "CODEX", model: "gpt-4.1", harness: "mcp-postgres", highestGate: 2, normalizedScore: 0.55, wallClock: 154, steps: 19, tokens: 56700, cost: 0.42 },
+  { rank: 7, agent: "AIDER", model: "gpt-4.1", harness: "classic-de", highestGate: 2, normalizedScore: 0.63, wallClock: 189, steps: 26, tokens: 83100, cost: 0.58 },
+  { rank: 8, agent: "CODEX", model: "gpt-4.1", harness: "olap-for-swe", highestGate: 2, normalizedScore: 0.55, wallClock: 154, steps: 19, tokens: 56700, cost: 0.42 },
 ]
 
 function GatePips({ gate }: { gate: number }) {

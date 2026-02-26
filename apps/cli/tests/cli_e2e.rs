@@ -42,7 +42,7 @@ fn results_command_outputs_json_for_result_files() {
     let temp = tempdir().expect("temp dir");
     fs::write(
         temp.path().join("res.json"),
-        r#"{"scenario":"ecommerce-pipeline-recovery","harness":"dbt","highest_gate":3,"normalized_score":0.74}"#,
+        r#"{"scenario":"ecommerce-pipeline-recovery","harness":"classic-de","highest_gate":3,"normalized_score":0.74}"#,
     )
     .expect("write result");
 
@@ -74,8 +74,8 @@ fn registry_add_harness_writes_json_entry() {
         .arg("CLI Test Harness")
         .arg("--description")
         .arg("Harness for CLI tests")
-        .arg("--installs")
-        .arg("dbt-core,dbt-postgres")
+        .arg("--install-script")
+        .arg("pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0")
         .arg("--network-policy")
         .arg("open")
         .arg("--out")

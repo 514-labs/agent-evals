@@ -65,10 +65,10 @@ from pathlib import Path
 src = Path("${HARNESS_JSON}")
 dest = Path("${HARNESS_SCRIPT}")
 data = json.loads(src.read_text())
-installs = data.get("installs", [])
+install_script = (data.get("installScript") or "").strip()
 lines = ["#!/usr/bin/env bash", "set -euo pipefail"]
-if installs:
-    lines.append("pip3 install --no-cache-dir " + " ".join(installs))
+if install_script:
+    lines.append(install_script)
 dest.write_text("\\n".join(lines) + "\\n")
 dest.chmod(0o755)
 PY

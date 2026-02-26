@@ -110,9 +110,9 @@ pub struct AddArgs {
     #[arg(long)]
     pub description: Option<String>,
 
-    /// Comma-separated tool installs for harness entries
+    /// Shell script body run at build-time to install harness tooling
     #[arg(long)]
-    pub installs: Option<String>,
+    pub install_script: Option<String>,
 
     /// Harness network policy
     #[arg(long = "network-policy", value_enum, default_value = "open")]
@@ -279,12 +279,11 @@ fn add_harness(args: AddArgs) -> Result<()> {
         stdin_is_tty,
         "Harness description (--description)",
     )?;
-    let installs_raw = required_value(
-        args.installs,
+    let install_script = required_value(
+        args.install_script,
         stdin_is_tty,
-        "Installs (comma-separated, --installs)",
+        "Install script (--install-script)",
     )?;
-    let installs = parse_csv(&installs_raw);
     let allowlisted_endpoints = args
         .allowlisted_endpoints
         .map(|v| parse_csv(&v))
@@ -306,7 +305,7 @@ fn add_harness(args: AddArgs) -> Result<()> {
         "id": id,
         "title": title,
         "description": description,
-        "installs": installs,
+        "installScript": install_script,
         "networkPolicy": args.network_policy.to_string(),
         "allowlistedEndpoints": allowlisted_endpoints,
     });
@@ -551,7 +550,7 @@ mod tests {
             id: Some("test-harness".to_string()),
             title: Some("Test Harness".to_string()),
             description: Some("Harness for tests".to_string()),
-            installs: Some("dbt-core, dbt-postgres".to_string()),
+            install_script: Some("pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0".to_string()),
             network_policy: NetworkPolicy::Restricted,
             allowlisted_endpoints: Some("pypi.org,registry.npmjs.org".to_string()),
         };
@@ -563,6 +562,9 @@ mod tests {
         let json: serde_json::Value = serde_json::from_str(&payload).expect("valid json");
         assert_eq!(json["id"], "test-harness");
         assert_eq!(json["networkPolicy"], "restricted");
-        assert_eq!(json["installs"][0], "dbt-core");
+        assert_eq!(
+            json["installScript"],
+            "pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0"
+        );
     }
 }

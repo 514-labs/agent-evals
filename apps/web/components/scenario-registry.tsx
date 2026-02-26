@@ -38,7 +38,7 @@ type RegistryHarness = {
   id: string
   title: string
   description: string
-  installs: string[]
+  installScript: string
   networkPolicy: "open" | "restricted"
   allowlistedEndpoints?: string[]
 }
@@ -248,7 +248,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     const needle = query.trim().toLowerCase()
     return props.harnesses
       .filter((harness) =>
-        includesText([harness.id, harness.title, harness.description, ...harness.installs], needle)
+        includesText([harness.id, harness.title, harness.description, harness.installScript], needle)
       )
       .sort((a, b) => a.title.localeCompare(b.title))
   }, [props.harnesses, query])
@@ -536,7 +536,9 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                     </Badge>
                   </div>
 
-                  <div className="text-[11px] text-black/65">Installs: {harness.installs.join(", ") || "none"}</div>
+                  <div className="text-[11px] text-black/65">
+                    Install script: {harness.installScript || "none"}
+                  </div>
 
                   {expanded && (
                     <div className="pt-2 border-t border-black/10 space-y-2">

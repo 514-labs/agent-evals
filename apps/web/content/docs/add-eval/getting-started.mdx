@@ -223,16 +223,17 @@ Keep assertions deterministic, fast, and focused on a single check each. The fra
 
 A harness installs tools in the image layer used by the agent.
 
-Use an existing harness profile when possible (for example, `bare` or `dbt`). Create a custom harness only if tool requirements are truly new.
+Use an existing harness profile when possible (for example, `bare`, `classic-de`, or `olap-for-swe`). Create a custom harness only if tool requirements are truly new.
 
-```bash title="harnesses/dbt.sh"
-pip install dbt-core dbt-postgres dbt-clickhouse
+```bash title="harnesses/classic-de.sh"
+pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0 dbt-clickhouse==1.10.0 polars==1.38.1 great-expectations==1.13.0
 ```
 
 For restricted network mode, add optional endpoint allowlisting:
 
-```bash title="harnesses/web-search/iptables.sh"
+```bash title="harnesses/custom/iptables.sh"
 iptables -I OUTPUT -d pypi.org -j ACCEPT
+iptables -I OUTPUT -d registry.npmjs.org -j ACCEPT
 ```
 
 ## 6) Register the Scenario
@@ -246,7 +247,7 @@ Create scenario metadata that maps cleanly to DEC Bench scenario types:
   "description": "Restore and harden a broken daily orders pipeline.",
   "tier": "tier-2",
   "domain": "e-commerce",
-  "harness": "dbt",
+  "harness": "classic-de",
   "tasks": [
     {
       "id": "fix-orders-model",
@@ -281,7 +282,7 @@ Run:
 ```bash title="Run one eval"
 dec-bench run \
   --scenario ecommerce-pipeline \
-  --harness dbt \
+  --harness classic-de \
   --persona naive \
   --mode no-plan
 ```

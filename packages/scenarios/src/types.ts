@@ -25,7 +25,7 @@ export type BusinessDomain =
   | "consumption-based-infra";
 
 // Built-in harnesses plus custom user harness names.
-export type BuiltInHarness = "bare" | "dbt" | "full" | "mcp-postgres" | "web-search";
+export type BuiltInHarness = "bare" | "classic-de" | "olap-for-swe";
 export type Harness = BuiltInHarness | "custom";
 
 // Agent planning mode

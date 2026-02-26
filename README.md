@@ -15,7 +15,7 @@ The image tag encodes exactly what is being evaluated: **scenario × harness × 
 docker run \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -e OPENAI_API_KEY=sk-... \
-  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.dbt.claude-code.sonnet-4.v1.0.0
+  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.classic-de.claude-code.sonnet-4.v1.0.0
 ```
 
 Output is a JSON payload on stdout containing the score, efficiency metrics, and a path to the session log.
@@ -127,7 +127,7 @@ Use the layered build helper:
 ```bash
 ./docker/build.sh \
   --scenario ecommerce-pipeline-recovery \
-  --harness dbt \
+  --harness classic-de \
   --agent claude-code \
   --model claude-sonnet-4-20250514 \
   --version v1.0.0
@@ -145,7 +145,7 @@ This builds:
 ```bash
 dec-bench run \
   --scenario ecommerce-pipeline-recovery \
-  --harness dbt \
+  --harness classic-de \
   --persona naive \
   --mode no-plan
 ```
