@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
@@ -123,6 +123,51 @@ function FilterSection({ label, children }: { label: string; children: React.Rea
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   )
+}
+
+function ScriptBlock({ harnessId, script }: { harnessId: string; script: string }) {
+  const [copied, setCopied] = useState(false)
+  const preview = formatInstallScriptPreview(script)
+  const filename = `harnesses/${harnessId}.sh`
+
+  const handleCopy = useCallback(() => {
+    if (!script.trim()) return
+    navigator.clipboard.writeText(script).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }, [script])
+
+  return (
+    <div className="border-[3px] border-black overflow-hidden">
+      <div className="flex items-center justify-between bg-black px-3 py-1.5 border-b-[3px] border-black">
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+          {">_ "}{filename}
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="text-white/60 hover:text-white transition-opacity"
+          aria-label="Copy script"
+        >
+          {copied ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="0" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+          )}
+        </button>
+      </div>
+      <pre className="px-4 py-3 overflow-x-auto bg-white">
+        <code className="text-[13px] leading-[1.7] text-black/80" style={{ fontFamily: "var(--font-body), ui-monospace, monospace" }}>
+          {preview.lines.map((line) => `${line}\n`).join("")}{scriptPreviewSuffix(preview.truncated)}
+        </code>
+      </pre>
+    </div>
+  )
+}
+
+function scriptPreviewSuffix(truncated: boolean): string {
+  return truncated ? "# ...\n" : ""
 }
 
 export function ScenarioRegistry(props: ScenarioRegistryProps) {
@@ -526,7 +571,6 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
           {filteredHarnesses.map((harness) => {
             const key = `harness:${harness.id}`
             const expanded = expandedId === key
-            const scriptPreview = formatInstallScriptPreview(harness.installScript)
             return (
               <Card key={harness.id} className="border-[2px] border-black/20 rounded-none shadow-none">
                 <CardHeader className="pb-2">
@@ -556,20 +600,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                     </Badge>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Install Script</p>
-                      <Badge variant="outline">shell</Badge>
-                    </div>
-                    <div className="border-2 border-black bg-black text-[#FF10F0]">
-                      <pre className="px-3 py-2 text-[11px] leading-relaxed overflow-x-auto">
-                        <code className="font-mono">
-                          {scriptPreview.lines.map((line) => `${line}\n`).join("")}
-                          {scriptPreview.truncated ? "# ...truncated for preview" : ""}
-                        </code>
-                      </pre>
-                    </div>
-                  </div>
+                  <ScriptBlock harnessId={harness.id} script={harness.installScript} />
 
                   {expanded && (
                     <div className="pt-2 border-t border-black/10 space-y-2">
