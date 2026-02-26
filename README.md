@@ -44,6 +44,7 @@ A gate passes when all core assertions (universal) and scenario-specific asserti
 | E-Commerce        | Orders, inventory, catalog, customer behavior         | Transactional correctness critical, complex JOINs            |
 | Advertising       | Impressions, clicks, conversions, bid data            | Extreme write throughput, real-time aggregation              |
 | Consumption Infra | API calls, compute usage, storage metering            | Billing accuracy critical, high-cardinality metering keys    |
+| Foo Bar (Dummy)   | Synthetic tables, generated events, placeholder metrics | Dummy data for testing eval scaffolding and pipeline wiring  |
 
 ### User-Facing Analytics
 

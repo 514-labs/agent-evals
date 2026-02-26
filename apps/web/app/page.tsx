@@ -42,6 +42,11 @@ const internalScenarios = [
     data: "API calls, compute usage, storage metering",
     challenge: "Billing accuracy critical, high-cardinality metering keys",
   },
+  {
+    domain: "FOO BAR (DUMMY)",
+    data: "Synthetic tables, generated events, placeholder metrics",
+    challenge: "Dummy data for testing eval scaffolding and pipeline wiring",
+  },
 ];
 
 const userFacingScenarios = [
@@ -64,7 +69,7 @@ const userFacingScenarios = [
 ];
 
 const marqueeText =
-  "POSTGRES · REDPANDA · CLICKHOUSE · B2B SAAS · B2C SAAS · UGC · E-COMMERCE · ADVERTISING · CONSUMPTION INFRA · OPEN SOURCE · DASHBOARDS · FEEDS · ANALYTICAL CHAT · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · ";
+  "POSTGRES · REDPANDA · CLICKHOUSE · B2B SAAS · B2C SAAS · UGC · E-COMMERCE · ADVERTISING · CONSUMPTION INFRA · FOO BAR · OPEN SOURCE · DASHBOARDS · FEEDS · ANALYTICAL CHAT · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · ";
 
 export default function HomePage() {
   return (

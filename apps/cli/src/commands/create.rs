@@ -42,6 +42,8 @@ pub enum Domain {
     Advertising,
     #[value(name = "consumption-based-infra")]
     ConsumptionBasedInfra,
+    #[value(name = "foo-bar")]
+    FooBar,
 }
 
 impl std::fmt::Display for Domain {
@@ -53,6 +55,7 @@ impl std::fmt::Display for Domain {
             Self::ECommerce => write!(f, "e-commerce"),
             Self::Advertising => write!(f, "advertising"),
             Self::ConsumptionBasedInfra => write!(f, "consumption-based-infra"),
+            Self::FooBar => write!(f, "foo-bar"),
         }
     }
 }

@@ -21,7 +21,8 @@ export type BusinessDomain =
   | "ugc"
   | "e-commerce"
   | "advertising"
-  | "consumption-based-infra";
+  | "consumption-based-infra"
+  | "foo-bar";
 
 // Built-in harnesses plus custom user harness names.
 export type BuiltInHarness = "bare" | "dbt" | "full" | "mcp-postgres" | "web-search";

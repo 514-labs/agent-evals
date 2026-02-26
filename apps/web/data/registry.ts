@@ -42,6 +42,7 @@ export const domains: TaxonomyOption[] = [
   { slug: "e-commerce", label: "E-commerce" },
   { slug: "advertising", label: "Advertising" },
   { slug: "consumption-based-infra", label: "Consumption-Based Infra" },
+  { slug: "foo-bar", label: "Foo Bar (Dummy)" },
 ]
 
 export const competencies: TaxonomyOption[] = [
