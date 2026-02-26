@@ -7,6 +7,13 @@ import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@workspace/ui/components/sheet"
 import { cn } from "@workspace/ui/lib/utils"
 
 type StartingState = "broken" | "greenfield"
@@ -90,6 +97,15 @@ function FilterChip({
   )
 }
 
+function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">{label}</p>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
+}
+
 export function ScenarioRegistry(props: ScenarioRegistryProps) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -118,6 +134,15 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     parseList(searchParams.get("category"))
   )
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const activeFilterCount =
+    selectedDomains.length +
+    selectedCompetencies.length +
+    selectedFeatures.length +
+    selectedTiers.length +
+    selectedStartingStates.length +
+    selectedTaskCategories.length
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -277,120 +302,127 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
           </div>
         </div>
 
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search title, description, tags..."
-          aria-label="Search scenario and harness registry"
-          className="h-9 border-[2px] border-black text-[12px] tracking-wide placeholder:text-black/35 focus-visible:ring-[#FF10F0]/20 focus-visible:border-[#FF10F0]"
-        />
+        <div className="flex gap-2">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search title, description, tags..."
+            aria-label="Search scenario and harness registry"
+            className="h-9 border-[2px] border-black text-[12px] tracking-wide placeholder:text-black/35 focus-visible:ring-[#FF10F0]/20 focus-visible:border-[#FF10F0]"
+          />
+
+          {tab === "scenarios" && (
+            <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "h-9 shrink-0 px-3 text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] transition-colors",
+                    activeFilterCount > 0
+                      ? "bg-[#FF10F0] border-black text-black"
+                      : "bg-white border-black text-black hover:bg-black hover:text-white"
+                  )}
+                >
+                  Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                </button>
+              </SheetTrigger>
+              <SheetContent side="right" className="overflow-y-auto">
+                <SheetHeader>
+                  <div className="flex items-center justify-between">
+                    <SheetTitle className="text-[11px] font-bold uppercase tracking-[0.2em]">
+                      Filters
+                    </SheetTitle>
+                    <button
+                      type="button"
+                      onClick={clearScenarioFilters}
+                      className="text-[10px] uppercase tracking-[0.16em] text-black/50 hover:text-black"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </SheetHeader>
+
+                <div className="px-4 pb-6 space-y-5">
+                  <FilterSection label="Domains">
+                    {props.domains.map((option) => (
+                      <FilterChip
+                        key={option.slug}
+                        label={option.label}
+                        active={selectedDomains.includes(option.slug)}
+                        onClick={() => toggle(selectedDomains, option.slug, setSelectedDomains)}
+                      />
+                    ))}
+                  </FilterSection>
+
+                  <FilterSection label="Competencies">
+                    {props.competencies.map((option) => (
+                      <FilterChip
+                        key={option.slug}
+                        label={option.label}
+                        active={selectedCompetencies.includes(option.slug)}
+                        onClick={() =>
+                          toggle(selectedCompetencies, option.slug, setSelectedCompetencies)
+                        }
+                      />
+                    ))}
+                  </FilterSection>
+
+                  <FilterSection label="Features">
+                    {props.features.map((option) => (
+                      <FilterChip
+                        key={option.slug}
+                        label={option.label}
+                        active={selectedFeatures.includes(option.slug)}
+                        onClick={() => toggle(selectedFeatures, option.slug, setSelectedFeatures)}
+                      />
+                    ))}
+                  </FilterSection>
+
+                  <FilterSection label="Tier">
+                    {props.tiers.map((option) => (
+                      <FilterChip
+                        key={option.slug}
+                        label={option.label}
+                        active={selectedTiers.includes(option.slug)}
+                        onClick={() => toggle(selectedTiers, option.slug, setSelectedTiers)}
+                      />
+                    ))}
+                  </FilterSection>
+
+                  <FilterSection label="Starting State">
+                    {props.startingStates.map((option) => (
+                      <FilterChip
+                        key={option.slug}
+                        label={option.label}
+                        active={selectedStartingStates.includes(option.slug)}
+                        onClick={() =>
+                          toggle(selectedStartingStates, option.slug, setSelectedStartingStates)
+                        }
+                      />
+                    ))}
+                  </FilterSection>
+
+                  <FilterSection label="Task Category">
+                    {props.taskCategories.map((option) => (
+                      <FilterChip
+                        key={option.slug}
+                        label={option.label}
+                        active={selectedTaskCategories.includes(option.slug)}
+                        onClick={() =>
+                          toggle(selectedTaskCategories, option.slug, setSelectedTaskCategories)
+                        }
+                      />
+                    ))}
+                  </FilterSection>
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
+        </div>
       </div>
 
       {tab === "scenarios" && (
         <div className="space-y-4">
-          <div className="border-[2px] border-black/20 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em]">Filters</p>
-              <button
-                type="button"
-                onClick={clearScenarioFilters}
-                className="text-[10px] uppercase tracking-[0.16em] text-black/50 hover:text-black"
-              >
-                Clear
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Domains</p>
-              <div className="flex flex-wrap gap-2">
-                {props.domains.map((option) => (
-                  <FilterChip
-                    key={option.slug}
-                    label={option.label}
-                    active={selectedDomains.includes(option.slug)}
-                    onClick={() => toggle(selectedDomains, option.slug, setSelectedDomains)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Competencies</p>
-              <div className="flex flex-wrap gap-2">
-                {props.competencies.map((option) => (
-                  <FilterChip
-                    key={option.slug}
-                    label={option.label}
-                    active={selectedCompetencies.includes(option.slug)}
-                    onClick={() =>
-                      toggle(selectedCompetencies, option.slug, setSelectedCompetencies)
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Features</p>
-              <div className="flex flex-wrap gap-2">
-                {props.features.map((option) => (
-                  <FilterChip
-                    key={option.slug}
-                    label={option.label}
-                    active={selectedFeatures.includes(option.slug)}
-                    onClick={() => toggle(selectedFeatures, option.slug, setSelectedFeatures)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Tier</p>
-              <div className="flex flex-wrap gap-2">
-                {props.tiers.map((option) => (
-                  <FilterChip
-                    key={option.slug}
-                    label={option.label}
-                    active={selectedTiers.includes(option.slug)}
-                    onClick={() => toggle(selectedTiers, option.slug, setSelectedTiers)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Starting State</p>
-              <div className="flex flex-wrap gap-2">
-                {props.startingStates.map((option) => (
-                  <FilterChip
-                    key={option.slug}
-                    label={option.label}
-                    active={selectedStartingStates.includes(option.slug)}
-                    onClick={() =>
-                      toggle(selectedStartingStates, option.slug, setSelectedStartingStates)
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Task Category</p>
-              <div className="flex flex-wrap gap-2">
-                {props.taskCategories.map((option) => (
-                  <FilterChip
-                    key={option.slug}
-                    label={option.label}
-                    active={selectedTaskCategories.includes(option.slug)}
-                    onClick={() =>
-                      toggle(selectedTaskCategories, option.slug, setSelectedTaskCategories)
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
           <div className="grid gap-3">
             {filteredScenarios.map((scenario) => {
               const key = `scenario:${scenario.id}`
