@@ -14,19 +14,18 @@ export type TaskCategory =
   | "compression"
   | "monitoring";
 
-// Business domains for scenario context
+// Business domains used by scenario registry entries.
 export type BusinessDomain =
-  | "ecommerce"
-  | "fintech"
-  | "iot"
-  | "analytics"
-  | "saas"
-  | "media"
-  | "healthcare"
-  | "logistics";
+  | "b2b-saas"
+  | "b2c-saas"
+  | "ugc"
+  | "e-commerce"
+  | "advertising"
+  | "consumption-based-infra";
 
-// Evaluation harness type
-export type Harness = "default" | "custom";
+// Built-in harnesses plus custom user harness names.
+export type BuiltInHarness = "bare" | "dbt" | "full" | "mcp-postgres" | "web-search";
+export type Harness = BuiltInHarness | "custom";
 
 // Agent planning mode
 export type PlanMode = "plan" | "no-plan";
@@ -79,6 +78,23 @@ export interface Scenario {
   harness: Harness;
   datasetPath?: string;
   schemaPath?: string;
+  tags: string[];
+}
+
+// Registry metadata shown by the website and list command.
+export interface RegistryScenario {
+  id: string;
+  title: string;
+  description: string;
+  tier: DifficultyTier;
+  domain: BusinessDomain;
+  startingState: "broken" | "greenfield";
+  competencies: string[];
+  features: string[];
+  taskCategories: TaskCategory[];
+  harnesses: BuiltInHarness[];
+  taskCount: number;
+  services: string[];
   tags: string[];
 }
 

@@ -15,6 +15,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Scaffold a new scenario implementation directory
+    Create(commands::create::CreateArgs),
     /// Manage scenario and harness registry entries
     Registry(commands::registry::RegistryArgs),
     /// Start one or more eval containers
@@ -34,6 +36,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Create(args) => commands::create::execute(args).await,
         Commands::Registry(args) => commands::registry::execute(args).await,
         Commands::Run(args) => commands::run::execute(args).await,
         Commands::List(args) => commands::list::execute(args).await,

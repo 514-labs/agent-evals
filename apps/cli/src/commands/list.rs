@@ -124,3 +124,42 @@ fn resolve_repo_path(rel: &str) -> Result<PathBuf> {
     }
     Ok(cwd.join(rel))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn load_scenarios_ignores_non_json_and_sorts_ids() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        fs::write(
+            temp.path().join("z.json"),
+            r#"{"id":"z","tier":"tier-1","domain":"ugc","description":"z"}"#,
+        )
+        .expect("write json");
+        fs::write(
+            temp.path().join("a.json"),
+            r#"{"id":"a","tier":"tier-2","domain":"b2b-saas","description":"a","taskCategories":["ingestion"],"competencies":["environment-setup"]}"#,
+        )
+        .expect("write json");
+        fs::write(temp.path().join("notes.txt"), "ignored").expect("write text");
+
+        let scenarios = load_scenarios(temp.path()).expect("load scenarios");
+        assert_eq!(scenarios.len(), 2);
+        assert_eq!(scenarios[0].id, "a");
+        assert_eq!(scenarios[1].id, "z");
+        assert_eq!(scenarios[0].task_categories, vec!["ingestion".to_string()]);
+        assert_eq!(
+            scenarios[0].competencies,
+            vec!["environment-setup".to_string()]
+        );
+    }
+
+    #[test]
+    fn load_scenarios_returns_empty_when_dir_missing() {
+        let missing = PathBuf::from("/tmp/this-directory-should-not-exist-rad-bench-tests");
+        let scenarios = load_scenarios(&missing).expect("no error for missing dir");
+        assert!(scenarios.is_empty());
+    }
+}

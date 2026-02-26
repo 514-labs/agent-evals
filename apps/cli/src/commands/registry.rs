@@ -224,7 +224,7 @@ fn add_scenario(args: AddArgs) -> Result<()> {
     let harnesses = scenario_json
         .harness
         .map(|h| vec![h])
-        .unwrap_or_else(|| vec!["default".to_string()]);
+        .unwrap_or_else(|| vec!["bare".to_string()]);
 
     let out_dir = match args.out {
         Some(path) => path,
@@ -514,4 +514,55 @@ fn run_checked_capture(command: &str, args: &[&str]) -> Result<String> {
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn parse_csv_trims_and_skips_empty_values() {
+        let parsed = parse_csv(" a, ,b ,, c ");
+        assert_eq!(
+            parsed,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
+    }
+
+    #[test]
+    fn validate_starting_state_accepts_expected_values() {
+        assert!(validate_starting_state("broken").is_ok());
+        assert!(validate_starting_state("greenfield").is_ok());
+        assert!(validate_starting_state("invalid").is_err());
+    }
+
+    #[test]
+    fn add_harness_writes_registry_file() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let args = AddArgs {
+            entry_type: RegistryEntryType::Harness,
+            scenario: None,
+            competencies: None,
+            features: None,
+            starting_state: None,
+            services: None,
+            out: Some(temp.path().to_path_buf()),
+            id: Some("test-harness".to_string()),
+            title: Some("Test Harness".to_string()),
+            description: Some("Harness for tests".to_string()),
+            installs: Some("dbt-core, dbt-postgres".to_string()),
+            network_policy: NetworkPolicy::Restricted,
+            allowlisted_endpoints: Some("pypi.org,registry.npmjs.org".to_string()),
+        };
+
+        add_harness(args).expect("add_harness succeeds");
+        let out_file = temp.path().join("test-harness.json");
+        assert!(out_file.exists());
+        let payload = fs::read_to_string(out_file).expect("read output");
+        let json: serde_json::Value = serde_json::from_str(&payload).expect("valid json");
+        assert_eq!(json["id"], "test-harness");
+        assert_eq!(json["networkPolicy"], "restricted");
+        assert_eq!(json["installs"][0], "dbt-core");
+    }
 }
