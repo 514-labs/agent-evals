@@ -392,7 +392,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
               </SheetTrigger>
               <SheetContent side="right" className="overflow-y-auto">
                 <SheetHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pr-8">
                     <SheetTitle className="text-[11px] font-bold uppercase tracking-[0.2em]">
                       Filters
                     </SheetTitle>
