@@ -36,6 +36,7 @@ export type TaxonomyOption = {
 }
 
 export const domains: TaxonomyOption[] = [
+  { slug: "foo-bar", label: "Foo Bar (Dummy)" },
   { slug: "b2b-saas", label: "B2B SaaS" },
   { slug: "b2c-saas", label: "B2C SaaS" },
   { slug: "ugc", label: "UGC" },

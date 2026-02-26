@@ -20,7 +20,7 @@ pub struct CreateArgs {
     pub tier: Tier,
 
     /// Evaluation harness
-    #[arg(long, default_value = "default")]
+    #[arg(long, default_value = "bare")]
     pub harness: String,
 
     /// Scenarios root directory
@@ -30,27 +30,32 @@ pub struct CreateArgs {
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub enum Domain {
-    Ecommerce,
-    Fintech,
-    Iot,
-    Analytics,
-    Saas,
-    Media,
-    Healthcare,
-    Logistics,
+    #[value(name = "foo-bar")]
+    FooBar,
+    #[value(name = "b2b-saas")]
+    B2bSaas,
+    #[value(name = "b2c-saas")]
+    B2cSaas,
+    #[value(name = "ugc")]
+    Ugc,
+    #[value(name = "e-commerce")]
+    ECommerce,
+    #[value(name = "advertising")]
+    Advertising,
+    #[value(name = "consumption-based-infra")]
+    ConsumptionBasedInfra,
 }
 
 impl std::fmt::Display for Domain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Ecommerce => write!(f, "ecommerce"),
-            Self::Fintech => write!(f, "fintech"),
-            Self::Iot => write!(f, "iot"),
-            Self::Analytics => write!(f, "analytics"),
-            Self::Saas => write!(f, "saas"),
-            Self::Media => write!(f, "media"),
-            Self::Healthcare => write!(f, "healthcare"),
-            Self::Logistics => write!(f, "logistics"),
+            Self::FooBar => write!(f, "foo-bar"),
+            Self::B2bSaas => write!(f, "b2b-saas"),
+            Self::B2cSaas => write!(f, "b2c-saas"),
+            Self::Ugc => write!(f, "ugc"),
+            Self::ECommerce => write!(f, "e-commerce"),
+            Self::Advertising => write!(f, "advertising"),
+            Self::ConsumptionBasedInfra => write!(f, "consumption-based-infra"),
         }
     }
 }
@@ -211,4 +216,35 @@ fn print_tree(dir: &Path, prefix: &str, is_last: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn create_scaffolds_expected_files() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let args = CreateArgs {
+            name: "sample-scenario".to_string(),
+            domain: Domain::Ugc,
+            tier: Tier::Tier1,
+            harness: "bare".to_string(),
+            dir: temp.path().to_path_buf(),
+        };
+
+        execute(args).await.expect("create succeeds");
+
+        let root = temp.path().join("sample-scenario");
+        assert!(root.join("scenario.json").exists());
+        assert!(root.join("prompts/naive.md").exists());
+        assert!(root.join("prompts/savvy.md").exists());
+        assert!(root.join("init/postgres-setup.sql").exists());
+        assert!(root.join("assertions/functional.ts").exists());
+        assert!(root.join("assertions/correct.ts").exists());
+        assert!(root.join("assertions/robust.ts").exists());
+        assert!(root.join("assertions/performant.ts").exists());
+        assert!(root.join("assertions/production.ts").exists());
+        assert!(root.join("supervisord.conf").exists());
+    }
 }

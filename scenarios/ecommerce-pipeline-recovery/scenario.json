@@ -1,0 +1,40 @@
+{
+  "id": "ecommerce-pipeline-recovery",
+  "title": "E-commerce Pipeline Recovery",
+  "description": "Restore and harden a broken daily orders pipeline from Postgres into ClickHouse.",
+  "tier": "tier-2",
+  "domain": "e-commerce",
+  "harness": "dbt",
+  "tasks": [
+    {
+      "id": "build-target-model",
+      "description": "Create analytics.fct_orders_daily in ClickHouse with daily revenue and order counts.",
+      "category": "ingestion"
+    },
+    {
+      "id": "deduplicate-orders",
+      "description": "Ensure duplicate order events do not inflate daily totals.",
+      "category": "debugging"
+    },
+    {
+      "id": "harden-for-reruns",
+      "description": "Make reruns idempotent without duplicating rows.",
+      "category": "monitoring"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "tags": ["ingestion", "idempotency", "orders", "recovery"],
+  "baselineMetrics": {
+    "queryLatencyMs": 1200,
+    "storageBytes": 980000000,
+    "costPerQueryUsd": 0.024
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 180,
+    "storageBytes": 450000000,
+    "costPerQueryUsd": 0.005
+  }
+}

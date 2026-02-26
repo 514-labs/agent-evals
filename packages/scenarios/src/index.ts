@@ -2,6 +2,7 @@ export type {
   DifficultyTier,
   TaskCategory,
   BusinessDomain,
+  BuiltInHarness,
   Harness,
   PlanMode,
   Persona,
@@ -10,6 +11,7 @@ export type {
   PersonaPrompts,
   Task,
   Scenario,
+  RegistryScenario,
   ObservedMetrics,
   EvalResult,
 } from "./types.js";

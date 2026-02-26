@@ -38,6 +38,7 @@ A gate passes when all core assertions (universal) and scenario-specific asserti
 
 | Domain            | Example Data                                          | Characteristic Challenges                                    |
 |-------------------|-------------------------------------------------------|--------------------------------------------------------------|
+| Foo Bar (Dummy)   | Synthetic tables, generated events, placeholder metrics | Dummy data for testing eval scaffolding and pipeline wiring  |
 | B2B SaaS          | Product usage events, subscription lifecycle          | High-cardinality user/account dimensions, event versioning   |
 | B2C SaaS          | User activity streams, content interactions           | Massive event volumes, time-series heavy, retention queries  |
 | UGC               | Posts, comments, reactions, moderation signals         | Variable schema (JSON-heavy), content search + analytics     |
@@ -79,6 +80,8 @@ More stacks coming soon (MySQL, DuckDB, Kafka, Snowflake, BigQuery). Contributio
 
 - Node.js >= 20
 - [pnpm](https://pnpm.io/) 10.4+
+- Docker
+- Rust toolchain (for `apps/cli`)
 
 ### Install & Run
 
@@ -88,6 +91,113 @@ pnpm dev
 ```
 
 The web app (docs + leaderboard) runs at `http://localhost:3000`.
+
+## CLI Workflow (Local Evals)
+
+The CLI now supports scenario scaffolding, running eval containers, listing scenarios, and reading stored results.
+
+### Build CLI
+
+```bash
+cd apps/cli
+cargo build
+```
+
+### Scaffold a Scenario
+
+```bash
+dec-bench create \
+  --name my-first-eval \
+  --domain ugc \
+  --tier tier-1
+```
+
+This creates:
+
+- `scenario.json`
+- `prompts/naive.md` and `prompts/savvy.md`
+- `init/` seed scripts
+- `assertions/` files for all five gates
+- `supervisord.conf`
+
+### Build a Local Eval Image
+
+Use the layered build helper:
+
+```bash
+./docker/build.sh \
+  --scenario ecommerce-pipeline-recovery \
+  --harness dbt \
+  --agent claude-code \
+  --model claude-sonnet-4-20250514 \
+  --version v1.0.0
+```
+
+This builds:
+
+1. base image (`docker/base/Dockerfile`)
+2. scenario layer (`docker/scenario/Dockerfile`)
+3. harness layer (`docker/harness/Dockerfile`)
+4. agent layer (`docker/agent/Dockerfile`)
+
+### Run an Eval via CLI
+
+```bash
+dec-bench run \
+  --scenario ecommerce-pipeline-recovery \
+  --harness dbt \
+  --persona naive \
+  --mode no-plan
+```
+
+- Streams container logs
+- Extracts structured JSON result
+- Writes output to `results/<scenario>-<timestamp>.json`
+
+### View Results
+
+```bash
+dec-bench results --format table
+dec-bench results --format json
+dec-bench results --format csv
+```
+
+Filter by scenario:
+
+```bash
+dec-bench results --scenario ecommerce-pipeline-recovery --format json
+```
+
+### Reference Scenario
+
+A complete reference implementation is included at:
+
+- `scenarios/ecommerce-pipeline-recovery/`
+
+It contains prompts, seed SQL, service config, and gate assertions.
+
+## Testing
+
+### Workspace checks
+
+```bash
+pnpm --filter @dec-bench/eval-core check-types
+pnpm --filter @dec-bench/scenarios check-types
+```
+
+### CLI checks and tests
+
+```bash
+cd apps/cli
+cargo check
+cargo test
+```
+
+The CLI test suite includes:
+
+- Unit tests for command internals
+- Integration tests for multi-command flows
+- End-to-end command tests against the built binary
 
 ### Project Structure
 

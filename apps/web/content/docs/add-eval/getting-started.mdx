@@ -3,11 +3,11 @@ title: "Getting Started"
 description: "Create and contribute a full DEC Bench eval from scenario design to JSON output."
 ---
 
-This guide walks you through the full eval authoring flow: design a scenario, define its starting state, write assertions for all five gates, select a harness, register the eval, and run it locally.
+This guide walks you through the full eval authoring flow: design a scenario, define its starting state, write assertions for all five gates (how the agent's performance is measured), select a harness, register the eval, and run it locally.
 
 ## What You Will Build
 
-You will create a self-contained data engineering eval that runs inside DEC Bench and emits deterministic JSON scoring output.
+You will create a self-contained data engineering eval that runs inside DEC Bench and emits deterministic scores as the eval's output.
 
 Scenarios can start from either model:
 
@@ -44,7 +44,7 @@ Pass all options as flags to skip prompts entirely:
 ```bash title="Scaffold a new scenario"
 dec-bench create \
   --name ecommerce-pipeline \
-  --domain ecommerce \
+  --domain e-commerce \
   --tier tier-2
 ```
 
@@ -53,9 +53,9 @@ dec-bench create \
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
 | `--name` / `-n` | yes | — | Scenario ID, used as directory name and JSON id |
-| `--domain` / `-d` | yes | — | Business domain (`ecommerce`, `fintech`, `iot`, `analytics`, `saas`, `media`, `healthcare`, `logistics`) |
+| `--domain` / `-d` | yes | — | Business domain (`foo-bar`, `b2b-saas`, `b2c-saas`, `ugc`, `e-commerce`, `advertising`, `consumption-based-infra`) |
 | `--tier` / `-t` | no | `tier-1` | Difficulty tier (`tier-1`, `tier-2`, `tier-3`) |
-| `--harness` | no | `default` | Evaluation harness profile |
+| `--harness` | no | `bare` | Evaluation harness profile |
 | `--dir` | no | `scenarios` | Root directory for scenario output |
 
 ### What gets generated
@@ -101,7 +101,7 @@ flowchart TD
 
 Pick the eval target before you write any files:
 
-- **Domain**: choose a realistic workload profile from [Domains](/docs/evals/domains)
+- **Domain**: choose a workload profile from [Domains](/docs/evals/domains)
 - **Competency focus**: choose primary skill(s) from [Competencies](/docs/evals/competencies)
 - **Tier**: set difficulty -- see [Difficulty Tiers](/docs/evals/difficulty-tiers) for guidance on scoping
 - **Starting-state model**:
@@ -223,15 +223,15 @@ Keep assertions deterministic, fast, and focused on a single check each. The fra
 
 A harness installs tools in the image layer used by the agent.
 
-Use an existing harness profile when possible (for example, the default profile). Create a custom harness only if tool requirements are truly new.
+Use an existing harness profile when possible (for example, `bare` or `dbt`). Create a custom harness only if tool requirements are truly new.
 
-```bash title="harnesses/default.sh"
+```bash title="harnesses/dbt.sh"
 pip install dbt-core dbt-postgres dbt-clickhouse
 ```
 
 For restricted network mode, add optional endpoint allowlisting:
 
-```bash title="harnesses/default/iptables.sh"
+```bash title="harnesses/web-search/iptables.sh"
 iptables -I OUTPUT -d pypi.org -j ACCEPT
 ```
 
@@ -245,8 +245,8 @@ Create scenario metadata that maps cleanly to DEC Bench scenario types:
   "title": "E-commerce Pipeline Recovery",
   "description": "Restore and harden a broken daily orders pipeline.",
   "tier": "tier-2",
-  "domain": "ecommerce",
-  "harness": "default",
+  "domain": "e-commerce",
+  "harness": "dbt",
   "tasks": [
     {
       "id": "fix-orders-model",
@@ -281,7 +281,7 @@ Run:
 ```bash title="Run one eval"
 dec-bench run \
   --scenario ecommerce-pipeline \
-  --harness default \
+  --harness dbt \
   --persona naive \
   --mode no-plan
 ```
