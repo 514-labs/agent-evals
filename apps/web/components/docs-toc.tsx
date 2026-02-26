@@ -24,7 +24,7 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
       <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">
         ON THIS PAGE
       </span>
-      <div ref={scrollRef} className="overflow-y-auto max-h-[calc(100vh-160px)]">
+      <div ref={scrollRef} className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-160px)]">
         <ScrollProvider containerRef={scrollRef}>
           <ul className="space-y-0.5">
             {toc.map((item) => (
