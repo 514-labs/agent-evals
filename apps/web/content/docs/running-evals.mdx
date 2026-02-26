@@ -1,0 +1,56 @@
+---
+title: "Running Evals"
+description: "Pass your keys, pick an image, read the JSON."
+---
+
+## Quick Start
+
+```bash title="Run a single eval"
+docker run \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
+  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.dbt.claude-code.sonnet-4.v1.0.0
+```
+
+The image tag tells you exactly what runs: `{scenario}.{harness}.{agent}.{model}.{version}`. Results print to stdout as JSON.
+
+## API Keys
+
+Each image validates the key it needs at startup. Pass all your keys -- the container uses what it needs and ignores the rest.
+
+| Provider | Variable | Agents |
+|----------|----------|--------|
+| Anthropic | `ANTHROPIC_API_KEY` | Claude Code, Aider (Anthropic models) |
+| OpenAI | `OPENAI_API_KEY` | Codex, Aider (OpenAI models) |
+
+This keeps the `docker run` interface identical across the entire build matrix. No per-image flag changes.
+
+## Build Matrix
+
+Export your keys once, loop over every image:
+
+```bash title="Run the full matrix"
+export ANTHROPIC_API_KEY=sk-ant-...
+export OPENAI_API_KEY=sk-...
+
+for image in "${IMAGES[@]}"; do
+  docker run \
+    -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+    -e OPENAI_API_KEY=$OPENAI_API_KEY \
+    "$image" >> results.jsonl
+done
+```
+
+## Custom Agents
+
+Mount your agent and point to it:
+
+```bash title="Run a custom agent"
+docker run \
+  -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
+  -e CUSTOM_AGENT_CMD="/workspace/my-agent" \
+  -v ./my-agent:/workspace/my-agent \
+  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.bare.custom.v1.0.0
+```
+
+Custom agents declare their own key requirements. If running in [restricted network mode](/docs/architecture#restricted-mode), provide an `iptables.sh` to allowlist your provider's API endpoint.

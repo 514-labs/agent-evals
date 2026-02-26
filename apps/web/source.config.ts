@@ -1,6 +1,6 @@
 import { defineConfig, defineDocs } from "fumadocs-mdx/config"
 import type { DocsCollection } from "fumadocs-mdx/config"
-import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins"
+import { rehypeCodeDefaultOptions, remarkMdxMermaid } from "fumadocs-core/mdx-plugins"
 import { transformerTwoslash } from "fumadocs-twoslash"
 import rehypeKatex from "rehype-katex"
 import remarkMath from "remark-math"
@@ -11,7 +11,7 @@ export const docs: DocsCollection = defineDocs({
 
 export default defineConfig({
   mdxOptions: {
-    remarkPlugins: [remarkMath],
+    remarkPlugins: [remarkMath, remarkMdxMermaid],
     rehypePlugins: (v) => [rehypeKatex, ...v],
     rehypeCodeOptions: {
       themes: {

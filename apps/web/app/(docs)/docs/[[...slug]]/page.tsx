@@ -5,9 +5,15 @@ import { notFound } from "next/navigation"
 import { DocsToc } from "@/components/docs-toc"
 import { EmptyState } from "@/components/empty-state"
 import { RoadmapTimeline } from "@/components/roadmap-timeline"
+import { ScenarioRegistryBlock } from "@/components/scenario-registry-block"
 import { docsSource } from "@/lib/source"
+import { useMDXComponents } from "@/mdx-components"
 
-const mdxComponents = { EmptyState, RoadmapTimeline }
+const mdxComponents = useMDXComponents({
+  EmptyState,
+  RoadmapTimeline,
+  ScenarioRegistry: ScenarioRegistryBlock,
+})
 
 export const dynamic = "force-static"
 export const dynamicParams = false
@@ -48,23 +54,25 @@ export default async function DocsPage({
   const toc = pageData.toc ?? []
 
   return (
-    <div className="relative grid xl:grid-cols-[1fr_200px] gap-0">
+    <div className="relative grid xl:grid-cols-[minmax(0,1fr)_200px] gap-0">
       {/* Content */}
-      <article className="min-w-0 px-8 lg:px-14 py-10 max-w-3xl">
-        <div className="pb-6 mb-8 border-b-[3px] border-black">
-          <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">DOCUMENTATION</span>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl tracking-tight uppercase leading-[0.9]">
-            {page.data.title}
-          </h1>
-          {page.data.description ? (
-            <p className="mt-3 text-[13px] text-black/50 leading-relaxed max-w-xl">
-              {page.data.description}
-            </p>
-          ) : null}
-        </div>
+      <article className="min-w-0 w-full container mx-auto px-8 lg:px-14 py-10">
+        <div className="max-w-prose mx-auto">
+          <div className="pb-6 mb-8 border-b-[3px] border-black">
+            <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">DOCUMENTATION</span>
+            <h1 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl tracking-tight uppercase leading-[0.9]">
+              {page.data.title}
+            </h1>
+            {page.data.description ? (
+              <p className="mt-3 text-[13px] text-black/50 leading-relaxed max-w-xl">
+                {page.data.description}
+              </p>
+            ) : null}
+          </div>
 
-        <div className="dec-prose">
-          <Body components={mdxComponents} />
+          <div className="dec-prose">
+            <Body components={mdxComponents} />
+          </div>
         </div>
       </article>
 

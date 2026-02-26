@@ -6,25 +6,31 @@
 
 DEC Bench measures how well AI agents perform actual data engineering work — not toy SQL puzzles, but realistic scenarios drawn from production domains. Agents are evaluated against a real infrastructure stack and scored on a formula that rewards correctness first, then optimizes for speed, cost, quality, and efficiency.
 
+## Running Evals
+
+Each benchmark run is a single `docker run` command. No setup, no config files, no cloud accounts. 
+The image tag encodes exactly what is being evaluated: **scenario × harness × agent × model**.
+
+```bash
+docker run \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  -e OPENAI_API_KEY=sk-... \
+  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.dbt.claude-code.sonnet-4.v1.0.0
+```
+
+Output is a JSON payload on stdout containing the score, efficiency metrics, and a path to the session log.
+
 ## Scoring
 
-Correctness is a hard gate. If the agent's output isn't correct, the score is zero — no partial credit.
+Scoring uses a **gated assertion model** with five sequential gates representing increasing levels of production readiness.
 
-```
-score = correctness_preserved ? (
-    0.4 * latency_improvement_normalized +
-    0.3 * cost_improvement_normalized +
-    0.2 * solution_quality +
-    0.1 * (1 / steps_normalized)
-) : 0
-```
+1. **Functional** — "It runs"
+2. **Correct** — "It produces right answers"
+3. **Robust** — "It handles real-world conditions"
+4. **Performant** — "It's fast enough"
+5. **Production** — "You'd ship this"
 
-| Dimension    | Weight | What it measures                  |
-|-------------|--------|-----------------------------------|
-| Latency     | 0.4    | Improvement over baseline         |
-| Cost        | 0.3    | Improvement over baseline         |
-| Quality     | 0.2    | Solution quality                  |
-| Efficiency  | 0.1    | Fewer steps is better             |
+A gate passes when all core assertions (universal) and scenario-specific assertions for that gate pass. Efficiency metrics (wall clock time, agent steps, tokens, API cost) are tracked separately as tiebreakers and never inflate the gate-based score.
 
 ## Scenarios
 

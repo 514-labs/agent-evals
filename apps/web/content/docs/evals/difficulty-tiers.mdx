@@ -1,0 +1,38 @@
+---
+title: "Difficulty Tiers"
+description: "How to scope and classify DEC Bench scenarios by complexity."
+---
+
+Every scenario is assigned a difficulty tier that reflects the scope of infrastructure, the number of tasks, and the depth of reasoning required from the agent.
+
+## Tier Definitions
+
+| Tier | Scope | Services | Assertions | Example |
+|------|-------|----------|------------|---------|
+| `tier-1` | Single service, one focused task, minimal moving parts | 1 | 3--5 per gate | Fix a broken Postgres connection; create one dbt model from a single source table |
+| `tier-2` | Multiple tasks or services, moderate debugging or design decisions | 1--2 | 5--10 per gate | Build an ingestion pipeline with schema validation and idempotent reruns |
+| `tier-3` | Cross-service orchestration, performance tuning, production-grade constraints | 2--3+ | 10+ per gate | End-to-end ELT from Postgres through Redpanda to ClickHouse with latency targets and incremental loads |
+
+## Choosing a Tier
+
+Start with `tier-1` for your first eval. Higher tiers require more infrastructure setup, more seed data, and more assertions to cover the expanded surface area.
+
+**Tier-1** scenarios are good for isolating a single competency in a controlled environment. They are fast to author, fast to run, and easy to debug when assertions fail.
+
+**Tier-2** scenarios introduce realistic complexity -- multiple tasks, cross-table dependencies, or light multi-service coordination. Most production-relevant evals land here.
+
+**Tier-3** scenarios test end-to-end system design under real constraints. They are expensive to author and run, but they surface the kind of reasoning that separates strong agents from weak ones.
+
+## Tier and Gate Interaction
+
+Tier does not change how [gates](/docs/scoring) work. All five gates apply at every tier. What changes is the number and depth of scenario assertions within each gate:
+
+- A `tier-1` functional gate might check that one table exists.
+- A `tier-3` functional gate might check that three services are healthy, five tables exist, and a streaming topic has consumers attached.
+
+## Related
+
+- [Competencies](/docs/evals/competencies)
+- [Domains](/docs/evals/domains)
+- [Scoring](/docs/scoring)
+- [Getting Started](/docs/add-eval/getting-started)

@@ -1,8 +1,131 @@
 ---
 title: "Advanced"
-description: "Advanced evaluation authoring techniques for DEC Bench."
+description: "Advanced evaluation authoring patterns for complex DEC Bench scenarios."
 ---
 
-# Advanced
+This page covers advanced patterns that extend [Getting Started](/docs/add-eval/getting-started): complex infrastructure, custom harnesses, stricter network controls, and higher-fidelity scoring design.
 
-Advanced techniques for authoring evaluations in DEC Bench.
+## Multi-Service Scenarios
+
+Use multi-service scenarios when one datastore is not enough to represent the real workflow.
+
+Common topology:
+
+```text title="Multi-service scenario topology"
+Postgres (OLTP source) --> Redpanda (streaming bus) --> ClickHouse (OLAP serving)
+```
+
+Guidelines:
+
+- keep service startup deterministic
+- fail fast on missing dependencies
+- expose explicit readiness checks before assertions run
+- keep cross-service contracts documented in `prompt.md`
+
+## Custom Harness Authoring
+
+Create a custom harness when no existing harness can support the required workflow.
+
+Minimal harness script:
+
+```bash title="harnesses/custom-elt.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+
+pip install dbt-core dbt-postgres
+npm install -g pnpm
+```
+
+Harness quality bar:
+
+- pin major tool versions where reproducibility matters
+- minimize install surface area
+- keep install time predictable
+
+## Restricted Network Mode
+
+Use restricted mode when you want stronger control over outbound traffic.
+
+Base model:
+
+```bash title="Restricted mode baseline"
+iptables -A OUTPUT -o lo -j ACCEPT
+iptables -P OUTPUT DROP
+```
+
+Then add only required endpoints:
+
+```bash title="harnesses/custom-elt/iptables.sh"
+iptables -I OUTPUT -d pypi.org -j ACCEPT
+iptables -I OUTPUT -d registry.npmjs.org -j ACCEPT
+```
+
+See [Architecture](/docs/architecture#network-access) for layering behavior.
+
+## Gate Assertion Design at Scale
+
+As scenarios get more complex, assertion quality becomes the primary lever for eval reliability.
+
+Recommendations:
+
+- prefer small assertions with single responsibilities
+- make every failure message actionable
+- avoid hidden side effects in assertions
+- keep runtime budget stable across repeat runs
+
+Pattern for robust checks:
+
+```ts title="assertions/robust.ts"
+import type { AssertionContext } from "@dec-bench/eval-core";
+import { execSync } from "child_process";
+
+export async function idempotent_rerun({ clickhouse }: AssertionContext) {
+  execSync("./run_pipeline.sh", { stdio: "inherit" });
+  execSync("./run_pipeline.sh", { stdio: "inherit" });
+
+  const result = await clickhouse.query(`
+    SELECT count() AS dupes FROM (
+      SELECT order_id, count() AS c
+      FROM analytics.fct_orders_daily
+      GROUP BY order_id
+      HAVING c > 1
+    )
+  `);
+
+  return Number(result.data[0].dupes) === 0;
+}
+```
+
+## Persona Prompt Strategies
+
+Use persona prompts intentionally:
+
+- **Naive**: narrower context, more explicit constraints, tighter task framing
+- **Savvy**: broader context, higher abstraction, more autonomy in trade-offs
+
+Keep both personas aligned to the same acceptance criteria. The persona should change strategy, not scoring standards.
+
+## Cross-Domain Scenario Design
+
+For advanced evals, you can combine assumptions from multiple domains (for example, e-commerce plus usage-based infra).
+
+When combining domains:
+
+- document domain boundaries explicitly
+- keep ownership of each metric clear
+- avoid ambiguous source-of-truth definitions
+
+## Calibration and Maintenance
+
+After publishing an eval:
+
+- review failure clusters from session logs
+- tighten or relax thresholds only with explicit rationale
+- version scenario changes that can alter leaderboard interpretation
+
+## Related Docs
+
+- [Getting Started](/docs/add-eval/getting-started)
+- [Scoring](/docs/scoring)
+- [Architecture](/docs/architecture)
+- [Running Evals](/docs/running-evals)
