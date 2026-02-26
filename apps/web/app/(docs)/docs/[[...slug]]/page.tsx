@@ -2,6 +2,8 @@ import type { MDXContent } from "mdx/types"
 import type { TableOfContents } from "fumadocs-core/toc"
 import { notFound } from "next/navigation"
 
+import { File, Folder, Files } from "fumadocs-ui/components/files"
+
 import { DocsToc } from "@/components/docs-toc"
 import { EmptyState } from "@/components/empty-state"
 import { RoadmapTimeline } from "@/components/roadmap-timeline"
@@ -11,6 +13,9 @@ import { useMDXComponents } from "@/mdx-components"
 
 const mdxComponents = useMDXComponents({
   EmptyState,
+  File,
+  Files,
+  Folder,
   RoadmapTimeline,
   ScenarioRegistry: ScenarioRegistryBlock,
 })
