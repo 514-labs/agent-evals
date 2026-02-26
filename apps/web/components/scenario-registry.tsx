@@ -59,6 +59,8 @@ type ScenarioRegistryProps = {
   startingStates: TaxonomyOption[]
 }
 
+const SCRIPT_PREVIEW_LINE_LIMIT = 6
+
 function parseList(raw: string | null): string[] {
   if (!raw) return []
   return raw
@@ -70,6 +72,23 @@ function parseList(raw: string | null): string[] {
 function includesText(haystack: string[], needle: string): boolean {
   if (!needle) return true
   return haystack.some((value) => value.toLowerCase().includes(needle))
+}
+
+function formatInstallScriptPreview(rawScript: string): { lines: string[]; truncated: boolean } {
+  if (!rawScript.trim()) {
+    return { lines: ["# Uses base image defaults only"], truncated: false }
+  }
+
+  const normalized = rawScript
+    .replace(/\s*&&\s*/g, " &&\n")
+    .replace(/\s*;\s*/g, ";\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const truncated = normalized.length > SCRIPT_PREVIEW_LINE_LIMIT
+  const lines = truncated ? normalized.slice(0, SCRIPT_PREVIEW_LINE_LIMIT) : normalized
+  return { lines, truncated }
 }
 
 function FilterChip({
@@ -507,6 +526,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
           {filteredHarnesses.map((harness) => {
             const key = `harness:${harness.id}`
             const expanded = expandedId === key
+            const scriptPreview = formatInstallScriptPreview(harness.installScript)
             return (
               <Card key={harness.id} className="border-[2px] border-black/20 rounded-none shadow-none">
                 <CardHeader className="pb-2">
@@ -536,8 +556,19 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                     </Badge>
                   </div>
 
-                  <div className="text-[11px] text-black/65">
-                    Install script: {harness.installScript || "none"}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Install Script</p>
+                      <Badge variant="outline">shell</Badge>
+                    </div>
+                    <div className="border-2 border-black bg-black text-[#FF10F0]">
+                      <pre className="px-3 py-2 text-[11px] leading-relaxed overflow-x-auto">
+                        <code className="font-mono">
+                          {scriptPreview.lines.map((line) => `${line}\n`).join("")}
+                          {scriptPreview.truncated ? "# ...truncated for preview" : ""}
+                        </code>
+                      </pre>
+                    </div>
                   </div>
 
                   {expanded && (
