@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useId } from "react"
 
-export function Mermaid({ code }: { code: string }) {
+export function Mermaid({ chart }: { chart: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const id = useId().replace(/:/g, "-")
   const [error, setError] = useState<string | null>(null)
@@ -15,12 +15,31 @@ export function Mermaid({ code }: { code: string }) {
         const mermaid = (await import("mermaid")).default
         mermaid.initialize({
           startOnLoad: false,
-          theme: "neutral",
+          theme: "base",
           fontFamily: "var(--font-body), ui-monospace, monospace",
           securityLevel: "loose",
+          themeVariables: {
+            primaryColor: "#ffffff",
+            primaryTextColor: "#0d0d0d",
+            primaryBorderColor: "#0d0d0d",
+            lineColor: "#0d0d0d",
+            secondaryColor: "#f5f5f5",
+            tertiaryColor: "#ffffff",
+            fontSize: "13px",
+            nodeBorder: "#0d0d0d",
+            mainBkg: "#ffffff",
+            nodeTextColor: "#0d0d0d",
+            edgeLabelBackground: "#ffffff",
+          },
+          flowchart: {
+            nodeSpacing: 30,
+            rankSpacing: 40,
+            curve: "linear",
+            htmlLabels: true,
+          },
         })
 
-        const { svg } = await mermaid.render(`mermaid-${id}`, code)
+        const { svg } = await mermaid.render(`mermaid-${id}`, chart.replaceAll("\\n", "\n"))
         if (!cancelled && ref.current) {
           ref.current.innerHTML = svg
         }
@@ -33,7 +52,7 @@ export function Mermaid({ code }: { code: string }) {
 
     render()
     return () => { cancelled = true }
-  }, [code, id])
+  }, [chart, id])
 
   if (error) {
     return (

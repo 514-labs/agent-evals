@@ -1,0 +1,93 @@
+---
+title: "Contributing"
+description: "Add scenario and harness registry entries from the CLI and publish them with an automated pull request flow."
+---
+
+Use this workflow to publish new scenario or harness entries to the docs registry.
+
+## Prerequisites
+
+- Rust toolchain installed
+- `gh` CLI installed and authenticated
+- Local clone of this repository
+
+## Workflow
+
+1. Scaffold a scenario:
+
+```bash
+dec-bench create --name <id> --domain <domain> --tier <tier>
+```
+
+2. Author scenario files (`prompts/`, `init/`, `assertions/`, `scenario.json`) using [Getting Started](/docs/add-eval/getting-started).
+
+3. Add a registry entry:
+
+```bash
+dec-bench registry add --scenario scenarios/<id>
+```
+
+4. Publish to GitHub with an automated PR flow:
+
+```bash
+dec-bench registry publish --id <id>
+```
+
+## `registry add` Reference
+
+| Flag | Required | Default | Description |
+|------|----------|---------|-------------|
+| `--scenario` | yes for scenario entries | — | Path to a scenario directory containing `scenario.json` |
+| `--type` | no | `scenario` | Entry type (`scenario` or `harness`) |
+| `--competencies` | no | interactive prompt | Comma-separated competency slugs |
+| `--features` | no | interactive prompt | Comma-separated feature slugs |
+| `--starting-state` | no | interactive prompt | `broken` or `greenfield` |
+| `--services` | no | interactive prompt | Comma-separated service names |
+| `--out` | no | auto | Override output directory for generated JSON |
+| `--id` | yes for harness entries | — | Harness ID |
+| `--title` | yes for harness entries | — | Harness display name |
+| `--description` | yes for harness entries | — | Harness description |
+| `--installs` | yes for harness entries | — | Comma-separated installed tools |
+| `--network-policy` | no | `open` | `open` or `restricted` |
+| `--allowlisted-endpoints` | no | empty | Comma-separated endpoints for restricted mode |
+
+## `registry publish` Reference
+
+| Flag | Required | Default | Description |
+|------|----------|---------|-------------|
+| `--id` | yes | — | Registry entry ID used for branch naming |
+| `--base` | no | `main` | Base branch for the pull request |
+| `--draft` | no | `false` | Open a draft pull request |
+
+## Adding a Harness Entry
+
+Create a harness entry directly from flags:
+
+```bash
+dec-bench registry add \
+  --type harness \
+  --id mcp-redpanda \
+  --title "MCP Redpanda" \
+  --description "Installs Redpanda-focused MCP tooling." \
+  --installs mcp-server-redpanda,rpk \
+  --network-policy restricted \
+  --allowlisted-endpoints registry.npmjs.org
+```
+
+## What Happens During Publish
+
+`registry publish` automates:
+
+- branch creation (`registry/add-<id>`)
+- staging and commit of registry JSON changes
+- push to remote
+- PR creation via `gh pr create`
+
+## Review Checklist
+
+PRs are reviewed for:
+
+- valid JSON structure
+- unique ID with no collisions
+- realistic domain, competency, and feature mappings
+- required scenario files present and coherent with registry metadata

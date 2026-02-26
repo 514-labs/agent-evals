@@ -3,8 +3,6 @@ title: "Getting Started"
 description: "Create and contribute a full DEC Bench eval from scenario design to JSON output."
 ---
 
-# Getting Started
-
 This guide walks you through the full eval authoring flow: design a scenario, define its starting state, write assertions for all five gates, select a harness, register the eval, and run it locally.
 
 ## What You Will Build
@@ -35,37 +33,64 @@ Recommended context before authoring:
 - [Scoring](/docs/scoring)
 - [Running Evals](/docs/running-evals)
 
-## Scenario Anatomy
+## Bootstrap a Scenario
 
-Start from this file layout:
+The fastest way to start is with the CLI scaffold command. It generates all required files and directories so you can focus on writing the eval.
 
-```text title="Scenario directory structure"
-scenarios/
-  └── ecommerce-pipeline/
-        ├── prompts/
-        │   ├── naive.md
-        │   └── savvy.md
-        ├── supervisord.conf
-        ├── init/
-        │   ├── postgres-setup.sql
-        │   └── seed-data.sql
-        ├── assertions/
-        │   ├── functional.ts
-        │   ├── correct.ts
-        │   ├── robust.ts
-        │   ├── performant.ts
-        │   └── production.ts
-        └── scenario.json
+### Flag-based (single command)
+
+Pass all options as flags to skip prompts entirely:
+
+```bash title="Scaffold a new scenario"
+dec-bench create \
+  --name ecommerce-pipeline \
+  --domain ecommerce \
+  --tier tier-2
 ```
+
+### Available flags
+
+| Flag | Required | Default | Description |
+|------|----------|---------|-------------|
+| `--name` / `-n` | yes | — | Scenario ID, used as directory name and JSON id |
+| `--domain` / `-d` | yes | — | Business domain (`ecommerce`, `fintech`, `iot`, `analytics`, `saas`, `media`, `healthcare`, `logistics`) |
+| `--tier` / `-t` | no | `tier-1` | Difficulty tier (`tier-1`, `tier-2`, `tier-3`) |
+| `--harness` | no | `default` | Evaluation harness profile |
+| `--dir` | no | `scenarios` | Root directory for scenario output |
+
+### What gets generated
+
+```text title="Output"
+scenarios/ecommerce-pipeline/
+├── assertions/
+│   ├── correct.ts
+│   ├── functional.ts
+│   ├── performant.ts
+│   ├── production.ts
+│   └── robust.ts
+├── init/
+│   └── postgres-setup.sql
+├── prompts/
+│   ├── naive.md
+│   └── savvy.md
+├── scenario.json
+└── supervisord.conf
+```
+
+Every file is pre-populated with the right structure and placeholder comments. The `scenario.json` is pre-filled with your `--domain`, `--tier`, and `--harness` values.
+
+### Authoring flow
+
+Once scaffolded, work through each file in order:
 
 ```mermaid
 flowchart TD
-  design[DesignProblem] --> prompt[WritePrompt]
-  prompt --> setup[SetUpInfraAndData]
-  setup --> assertions[WriteGateAssertions]
-  assertions --> harness[SelectOrAddHarness]
-  harness --> register[RegisterScenario]
-  register --> run[BuildAndRunEval]
+  create["dec-bench create"] --> prompt["Write Prompts"]
+  prompt --> setup["Set Up Infra + Data"]
+  setup --> assertions["Write Gate Assertions"]
+  assertions --> harness["Select or Add Harness"]
+  harness --> register["Complete scenario.json"]
+  register --> run["dec-bench run"]
 ```
 
 ## 1) Design the Problem
