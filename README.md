@@ -38,13 +38,13 @@ A gate passes when all core assertions (universal) and scenario-specific asserti
 
 | Domain            | Example Data                                          | Characteristic Challenges                                    |
 |-------------------|-------------------------------------------------------|--------------------------------------------------------------|
+| Foo Bar (Dummy)   | Synthetic tables, generated events, placeholder metrics | Dummy data for testing eval scaffolding and pipeline wiring  |
 | B2B SaaS          | Product usage events, subscription lifecycle          | High-cardinality user/account dimensions, event versioning   |
 | B2C SaaS          | User activity streams, content interactions           | Massive event volumes, time-series heavy, retention queries  |
 | UGC               | Posts, comments, reactions, moderation signals         | Variable schema (JSON-heavy), content search + analytics     |
 | E-Commerce        | Orders, inventory, catalog, customer behavior         | Transactional correctness critical, complex JOINs            |
 | Advertising       | Impressions, clicks, conversions, bid data            | Extreme write throughput, real-time aggregation              |
 | Consumption Infra | API calls, compute usage, storage metering            | Billing accuracy critical, high-cardinality metering keys    |
-| Foo Bar (Dummy)   | Synthetic tables, generated events, placeholder metrics | Dummy data for testing eval scaffolding and pipeline wiring  |
 
 ### User-Facing Analytics
 

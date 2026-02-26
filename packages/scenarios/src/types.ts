@@ -16,13 +16,13 @@ export type TaskCategory =
 
 // Business domains used by scenario registry entries.
 export type BusinessDomain =
+  | "foo-bar"
   | "b2b-saas"
   | "b2c-saas"
   | "ugc"
   | "e-commerce"
   | "advertising"
-  | "consumption-based-infra"
-  | "foo-bar";
+  | "consumption-based-infra";
 
 // Built-in harnesses plus custom user harness names.
 export type BuiltInHarness = "bare" | "dbt" | "full" | "mcp-postgres" | "web-search";

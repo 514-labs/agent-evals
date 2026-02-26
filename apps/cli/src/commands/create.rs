@@ -30,6 +30,8 @@ pub struct CreateArgs {
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub enum Domain {
+    #[value(name = "foo-bar")]
+    FooBar,
     #[value(name = "b2b-saas")]
     B2bSaas,
     #[value(name = "b2c-saas")]
@@ -42,20 +44,18 @@ pub enum Domain {
     Advertising,
     #[value(name = "consumption-based-infra")]
     ConsumptionBasedInfra,
-    #[value(name = "foo-bar")]
-    FooBar,
 }
 
 impl std::fmt::Display for Domain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::FooBar => write!(f, "foo-bar"),
             Self::B2bSaas => write!(f, "b2b-saas"),
             Self::B2cSaas => write!(f, "b2c-saas"),
             Self::Ugc => write!(f, "ugc"),
             Self::ECommerce => write!(f, "e-commerce"),
             Self::Advertising => write!(f, "advertising"),
             Self::ConsumptionBasedInfra => write!(f, "consumption-based-infra"),
-            Self::FooBar => write!(f, "foo-bar"),
         }
     }
 }
