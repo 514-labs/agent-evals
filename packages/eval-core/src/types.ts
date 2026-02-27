@@ -21,6 +21,16 @@ export interface EfficiencyMetrics {
   llmApiCostUsd: number;
 }
 
+export interface CompositeScoreBreakdown {
+  total: number;
+  components: {
+    taskCompletion: number;
+    latency: number;
+    cost: number;
+    storage: number;
+  };
+}
+
 export interface EvalOutput {
   scenario: string;
   version: string;
@@ -29,6 +39,7 @@ export interface EvalOutput {
   model: string;
   highest_gate: number;
   normalized_score: number;
+  composite_score?: CompositeScoreBreakdown;
   gates: Record<GateName, GateResult>;
   efficiency: EfficiencyMetrics;
 }

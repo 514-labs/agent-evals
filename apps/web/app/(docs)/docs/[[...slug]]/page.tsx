@@ -20,23 +20,20 @@ const mdxComponents = useMDXComponents({
   ScenarioRegistry: ScenarioRegistryBlock,
 })
 
-export const dynamic = "force-static"
-export const dynamicParams = false
-
 export function generateStaticParams() {
-  const seen = new Set<string>()
-  const params: Array<{ slug: string[] }> = [{ slug: [] }]
+  const seen = new Set<string>();
+  const params: Array<{ slug: string[] }> = [{ slug: [] }];
 
   for (const entry of docsSource.generateParams("slug")) {
-    const key = entry.slug.join("/")
+    const key = entry.slug.join("/");
 
     if (!seen.has(key)) {
-      seen.add(key)
-      params.push({ slug: entry.slug })
+      seen.add(key);
+      params.push({ slug: entry.slug });
     }
   }
 
-  return params
+  return params;
 }
 
 export default async function DocsPage({

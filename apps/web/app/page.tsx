@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { AnimatedLogo } from "../components/animated-logo";
-
-export const dynamic = "force-static";
+import { Nav } from "../components/nav";
+import { Footer } from "../components/footer";
+import { upNext } from "../flags";
 
 const gates = [
   { label: "FUNCTIONAL", number: "01", detail: "IT RUNS" },
@@ -11,12 +11,82 @@ const gates = [
   { label: "PRODUCTION", number: "05", detail: "YOU'D SHIP THIS" },
 ];
 
-const internalScenarios = [
+const fooBarScenarios = [
   {
-    domain: "FOO BAR (DUMMY)",
-    data: "Synthetic tables, generated events, placeholder metrics",
-    challenge: "Dummy data for testing eval scaffolding and pipeline wiring",
+    id: "foo-bar-csv-ingest",
+    title: "CSV INGEST",
+    competency: "INGESTION",
+    description:
+      "Load five messy CSV files into clean ClickHouse tables. Handle inconsistent dates, mixed null representations, duplicate headers, and trailing delimiters.",
+    services: ["clickhouse"],
+    startingState: "greenfield",
   },
+  {
+    id: "foo-bar-table-layout",
+    title: "TABLE LAYOUT",
+    competency: "SCHEMA DESIGN",
+    description:
+      "Redesign a naive ClickHouse table with 5M rows to serve three representative query patterns. Set partition keys, order keys, and compression for target latencies.",
+    services: ["clickhouse"],
+    startingState: "greenfield",
+  },
+  {
+    id: "foo-bar-slow-queries",
+    title: "SLOW QUERIES",
+    competency: "QUERY OPTIMIZATION",
+    description:
+      "Rewrite five slow analytical queries against a 10M-row ClickHouse table to run under latency thresholds without changing result sets.",
+    services: ["clickhouse"],
+    startingState: "broken",
+  },
+  {
+    id: "foo-bar-broken-connection",
+    title: "BROKEN CONNECTION",
+    competency: "DEBUGGING",
+    description:
+      "Diagnose and fix a misconfigured Postgres setup: wrong connection string, partial init script, and hardcoded credentials in a Python script.",
+    services: ["postgres"],
+    startingState: "broken",
+  },
+  {
+    id: "foo-bar-transform-chain",
+    title: "TRANSFORM CHAIN",
+    competency: "TRANSFORMATION",
+    description:
+      "Build a three-layer transformation from raw JSON events in Postgres to a sessionized, aggregated daily mart in ClickHouse.",
+    services: ["postgres", "clickhouse"],
+    startingState: "greenfield",
+  },
+  {
+    id: "foo-bar-schema-evolution",
+    title: "SCHEMA EVOLUTION",
+    competency: "SCHEMA DESIGN",
+    description:
+      "Add a column to a synthetic dimension table, create the corresponding ClickHouse target, build a cross-database view, and verify old queries still work.",
+    services: ["postgres", "clickhouse"],
+    startingState: "greenfield",
+  },
+  {
+    id: "foo-bar-idempotent-pipeline",
+    title: "IDEMPOTENT PIPELINE",
+    competency: "RELIABILITY",
+    description:
+      "Build a pipeline from Postgres to ClickHouse that produces identical results whether run once or three times. Handle updates to existing rows by primary key.",
+    services: ["postgres", "clickhouse"],
+    startingState: "greenfield",
+  },
+  {
+    id: "foo-bar-quality-gate",
+    title: "QUALITY GATE",
+    competency: "DATA QUALITY",
+    description:
+      "Add data quality checks to a working pipeline. A chaos script injects nulls, duplicates, schema drift, and stale timestamps. Agent must detect all four problems without false positives.",
+    services: ["postgres", "clickhouse"],
+    startingState: "broken",
+  },
+];
+
+const upNextDomains = [
   {
     domain: "B2B SAAS",
     data: "Product usage events, subscription lifecycle, feature adoption",
@@ -49,7 +119,7 @@ const internalScenarios = [
   },
 ];
 
-const userFacingScenarios = [
+const upNextFeatures = [
   {
     scenario: "DASHBOARDS",
     task: "Pre-aggregated models, sub-second query latency, concurrent access",
@@ -68,40 +138,44 @@ const userFacingScenarios = [
   },
 ];
 
-const marqueeText =
-  "POSTGRES · REDPANDA · CLICKHOUSE · FOO BAR · B2B SAAS · B2C SAAS · UGC · E-COMMERCE · ADVERTISING · CONSUMPTION INFRA · OPEN SOURCE · DASHBOARDS · FEEDS · ANALYTICAL CHAT · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · ";
+const harnesses = [
+  {
+    id: "bare",
+    title: "BARE",
+    subtitle: "CONTROL GROUP",
+    description:
+      "No extra tooling. Python, Node.js, database CLIs only. This is the control group.",
+    install: "",
+  },
+  {
+    id: "classic-de",
+    title: "CLASSIC DE",
+    subtitle: "TRADITIONAL TOOLKIT",
+    description:
+      "Traditional data engineering toolkit. dbt + polars + great-expectations.",
+    install:
+      "pip3 install dbt-core dbt-postgres dbt-clickhouse polars great-expectations",
+  },
+  {
+    id: "olap-for-swe",
+    title: "OLAP FOR SWE",
+    subtitle: "CODE-FIRST FRAMEWORK",
+    description:
+      "Unified code-first framework. MooseStack with typed schemas, automated migrations, built-in MCP.",
+    install: "npm install -g @514labs/moose-cli && npm install @514labs/moose-lib",
+  },
+];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const showUpNext = await upNext();
+
+  const marqueeText = showUpNext
+    ? "POSTGRES · REDPANDA · CLICKHOUSE · FOO BAR · B2B SAAS · B2C SAAS · UGC · E-COMMERCE · ADVERTISING · CONSUMPTION INFRA · OPEN SOURCE · DASHBOARDS · FEEDS · ANALYTICAL CHAT · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · "
+    : "POSTGRES · REDPANDA · CLICKHOUSE · FOO BAR · OPEN SOURCE · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · CSV INGEST · TABLE LAYOUT · DEBUGGING · DATA QUALITY · ";
+
   return (
     <div className="relative min-h-screen bg-white text-black overflow-hidden font-[family-name:var(--font-body)]">
-      {/* Navigation */}
-      <nav className="relative z-20 border-b-[3px] border-black">
-        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-4 flex items-center justify-between">
-          <AnimatedLogo />
-          <div className="flex items-center gap-4">
-            <Link
-              href="/docs"
-              className="text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-[#FF10F0] px-3 py-1.5 transition-colors"
-            >
-              DOCS
-            </Link>
-            <Link
-              href="/leaderboard"
-              className="text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-[#FF10F0] px-3 py-1.5 transition-colors"
-            >
-              LEADERBOARD
-            </Link>
-            <a
-              href="https://github.com/514-labs/agent-evals"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] font-bold uppercase tracking-[0.15em] border-[2px] border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
-            >
-              GH ↗
-            </a>
-          </div>
-        </div>
-      </nav>
+      <Nav showLeaderboard={showUpNext} />
 
       {/* Hero */}
       <section className="relative z-10">
@@ -140,10 +214,10 @@ export default function HomePage() {
 
           <div className="flex flex-wrap gap-4 mt-8 brutal-fade-in">
             <Link
-              href="/leaderboard"
+              href="/docs/running-evals"
               className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
             >
-              LEADERBOARD →
+              RUN AN EVAL →
             </Link>
             <Link
               href="/docs"
@@ -164,7 +238,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Scoring */}
+      {/* Scoring Methodology */}
       <section className="relative z-10">
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
           <div className="border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white">
@@ -177,7 +251,6 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* Scoring Intro */}
             <div className="px-6 py-6 border-b-[3px] border-black bg-[#FF10F0] flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <span className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl tracking-tight uppercase">
@@ -193,7 +266,6 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Sequential Gates */}
             <div className="flex flex-col divide-y-[3px] divide-black">
               {gates.map((g) => (
                 <div
@@ -225,96 +297,204 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Internal Analytics Scenarios */}
+      {/* Scenarios */}
       <section className="relative z-10">
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
           <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-7xl tracking-tight uppercase">
             SCENARIOS
           </h2>
           <p className="mt-3 mb-12 text-[12px] uppercase tracking-wider text-black/50 max-w-lg">
-            Evaluate agents across realistic data engineering domains and
-            features.
+            v0.1 ships 8 scenarios on the Foo Bar synthetic domain. Each
+            scenario tests a different data engineering competency.
           </p>
 
           <div className="border-[3px] border-black">
             <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
-                INTERNAL ANALYTICS & DATA WAREHOUSING
+                FOO BAR DOMAIN
               </span>
               <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
-                {internalScenarios.length} DOMAINS
+                {fooBarScenarios.length} SCENARIOS
               </span>
             </div>
 
-            {/* Column headers */}
-            <div className="grid grid-cols-[1fr_1.5fr_1.5fr] gap-x-6 border-b-[2px] border-black/15 px-6 py-2">
-              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
-                DOMAIN
-              </span>
-              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
-                EXAMPLE DATA
-              </span>
-              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
-                CHARACTERISTIC CHALLENGES
-              </span>
+            <div className="grid md:grid-cols-2">
+              {fooBarScenarios.map((s, i) => (
+                <div
+                  key={s.id}
+                  className={`p-6 hover:bg-[#FF10F0] transition-colors group border-black ${
+                    i % 2 === 0 ? "md:border-r-[3px]" : ""
+                  } ${i < fooBarScenarios.length - 2 ? "border-b-[3px]" : ""} ${
+                    i === fooBarScenarios.length - 2
+                      ? "border-b-[3px] md:border-b-0"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-[14px] font-bold uppercase tracking-[0.1em]">
+                      {s.title}
+                    </h3>
+                    <span
+                      className={`text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-0.5 border-[2px] shrink-0 ml-3 ${
+                        s.startingState === "broken"
+                          ? "border-[#FF10F0] text-[#FF10F0] group-hover:border-black group-hover:text-black"
+                          : "border-black/30 text-black/30 group-hover:border-black/60 group-hover:text-black/60"
+                      }`}
+                    >
+                      {s.startingState === "broken" ? "FIX" : "BUILD"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-black/50 group-hover:text-black/70 transition-colors leading-relaxed mb-3">
+                    {s.description}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] bg-black text-white px-2 py-0.5 group-hover:bg-black/80">
+                      {s.competency}
+                    </span>
+                    {s.services.map((svc) => (
+                      <span
+                        key={svc}
+                        className="text-[9px] uppercase tracking-[0.15em] text-black/40 group-hover:text-black/60"
+                      >
+                        {svc}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-
-            {internalScenarios.map((s) => (
-              <div
-                key={s.domain}
-                className="grid grid-cols-[1fr_1.5fr_1.5fr] gap-x-6 border-b-[1px] last:border-b-0 border-black/10 px-6 py-4 hover:bg-[#FF10F0] transition-colors group"
-              >
-                <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
-                  {s.domain}
-                </span>
-                <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
-                  {s.data}
-                </span>
-                <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
-                  {s.challenge}
-                </span>
-              </div>
-            ))}
           </div>
+
+          {showUpNext && (
+            <>
+              <h3 className="font-[family-name:var(--font-display)] text-2xl md:text-3xl tracking-tight uppercase mt-16 mb-6">
+                COMING SOON: MORE DOMAINS
+              </h3>
+              <div className="border-[3px] border-black">
+                <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+                    INTERNAL ANALYTICS & DATA WAREHOUSING
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
+                    {upNextDomains.length} DOMAINS
+                  </span>
+                </div>
+                <div className="grid grid-cols-[1fr_1.5fr_1.5fr] gap-x-6 border-b-[2px] border-black/15 px-6 py-2">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                    DOMAIN
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                    EXAMPLE DATA
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                    CHARACTERISTIC CHALLENGES
+                  </span>
+                </div>
+                {upNextDomains.map((s) => (
+                  <div
+                    key={s.domain}
+                    className="grid grid-cols-[1fr_1.5fr_1.5fr] gap-x-6 border-b-[1px] last:border-b-0 border-black/10 px-6 py-4 hover:bg-[#FF10F0] transition-colors group"
+                  >
+                    <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
+                      {s.domain}
+                    </span>
+                    <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                      {s.data}
+                    </span>
+                    <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                      {s.challenge}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </section>
 
-      {/* User-Facing Analytics Scenarios */}
-      <section className="relative z-10">
-        <div className="max-w-6xl mx-auto px-6 lg:px-12 pb-16">
-          <div className="border-[3px] border-black">
-            <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
-                USER-FACING ANALYTICS
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
-                {userFacingScenarios.length} FEATURES
-              </span>
-            </div>
-
-            {/* Column headers */}
-            <div className="grid grid-cols-[1fr_3fr] gap-x-6 border-b-[2px] border-black/15 px-6 py-2">
-              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
-                SCENARIO
-              </span>
-              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
-                WHAT THE AGENT NEEDS TO BUILD / OPTIMIZE
-              </span>
-            </div>
-
-            {userFacingScenarios.map((s) => (
-              <div
-                key={s.scenario}
-                className="grid grid-cols-[1fr_3fr] gap-x-6 border-b-[1px] last:border-b-0 border-black/10 px-6 py-4 hover:bg-[#FF10F0] transition-colors group"
-              >
-                <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
-                  {s.scenario}
+      {/* User-Facing Analytics (up-next only) */}
+      {showUpNext && (
+        <section className="relative z-10">
+          <div className="max-w-6xl mx-auto px-6 lg:px-12 pb-16">
+            <div className="border-[3px] border-black">
+              <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+                  USER-FACING ANALYTICS
                 </span>
-                <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
-                  {s.task}
+                <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
+                  {upNextFeatures.length} FEATURES
                 </span>
               </div>
+              <div className="grid grid-cols-[1fr_3fr] gap-x-6 border-b-[2px] border-black/15 px-6 py-2">
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                  SCENARIO
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                  WHAT THE AGENT NEEDS TO BUILD / OPTIMIZE
+                </span>
+              </div>
+              {upNextFeatures.map((s) => (
+                <div
+                  key={s.scenario}
+                  className="grid grid-cols-[1fr_3fr] gap-x-6 border-b-[1px] last:border-b-0 border-black/10 px-6 py-4 hover:bg-[#FF10F0] transition-colors group"
+                >
+                  <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
+                    {s.scenario}
+                  </span>
+                  <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                    {s.task}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Harnesses */}
+      <section className="relative z-10">
+        <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
+          <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-7xl tracking-tight uppercase">
+            HARNESSES
+          </h2>
+          <p className="mt-3 mb-12 text-[12px] uppercase tracking-wider text-black/50 max-w-lg">
+            Each scenario runs against multiple harness configurations. The
+            harness determines what tools the agent has access to.
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-0">
+            {harnesses.map((h, i) => (
+              <div
+                key={h.id}
+                className={`border-[3px] border-black p-8 hover:bg-[#FF10F0] transition-colors group ${
+                  i > 0
+                    ? "border-t-0 md:border-t-[3px] md:border-l-0"
+                    : ""
+                }`}
+              >
+                <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
+                  {h.subtitle}
+                </span>
+                <h3 className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl uppercase tracking-tight leading-[0.9]">
+                  {h.title}
+                </h3>
+                <p className="mt-3 text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                  {h.description}
+                </p>
+                {h.install && (
+                  <div className="mt-4 bg-black text-[#FF10F0] p-3 text-[10px] font-[family-name:var(--font-body)] overflow-x-auto group-hover:bg-black/90">
+                    <code>$ {h.install}</code>
+                  </div>
+                )}
+              </div>
             ))}
+          </div>
+
+          <div className="mt-6 border-[2px] border-dashed border-black/20 px-6 py-4">
+            <p className="text-[11px] text-black/50">
+              The same scenario across different harnesses directly measures
+              whether tooling helps agents perform better.
+            </p>
           </div>
         </div>
       </section>
@@ -425,9 +605,10 @@ export default function HomePage() {
       <div className="relative z-10 py-3 bg-[#FF10F0] overflow-hidden border-y-[3px] border-black">
         <div className="brutal-marquee-reverse flex whitespace-nowrap">
           <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-black">
-            {"BENCHMARK YOUR AGENTS · CLIMB THE LEADERBOARD · OPEN SOURCE · CLICKHOUSE NATIVE · ".repeat(
-              10,
-            )}
+            {(showUpNext
+              ? "BENCHMARK YOUR AGENTS · CLIMB THE LEADERBOARD · OPEN SOURCE · CLICKHOUSE NATIVE · "
+              : "BENCHMARK YOUR AGENTS · OPEN SOURCE · CLICKHOUSE NATIVE · RUN LOCALLY · DOCKER POWERED · "
+            ).repeat(10)}
           </span>
         </div>
       </div>
@@ -441,48 +622,36 @@ export default function HomePage() {
             YOUR EVAL
           </h2>
           <p className="mt-6 text-[12px] text-black/50 max-w-md mx-auto">
-            Run your agents against real-world data engineering challenges. See
-            how they stack up on the leaderboard.
+            Run 8 data engineering scenarios against your agents locally. Every
+            eval is a single <code className="text-black/70">docker run</code>{" "}
+            command.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
-              href="/leaderboard"
+              href="/docs/running-evals"
               className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
             >
-              LEADERBOARD →
+              RUN AN EVAL →
             </Link>
             <Link
-              href="/docs"
+              href="/docs/registry"
               className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
             >
-              GET STARTED →
+              BROWSE SCENARIOS →
             </Link>
+            <a
+              href="https://github.com/514-labs/agent-evals"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="brutal-btn bg-white text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
+            >
+              VIEW ON GITHUB ↗
+            </a>
           </div>
         </div>
       </section>
 
-      <footer className="border-t-[3px] border-black">
-        <div className="max-w-6xl mx-auto px-6 py-6 text-center text-[9px] font-bold uppercase tracking-[0.3em] text-black/40">
-          BROUGHT TO YOU BY{" "}
-          <a
-            href="https://fiveonefour.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-black/70 transition-colors"
-          >
-            FIVEONEFOUR
-          </a>{" "}
-          ·{" "}
-          <a
-            href="https://fiveonefour.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-black/70 transition-colors"
-          >
-            BECOME A SPONSOR
-          </a>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

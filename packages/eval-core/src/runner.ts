@@ -1,9 +1,12 @@
 import { readFileSync } from "node:fs";
 
+import type { BaselineMetrics, ObservedMetrics, ReferenceMetrics } from "@dec-bench/scenarios";
+
 import type { AssertionContext } from "./context.js";
 import { loadScenarioAssertions, type AssertionFn } from "./discovery.js";
 import type { EvalOutput, GateName, GateResult } from "./types.js";
 import { createEvalOutput } from "./output.js";
+import { computeScore } from "./score.js";
 
 const GATES: GateName[] = ["functional", "correct", "robust", "performant", "production"];
 const PASS_THRESHOLD = 0.8;
@@ -19,6 +22,9 @@ export interface GateRunnerOptions {
   agent: string;
   model: string;
   efficiency: EvalOutput["efficiency"];
+  baselineMetrics?: BaselineMetrics;
+  referenceMetrics?: ReferenceMetrics;
+  observedMetrics?: ObservedMetrics;
 }
 
 export async function runGateEvaluation(options: GateRunnerOptions): Promise<EvalOutput> {
@@ -65,6 +71,19 @@ export async function runGateEvaluation(options: GateRunnerOptions): Promise<Eva
     }
   }
 
+  let compositeScore: EvalOutput["composite_score"];
+  if (options.baselineMetrics && options.referenceMetrics && options.observedMetrics) {
+    const breakdown = computeScore(
+      options.baselineMetrics,
+      options.referenceMetrics,
+      options.observedMetrics,
+    );
+    compositeScore = {
+      total: breakdown.total,
+      components: breakdown.components,
+    };
+  }
+
   return createEvalOutput({
     scenario: options.scenario,
     version: options.version,
@@ -73,6 +92,7 @@ export async function runGateEvaluation(options: GateRunnerOptions): Promise<Eva
     model: options.model,
     highestGate,
     normalizedScore: clamp(scoreSum / GATES.length),
+    compositeScore,
     gates,
     efficiency: options.efficiency,
   });
