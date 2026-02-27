@@ -209,17 +209,13 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     selectedTaskCategories.length
 
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams()
 
-    if (tab === "scenarios") params.delete("tab")
-    else params.set("tab", tab)
-
+    if (tab !== "scenarios") params.set("tab", tab)
     if (query) params.set("q", query)
-    else params.delete("q")
 
     const setList = (key: string, values: string[]) => {
       if (values.length > 0) params.set(key, values.join(","))
-      else params.delete(key)
     }
 
     setList("domain", selectedDomains)
@@ -235,7 +231,6 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     pathname,
     query,
     router,
-    searchParams,
     selectedCompetencies,
     selectedDomains,
     selectedFeatures,
