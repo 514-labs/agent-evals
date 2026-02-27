@@ -92,12 +92,12 @@ fn results_filter_only_returns_matching_scenario() {
     let temp = tempdir().expect("temp dir");
     fs::write(
         temp.path().join("one.json"),
-        r#"{"scenario":"match-me","harness":"dbt","highest_gate":2,"normalized_score":0.2}"#,
+        r#"{"scenario":"match-me","harness":"classic-de","highest_gate":2,"normalized_score":0.2}"#,
     )
     .expect("write file");
     fs::write(
         temp.path().join("two.json"),
-        r#"{"scenario":"skip-me","harness":"dbt","highest_gate":5,"normalized_score":0.9}"#,
+        r#"{"scenario":"skip-me","harness":"classic-de","highest_gate":5,"normalized_score":0.9}"#,
     )
     .expect("write file");
 

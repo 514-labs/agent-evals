@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { Badge } from "@workspace/ui/components/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
@@ -38,7 +38,7 @@ type RegistryHarness = {
   id: string
   title: string
   description: string
-  installs: string[]
+  installScript: string
   networkPolicy: "open" | "restricted"
   allowlistedEndpoints?: string[]
 }
@@ -59,6 +59,8 @@ type ScenarioRegistryProps = {
   startingStates: TaxonomyOption[]
 }
 
+const SCRIPT_PREVIEW_LINE_LIMIT = 6
+
 function parseList(raw: string | null): string[] {
   if (!raw) return []
   return raw
@@ -70,6 +72,23 @@ function parseList(raw: string | null): string[] {
 function includesText(haystack: string[], needle: string): boolean {
   if (!needle) return true
   return haystack.some((value) => value.toLowerCase().includes(needle))
+}
+
+function formatInstallScriptPreview(rawScript: string): { lines: string[]; truncated: boolean } {
+  if (!rawScript.trim()) {
+    return { lines: ["# Uses base image defaults only"], truncated: false }
+  }
+
+  const normalized = rawScript
+    .replace(/\s*&&\s*/g, " &&\n")
+    .replace(/\s*;\s*/g, ";\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const truncated = normalized.length > SCRIPT_PREVIEW_LINE_LIMIT
+  const lines = truncated ? normalized.slice(0, SCRIPT_PREVIEW_LINE_LIMIT) : normalized
+  return { lines, truncated }
 }
 
 function FilterChip({
@@ -104,6 +123,51 @@ function FilterSection({ label, children }: { label: string; children: React.Rea
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   )
+}
+
+function ScriptBlock({ harnessId, script }: { harnessId: string; script: string }) {
+  const [copied, setCopied] = useState(false)
+  const preview = formatInstallScriptPreview(script)
+  const filename = `harnesses/${harnessId}.sh`
+
+  const handleCopy = useCallback(() => {
+    if (!script.trim()) return
+    navigator.clipboard.writeText(script).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }, [script])
+
+  return (
+    <div className="border-[3px] border-black overflow-hidden">
+      <div className="flex items-center justify-between bg-black px-3 py-1.5 border-b-[3px] border-black">
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+          {">_ "}{filename}
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="text-white/60 hover:text-white transition-opacity"
+          aria-label="Copy script"
+        >
+          {copied ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="0" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+          )}
+        </button>
+      </div>
+      <pre className="px-4 py-3 overflow-x-auto bg-white">
+        <code className="text-[13px] leading-[1.7] text-black/80" style={{ fontFamily: "var(--font-body), ui-monospace, monospace" }}>
+          {preview.lines.map((line) => `${line}\n`).join("")}{scriptPreviewSuffix(preview.truncated)}
+        </code>
+      </pre>
+    </div>
+  )
+}
+
+function scriptPreviewSuffix(truncated: boolean): string {
+  return truncated ? "# ...\n" : ""
 }
 
 export function ScenarioRegistry(props: ScenarioRegistryProps) {
@@ -145,17 +209,13 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     selectedTaskCategories.length
 
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams()
 
-    if (tab === "scenarios") params.delete("tab")
-    else params.set("tab", tab)
-
+    if (tab !== "scenarios") params.set("tab", tab)
     if (query) params.set("q", query)
-    else params.delete("q")
 
     const setList = (key: string, values: string[]) => {
       if (values.length > 0) params.set(key, values.join(","))
-      else params.delete(key)
     }
 
     setList("domain", selectedDomains)
@@ -171,7 +231,6 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     pathname,
     query,
     router,
-    searchParams,
     selectedCompetencies,
     selectedDomains,
     selectedFeatures,
@@ -248,7 +307,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     const needle = query.trim().toLowerCase()
     return props.harnesses
       .filter((harness) =>
-        includesText([harness.id, harness.title, harness.description, ...harness.installs], needle)
+        includesText([harness.id, harness.title, harness.description, harness.installScript], needle)
       )
       .sort((a, b) => a.title.localeCompare(b.title))
   }, [props.harnesses, query])
@@ -328,7 +387,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
               </SheetTrigger>
               <SheetContent side="right" className="overflow-y-auto">
                 <SheetHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pr-8">
                     <SheetTitle className="text-[11px] font-bold uppercase tracking-[0.2em]">
                       Filters
                     </SheetTitle>
@@ -536,7 +595,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                     </Badge>
                   </div>
 
-                  <div className="text-[11px] text-black/65">Installs: {harness.installs.join(", ") || "none"}</div>
+                  <ScriptBlock harnessId={harness.id} script={harness.installScript} />
 
                   {expanded && (
                     <div className="pt-2 border-t border-black/10 space-y-2">

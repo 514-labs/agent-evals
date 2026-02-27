@@ -25,7 +25,7 @@ export type RegistryHarness = {
   id: string
   title: string
   description: string
-  installs: string[]
+  installScript: string
   networkPolicy: "open" | "restricted"
   allowlistedEndpoints?: string[]
 }

@@ -33,8 +33,8 @@ Services run locally via supervisord -- Postgres, ClickHouse, Redpanda, all insi
 
 A shell script that installs tools. That's the whole abstraction.
 
-```bash title="harnesses/dbt.sh"
-pip install dbt-core dbt-postgres dbt-clickhouse
+```bash title="harnesses/classic-de.sh"
+pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0 dbt-clickhouse==1.10.0 polars==1.38.1 great-expectations==1.13.0
 ```
 
 The Dockerfile runs it at build time. Contributing a harness = writing a shell script.
@@ -70,10 +70,6 @@ Each agent adds its LLM provider:
 iptables -I OUTPUT -d api.anthropic.com -j ACCEPT
 ```
 
-Each harness adds endpoints for its tools:
-
-```bash title="harnesses/web-search/iptables.sh"
-iptables -I OUTPUT -d api.tavily.com -j ACCEPT
-```
+Each harness may add endpoints for its tools when running in restricted mode.
 
 Rules stack. The final image allows the union of all endpoints from its agent and harness layers.
