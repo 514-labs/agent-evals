@@ -15,12 +15,34 @@ if [[ -f /etc/supervisord.conf ]]; then
   supervisord -c /etc/supervisord.conf
 fi
 
+detect_services() {
+  if [[ -f /etc/supervisord.conf ]]; then
+    if grep -q "\[program:postgres\]" /etc/supervisord.conf 2>/dev/null; then
+      export POSTGRES_URL="${POSTGRES_URL:-postgresql://postgres@localhost:5432/postgres}"
+      export POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+      export POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+    fi
+    if grep -q "\[program:clickhouse\]" /etc/supervisord.conf 2>/dev/null; then
+      export CLICKHOUSE_URL="${CLICKHOUSE_URL:-http://localhost:8123}"
+      export CLICKHOUSE_HOST="${CLICKHOUSE_HOST:-localhost}"
+      export CLICKHOUSE_PORT="${CLICKHOUSE_PORT:-8123}"
+    fi
+    if grep -q "\[program:redpanda\]" /etc/supervisord.conf 2>/dev/null; then
+      export REDPANDA_BROKER="${REDPANDA_BROKER:-localhost:9092}"
+    fi
+  fi
+}
+
+detect_services
+
 wait_for_postgres() {
   if [[ -z "${POSTGRES_URL:-}" ]]; then
     return 0
   fi
+  echo "Waiting for Postgres..."
   for _ in $(seq 1 30); do
-    if pg_isready -d "${POSTGRES_URL}" >/dev/null 2>&1; then
+    if pg_isready -h localhost -p "${POSTGRES_PORT:-5432}" >/dev/null 2>&1; then
+      echo "Postgres is ready."
       return 0
     fi
     sleep 1
@@ -33,8 +55,10 @@ wait_for_clickhouse() {
   if [[ -z "${CLICKHOUSE_URL:-}" ]]; then
     return 0
   fi
+  echo "Waiting for ClickHouse..."
   for _ in $(seq 1 30); do
     if clickhouse-client --query "SELECT 1" >/dev/null 2>&1; then
+      echo "ClickHouse is ready."
       return 0
     fi
     sleep 1
@@ -51,11 +75,19 @@ run_init_scripts() {
   for script in /scenario/init/*; do
     case "${script}" in
       *.sql)
-        if [[ -n "${POSTGRES_URL:-}" ]]; then
+        if [[ -n "${POSTGRES_URL:-}" ]] && [[ "${script}" == *postgres* ]]; then
+          echo "Running Postgres init: ${script}"
+          psql "${POSTGRES_URL}" -f "${script}"
+        elif [[ -n "${CLICKHOUSE_URL:-}" ]] && [[ "${script}" == *clickhouse* ]]; then
+          echo "Running ClickHouse init: ${script}"
+          clickhouse-client --multiquery < "${script}"
+        elif [[ -n "${POSTGRES_URL:-}" ]]; then
+          echo "Running SQL init (Postgres): ${script}"
           psql "${POSTGRES_URL}" -f "${script}"
         fi
         ;;
       *.sh)
+        echo "Running shell init: ${script}"
         bash "${script}"
         ;;
     esac

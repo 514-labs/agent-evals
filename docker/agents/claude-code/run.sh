@@ -10,5 +10,5 @@ fi
 
 claude -p "$(cat "${PROMPT_FILE}")" \
   --model "${MODEL:-claude-sonnet-4-20250514}" \
-  --allowedTools "Bash(command:*)" \
+  --allowedTools "Bash(command:*)" "Read" "Write" "Edit" \
   --max-turns 50
