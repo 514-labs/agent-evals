@@ -84,6 +84,15 @@ const fooBarScenarios = [
     services: ["postgres", "clickhouse"],
     startingState: "broken",
   },
+  {
+    id: "foo-bar-ingest-to-api",
+    title: "INGEST-TO-API",
+    competency: "END-TO-END",
+    description:
+      "Build a complete pipeline: ingest events from Postgres, transform and load into ClickHouse, and expose an HTTP API serving top products, conversion funnel, and hourly trends.",
+    services: ["postgres", "clickhouse"],
+    startingState: "greenfield",
+  },
 ];
 
 const upNextDomains = [
@@ -304,7 +313,7 @@ export default async function HomePage() {
             SCENARIOS
           </h2>
           <p className="mt-3 mb-12 text-[12px] uppercase tracking-wider text-black/50 max-w-lg">
-            v0.1 ships 8 scenarios on the Foo Bar synthetic domain. Each
+            v0.1 ships 9 scenarios on the Foo Bar synthetic domain. Each
             scenario tests a different data engineering competency.
           </p>
 
@@ -622,7 +631,7 @@ export default async function HomePage() {
             YOUR EVAL
           </h2>
           <p className="mt-6 text-[12px] text-black/50 max-w-md mx-auto">
-            Run 8 data engineering scenarios against your agents locally. Every
+            Run 9 data engineering scenarios against your agents locally. Every
             eval is a single <code className="text-black/70">docker run</code>{" "}
             command.
           </p>
