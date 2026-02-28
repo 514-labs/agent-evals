@@ -475,7 +475,7 @@ export default async function HomePage() {
             {harnesses.map((h, i) => (
               <div
                 key={h.id}
-                className={`border-[3px] border-black p-8 hover:bg-[#FF10F0] transition-colors group ${
+                className={`flex flex-col border-[3px] border-black p-8 hover:bg-[#FF10F0] transition-colors group ${
                   i > 0
                     ? "border-t-0 md:border-t-[3px] md:border-l-0"
                     : ""
@@ -491,8 +491,10 @@ export default async function HomePage() {
                   {h.description}
                 </p>
                 {h.install && (
-                  <div className="mt-4 bg-black text-[#FF10F0] p-3 text-[10px] font-[family-name:var(--font-body)] overflow-x-auto group-hover:bg-black/90">
-                    <code>$ {h.install}</code>
+                  <div className="mt-auto pt-6">
+                    <div className="bg-black text-[#FF10F0] p-3 text-[10px] font-[family-name:var(--font-body)] overflow-x-auto group-hover:bg-black/90">
+                      <code>$ {h.install}</code>
+                    </div>
                   </div>
                 )}
               </div>

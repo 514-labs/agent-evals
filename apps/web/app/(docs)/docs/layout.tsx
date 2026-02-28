@@ -25,7 +25,7 @@ export default async function DocsLayout({
 
   return (
     <div className="min-h-screen bg-white text-black font-[family-name:var(--font-body)] overscroll-none">
-      <Nav showLeaderboard={showUpNext} activeItem="docs" sticky={true} />
+      <Nav showLeaderboard={showUpNext} activeItem="docs" sticky={true} fullWidth={true} />
 
       <SidebarProvider
         defaultOpen={true}

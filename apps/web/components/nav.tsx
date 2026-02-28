@@ -5,18 +5,22 @@ interface NavProps {
   showLeaderboard?: boolean;
   activeItem?: "docs" | "leaderboard";
   sticky?: boolean;
+  fullWidth?: boolean;
 }
 
 export function Nav({
   showLeaderboard = false,
   activeItem,
   sticky = false,
+  fullWidth = false,
 }: NavProps) {
   return (
     <nav
       className={`relative z-20 border-b-[3px] border-black bg-white ${sticky ? "sticky top-0 z-50" : ""}`}
     >
-      <div className="max-w-6xl mx-auto px-6 lg:px-12 py-4 flex items-center justify-between">
+      <div
+        className={`py-4 flex items-center justify-between ${fullWidth ? "px-4" : "max-w-6xl mx-auto px-6 lg:px-12"}`}
+      >
         <Link href="/">
           <AnimatedLogo />
         </Link>
