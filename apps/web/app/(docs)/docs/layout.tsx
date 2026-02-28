@@ -13,19 +13,16 @@ import {
 import { DocsSearch } from "@/components/docs-search";
 import { DocsTreeNav } from "@/components/docs-tree-nav";
 import { Nav } from "@/components/nav";
-import { upNext } from "@/flags";
 import { docsSource } from "@/lib/source";
 
-export default async function DocsLayout({
+export default function DocsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const showUpNext = await upNext();
-
   return (
     <div className="min-h-screen bg-white text-black font-[family-name:var(--font-body)] overscroll-none">
-      <Nav showLeaderboard={showUpNext} activeItem="docs" sticky={true} fullWidth={true} />
+      <Nav activeItem="docs" sticky={true} fullWidth={true} />
 
       <SidebarProvider
         defaultOpen={true}

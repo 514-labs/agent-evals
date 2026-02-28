@@ -7,7 +7,11 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import { upNext } from "../../flags";
+import {
+  getLeaderboardEntries,
+  getUniqueScenarios,
+  type LeaderboardEntry,
+} from "../../data/results";
 
 const gateNames = [
   "—",
@@ -16,105 +20,6 @@ const gateNames = [
   "ROBUST",
   "PERFORMANT",
   "PRODUCTION",
-];
-
-const entries = [
-  {
-    rank: 1,
-    agent: "CLAUDE CODE",
-    model: "sonnet-4",
-    harness: "classic-de",
-    highestGate: 5,
-    normalizedScore: 0.96,
-    wallClock: 98,
-    steps: 11,
-    tokens: 38200,
-    cost: 0.27,
-  },
-  {
-    rank: 2,
-    agent: "CLAUDE CODE",
-    model: "opus-4",
-    harness: "bare",
-    highestGate: 5,
-    normalizedScore: 0.91,
-    wallClock: 142,
-    steps: 18,
-    tokens: 62400,
-    cost: 0.89,
-  },
-  {
-    rank: 3,
-    agent: "CODEX",
-    model: "gpt-4.1",
-    harness: "classic-de",
-    highestGate: 4,
-    normalizedScore: 0.88,
-    wallClock: 115,
-    steps: 14,
-    tokens: 44100,
-    cost: 0.38,
-  },
-  {
-    rank: 4,
-    agent: "AIDER",
-    model: "sonnet-4",
-    harness: "classic-de",
-    highestGate: 4,
-    normalizedScore: 0.82,
-    wallClock: 167,
-    steps: 22,
-    tokens: 71300,
-    cost: 0.51,
-  },
-  {
-    rank: 5,
-    agent: "CODEX",
-    model: "gpt-4.1",
-    harness: "bare",
-    highestGate: 3,
-    normalizedScore: 0.74,
-    wallClock: 131,
-    steps: 16,
-    tokens: 48200,
-    cost: 0.34,
-  },
-  {
-    rank: 6,
-    agent: "CLAUDE CODE",
-    model: "sonnet-4",
-    harness: "bare",
-    highestGate: 3,
-    normalizedScore: 0.71,
-    wallClock: 109,
-    steps: 13,
-    tokens: 41500,
-    cost: 0.29,
-  },
-  {
-    rank: 7,
-    agent: "AIDER",
-    model: "gpt-4.1",
-    harness: "classic-de",
-    highestGate: 2,
-    normalizedScore: 0.63,
-    wallClock: 189,
-    steps: 26,
-    tokens: 83100,
-    cost: 0.58,
-  },
-  {
-    rank: 8,
-    agent: "CODEX",
-    model: "gpt-4.1",
-    harness: "olap-for-swe",
-    highestGate: 2,
-    normalizedScore: 0.55,
-    wallClock: 154,
-    steps: 19,
-    tokens: 56700,
-    cost: 0.42,
-  },
 ];
 
 function GatePips({ gate }: { gate: number }) {
@@ -132,7 +37,14 @@ function GatePips({ gate }: { gate: number }) {
   );
 }
 
-function ComingSoonState() {
+function formatScenarioName(id: string): string {
+  return id
+    .replace(/^foo-bar-/, "")
+    .replace(/-/g, " ")
+    .toUpperCase();
+}
+
+function EmptyState() {
   return (
     <div className="py-24 text-center">
       <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[7rem] tracking-tight uppercase leading-[0.85]">
@@ -141,7 +53,7 @@ function ComingSoonState() {
         BOARD
       </h1>
       <p className="mt-8 text-[12px] uppercase tracking-wider text-black/50 max-w-md mx-auto">
-        Results from internal eval runs will appear here after the 0.1 release.
+        No eval results found. Run your first eval to see results here.
       </p>
       <div className="mt-8">
         <Link
@@ -155,17 +67,30 @@ function ComingSoonState() {
   );
 }
 
-export default async function LeaderboardPage() {
-  const showUpNext = await upNext();
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scenario?: string }>;
+}) {
+  const { scenario: scenarioFilter } = await searchParams;
+  const allEntries = getLeaderboardEntries();
+  const scenarios = getUniqueScenarios();
 
-  if (!showUpNext) {
-    return <ComingSoonState />;
+  if (allEntries.length === 0) {
+    return <EmptyState />;
   }
+
+  const entries = scenarioFilter
+    ? allEntries
+        .filter((e) => e.scenario === scenarioFilter)
+        .map((e, i) => ({ ...e, rank: i + 1 }))
+    : allEntries;
 
   const top3 = entries.slice(0, 3);
 
   return (
     <div className="py-12">
+      {/* Header */}
       <div className="mb-12">
         <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[7rem] tracking-tight uppercase leading-[0.85]">
           LEADER
@@ -174,58 +99,93 @@ export default async function LeaderboardPage() {
         </h1>
         <p className="mt-4 text-[12px] uppercase tracking-wider text-black/50 max-w-md">
           Ranked by highest gate cleared, then normalized score within the gate.
-          Scenario: ecommerce-pipeline.
+          {scenarioFilter
+            ? ` Showing: ${formatScenarioName(scenarioFilter)}.`
+            : ` ${entries.length} runs across ${scenarios.length} scenarios.`}
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-0 mb-16">
-        {top3.map((entry, i) => (
-          <div
-            key={`${entry.agent}-${entry.model}-${entry.harness}`}
-            className={`border-[3px] border-black p-6 ${
-              i === 0
-                ? "bg-[#FF10F0] md:row-start-1"
-                : i === 1
-                  ? "border-t-0 md:border-t-[3px] md:border-l-0 bg-black text-white"
-                  : "border-t-0 md:border-t-[3px] md:border-l-0"
+      {/* Scenario filter */}
+      {scenarios.length > 1 && (
+        <div className="mb-8 flex flex-wrap gap-2">
+          <Link
+            href="/leaderboard"
+            className={`text-[10px] uppercase tracking-[0.15em] px-3 py-1.5 border-[2px] transition-colors ${
+              !scenarioFilter
+                ? "border-black bg-black text-white"
+                : "border-black/30 text-black/50 hover:border-black hover:text-black"
             }`}
           >
-            <div className="flex items-start justify-between mb-4">
-              <span
-                className={`font-[family-name:var(--font-display)] text-6xl lg:text-7xl tracking-tight ${
-                  i === 0
-                    ? "text-black/40"
-                    : i === 1
-                      ? "text-white/40"
-                      : "text-black/30"
-                }`}
-              >
-                #{entry.rank}
-              </span>
-              <span
-                className={`text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] px-2 py-0.5 mt-2 ${
-                  i === 1
-                    ? "border-white text-white"
-                    : "border-black text-black"
-                }`}
-              >
-                {gateNames[entry.highestGate]}
-              </span>
-            </div>
-            <h3 className="font-[family-name:var(--font-display)] text-2xl lg:text-3xl uppercase tracking-tight leading-[0.9]">
-              {entry.agent}
-            </h3>
-            <p
-              className={`mt-1 text-[11px] uppercase tracking-wider ${
-                i === 1 ? "text-white/50" : "text-black/40"
+            ALL
+          </Link>
+          {scenarios.map((s) => (
+            <Link
+              key={s}
+              href={`/leaderboard?scenario=${s}`}
+              className={`text-[10px] uppercase tracking-[0.15em] px-3 py-1.5 border-[2px] transition-colors ${
+                scenarioFilter === s
+                  ? "border-black bg-black text-white"
+                  : "border-black/30 text-black/50 hover:border-black hover:text-black"
               }`}
             >
-              {entry.model} · {entry.harness}
-            </p>
-          </div>
-        ))}
-      </div>
+              {formatScenarioName(s)}
+            </Link>
+          ))}
+        </div>
+      )}
 
+      {/* Podium -- Top 3 */}
+      {top3.length >= 3 && (
+        <div className="grid md:grid-cols-3 gap-0 mb-16">
+          {top3.map((entry, i) => (
+            <div
+              key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
+              className={`border-[3px] border-black p-6 ${
+                i === 0
+                  ? "bg-[#FF10F0] md:row-start-1"
+                  : i === 1
+                    ? "border-t-0 md:border-t-[3px] md:border-l-0 bg-black text-white"
+                    : "border-t-0 md:border-t-[3px] md:border-l-0"
+              }`}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <span
+                  className={`font-[family-name:var(--font-display)] text-6xl lg:text-7xl tracking-tight ${
+                    i === 0
+                      ? "text-black/40"
+                      : i === 1
+                        ? "text-white/40"
+                        : "text-black/30"
+                  }`}
+                >
+                  #{entry.rank}
+                </span>
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] px-2 py-0.5 mt-2 ${
+                    i === 1
+                      ? "border-white text-white"
+                      : "border-black text-black"
+                  }`}
+                >
+                  {gateNames[entry.highest_gate]}
+                </span>
+              </div>
+              <h3 className="font-[family-name:var(--font-display)] text-xl lg:text-2xl uppercase tracking-tight leading-[0.9]">
+                {formatScenarioName(entry.scenario)}
+              </h3>
+              <p
+                className={`mt-1 text-[11px] uppercase tracking-wider ${
+                  i === 1 ? "text-white/50" : "text-black/40"
+                }`}
+              >
+                {entry.agent} · {entry.harness}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Full rankings table */}
       <div className="border-[3px] border-black">
         <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
@@ -243,10 +203,7 @@ export default async function LeaderboardPage() {
                 #
               </TableHead>
               <TableHead className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
-                AGENT
-              </TableHead>
-              <TableHead className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
-                MODEL
+                SCENARIO
               </TableHead>
               <TableHead className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
                 HARNESS
@@ -268,7 +225,7 @@ export default async function LeaderboardPage() {
           <TableBody>
             {entries.map((entry) => (
               <TableRow
-                key={`${entry.agent}-${entry.model}-${entry.harness}`}
+                key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
                 className={`border-b border-black/10 hover:bg-[#FF10F0]/5 transition-colors ${
                   entry.rank === 1 ? "bg-[#FF10F0]/[0.03]" : ""
                 }`}
@@ -284,12 +241,10 @@ export default async function LeaderboardPage() {
                 </TableCell>
                 <TableCell>
                   <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
-                    {entry.agent}
+                    {formatScenarioName(entry.scenario)}
                   </span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-[11px] text-black/50">
-                    {entry.model}
+                  <span className="block text-[10px] text-black/40 mt-0.5">
+                    {entry.agent} · {entry.model.replace("claude-", "").replace("-20250514", "")}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -298,7 +253,7 @@ export default async function LeaderboardPage() {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <GatePips gate={entry.highestGate} />
+                  <GatePips gate={entry.highest_gate} />
                 </TableCell>
                 <TableCell>
                   <span
@@ -306,17 +261,17 @@ export default async function LeaderboardPage() {
                       entry.rank === 1 ? "text-[#FF10F0]" : ""
                     }`}
                   >
-                    {entry.normalizedScore.toFixed(2)}
+                    {entry.normalized_score.toFixed(2)}
                   </span>
                 </TableCell>
                 <TableCell>
                   <span className="text-[11px] tabular-nums text-black/50">
-                    {entry.wallClock}s
+                    {entry.efficiency.wallClockSeconds}s
                   </span>
                 </TableCell>
                 <TableCell className="pr-6">
                   <span className="text-[11px] tabular-nums text-black/50">
-                    ${entry.cost.toFixed(2)}
+                    ${entry.efficiency.llmApiCostUsd.toFixed(2)}
                   </span>
                 </TableCell>
               </TableRow>
@@ -325,6 +280,7 @@ export default async function LeaderboardPage() {
         </Table>
       </div>
 
+      {/* CTA */}
       <div className="mt-12 flex flex-wrap items-center justify-between gap-6">
         <div>
           <p className="text-[12px] uppercase tracking-wider text-black/50">
@@ -332,6 +288,12 @@ export default async function LeaderboardPage() {
           </p>
         </div>
         <div className="flex gap-4">
+          <Link
+            href="/docs/running-evals"
+            className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
+          >
+            RUN AN EVAL →
+          </Link>
           <Link
             href="/docs"
             className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"

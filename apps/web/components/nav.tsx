@@ -9,7 +9,7 @@ interface NavProps {
 }
 
 export function Nav({
-  showLeaderboard = false,
+  showLeaderboard = true,
   activeItem,
   sticky = false,
   fullWidth = false,

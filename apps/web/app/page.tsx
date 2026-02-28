@@ -180,11 +180,11 @@ export default async function HomePage() {
 
   const marqueeText = showUpNext
     ? "POSTGRES · REDPANDA · CLICKHOUSE · FOO BAR · B2B SAAS · B2C SAAS · UGC · E-COMMERCE · ADVERTISING · CONSUMPTION INFRA · OPEN SOURCE · DASHBOARDS · FEEDS · ANALYTICAL CHAT · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · "
-    : "POSTGRES · REDPANDA · CLICKHOUSE · FOO BAR · OPEN SOURCE · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · CSV INGEST · TABLE LAYOUT · DEBUGGING · DATA QUALITY · ";
+    : "POSTGRES · REDPANDA · CLICKHOUSE · FOO BAR · OPEN SOURCE · LEADERBOARD · SCHEMA DESIGN · QUERY OPTIMIZATION · DATA INGESTION · CSV INGEST · TABLE LAYOUT · DEBUGGING · DATA QUALITY · ";
 
   return (
     <div className="relative min-h-screen bg-white text-black overflow-hidden font-[family-name:var(--font-body)]">
-      <Nav showLeaderboard={showUpNext} />
+      <Nav />
 
       {/* Hero */}
       <section className="relative z-10">
@@ -223,16 +223,16 @@ export default async function HomePage() {
 
           <div className="flex flex-wrap gap-4 mt-8 brutal-fade-in">
             <Link
-              href="/docs/running-evals"
+              href="/leaderboard"
               className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
             >
-              RUN AN EVAL →
+              LEADERBOARD →
             </Link>
             <Link
-              href="/docs"
+              href="/docs/running-evals"
               className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
             >
-              READ DOCS →
+              RUN AN EVAL →
             </Link>
           </div>
         </div>
@@ -616,10 +616,7 @@ export default async function HomePage() {
       <div className="relative z-10 py-3 bg-[#FF10F0] overflow-hidden border-y-[3px] border-black">
         <div className="brutal-marquee-reverse flex whitespace-nowrap">
           <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-black">
-            {(showUpNext
-              ? "BENCHMARK YOUR AGENTS · CLIMB THE LEADERBOARD · OPEN SOURCE · CLICKHOUSE NATIVE · "
-              : "BENCHMARK YOUR AGENTS · OPEN SOURCE · CLICKHOUSE NATIVE · RUN LOCALLY · DOCKER POWERED · "
-            ).repeat(10)}
+            {"BENCHMARK YOUR AGENTS · CLIMB THE LEADERBOARD · OPEN SOURCE · CLICKHOUSE NATIVE · RUN LOCALLY · DOCKER POWERED · ".repeat(10)}
           </span>
         </div>
       </div>
@@ -639,16 +636,16 @@ export default async function HomePage() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
-              href="/docs/running-evals"
+              href="/leaderboard"
               className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
             >
-              RUN AN EVAL →
+              LEADERBOARD →
             </Link>
             <Link
-              href="/docs/registry"
+              href="/docs/running-evals"
               className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
             >
-              BROWSE SCENARIOS →
+              RUN AN EVAL →
             </Link>
             <a
               href="https://github.com/514-labs/agent-evals"
