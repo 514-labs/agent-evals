@@ -36,4 +36,4 @@ conn.close()
 print("Data loaded successfully")
 PYEOF
 
-export POSTGRES_URL="postgresql://postgres:postgres@localhost:5433/postgres"
+echo 'export POSTGRES_URL="postgresql://postgres:postgres@localhost:5433/postgres"' >> /root/.bashrc
