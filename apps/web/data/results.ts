@@ -19,6 +19,8 @@ export type GateName =
 
 export type EvalResult = {
   scenario: string;
+  run_id?: string;
+  result_file?: string;
   version: string;
   harness: string;
   agent: string;
@@ -69,8 +71,26 @@ function loadResults(): EvalResult[] {
     try {
       const raw = readFileSync(join(dir, fileName), "utf8");
       const parsed = JSON.parse(raw) as EvalResult;
-      if (parsed.scenario && typeof parsed.highest_gate === "number") {
-        results.push(parsed);
+      const baseName = fileName.replace(/\.json$/, "");
+      const scenarioFromFile = baseName.includes(".bare")
+        ? baseName.split(".bare")[0] ?? baseName
+        : baseName;
+      const scenario =
+        typeof parsed.scenario === "string" && parsed.scenario !== "unknown"
+          ? parsed.scenario
+          : scenarioFromFile;
+      const runId =
+        typeof parsed.run_id === "string" && parsed.run_id.trim().length > 0
+          ? parsed.run_id
+          : baseName;
+
+      if (scenario && typeof parsed.highest_gate === "number") {
+        results.push({
+          ...parsed,
+          scenario,
+          run_id: runId,
+          result_file: fileName,
+        });
       }
     } catch {
       continue;

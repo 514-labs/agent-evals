@@ -12,6 +12,7 @@ import {
   getUniqueScenarios,
   type LeaderboardEntry,
 } from "../../data/results";
+import { getScenarioAuditRunIds } from "../../data/audits";
 
 const gateNames = [
   "—",
@@ -87,6 +88,9 @@ export default async function LeaderboardPage({
     : allEntries;
 
   const top3 = entries.slice(0, 3);
+  const auditRunIdsByScenario = new Map(
+    scenarios.map((scenario) => [scenario, getScenarioAuditRunIds(scenario)]),
+  );
 
   return (
     <div className="py-12">
@@ -137,17 +141,25 @@ export default async function LeaderboardPage({
       {/* Podium -- Top 3 */}
       {top3.length >= 3 && (
         <div className="grid md:grid-cols-3 gap-0 mb-16">
-          {top3.map((entry, i) => (
-            <div
-              key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
-              className={`border-[3px] border-black p-6 ${
-                i === 0
-                  ? "bg-[#FF10F0] md:row-start-1"
-                  : i === 1
-                    ? "border-t-0 md:border-t-[3px] md:border-l-0 bg-black text-white"
-                    : "border-t-0 md:border-t-[3px] md:border-l-0"
-              }`}
-            >
+          {top3.map((entry, i) => {
+            const runId = entry.run_id ?? "";
+            const runIds = auditRunIdsByScenario.get(entry.scenario) ?? new Set<string>();
+            const deepLinkAvailable = runId.length > 0 && runIds.has(runId);
+            const auditHref = deepLinkAvailable
+              ? `/audit/${entry.scenario}/${runId}`
+              : `/audit/${entry.scenario}`;
+
+            return (
+              <div
+                key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
+                className={`border-[3px] border-black p-6 ${
+                  i === 0
+                    ? "bg-[#FF10F0] md:row-start-1"
+                    : i === 1
+                      ? "border-t-0 md:border-t-[3px] md:border-l-0 bg-black text-white"
+                      : "border-t-0 md:border-t-[3px] md:border-l-0"
+                }`}
+              >
               <div className="flex items-start justify-between mb-4">
                 <span
                   className={`font-[family-name:var(--font-display)] text-6xl lg:text-7xl tracking-tight ${
@@ -171,7 +183,12 @@ export default async function LeaderboardPage({
                 </span>
               </div>
               <h3 className="font-[family-name:var(--font-display)] text-xl lg:text-2xl uppercase tracking-tight leading-[0.9]">
-                {formatScenarioName(entry.scenario)}
+                <Link
+                  href={auditHref}
+                  className="hover:underline"
+                >
+                  {formatScenarioName(entry.scenario)}
+                </Link>
               </h3>
               <p
                 className={`mt-1 text-[11px] uppercase tracking-wider ${
@@ -180,8 +197,9 @@ export default async function LeaderboardPage({
               >
                 {entry.agent} · {entry.harness}
               </p>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -223,7 +241,15 @@ export default async function LeaderboardPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry) => (
+            {entries.map((entry) => {
+                const runId = entry.run_id ?? "";
+                const runIds = auditRunIdsByScenario.get(entry.scenario) ?? new Set<string>();
+                const deepLinkAvailable = runId.length > 0 && runIds.has(runId);
+                const auditHref = deepLinkAvailable
+                  ? `/audit/${entry.scenario}/${runId}`
+                  : `/audit/${entry.scenario}`;
+
+                return (
               <TableRow
                 key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
                 className={`border-b border-black/10 hover:bg-[#FF10F0]/5 transition-colors ${
@@ -240,9 +266,9 @@ export default async function LeaderboardPage({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
+                  <Link href={auditHref} className="text-[12px] font-bold uppercase tracking-[0.1em] hover:underline">
                     {formatScenarioName(entry.scenario)}
-                  </span>
+                  </Link>
                   <span className="block text-[10px] text-black/40 mt-0.5">
                     {entry.agent} · {entry.model.replace("claude-", "").replace("-20250514", "")}
                   </span>
@@ -275,7 +301,8 @@ export default async function LeaderboardPage({
                   </span>
                 </TableCell>
               </TableRow>
-            ))}
+                );
+              })}
           </TableBody>
         </Table>
       </div>

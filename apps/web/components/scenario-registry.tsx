@@ -492,19 +492,29 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <CardTitle className="font-[family-name:var(--font-display)] uppercase tracking-tight text-2xl">
-                          {scenario.title}
+                          <Link href={`/audit/${scenario.id}`} className="hover:underline">
+                            {scenario.title}
+                          </Link>
                         </CardTitle>
                         <CardDescription className="mt-1 text-[12px] leading-relaxed text-black/60 max-w-2xl">
                           {scenario.description}
                         </CardDescription>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(expanded ? null : key)}
-                        className="text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-black hover:text-white"
-                      >
-                        {expanded ? "Close" : "Details"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/audit/${scenario.id}`}
+                          className="text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-[#FF10F0]"
+                        >
+                          Audit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expanded ? null : key)}
+                          className="text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-black hover:text-white"
+                        >
+                          {expanded ? "Close" : "Details"}
+                        </button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">

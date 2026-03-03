@@ -3,7 +3,7 @@ import { AnimatedLogo } from "./animated-logo";
 
 interface NavProps {
   showLeaderboard?: boolean;
-  activeItem?: "docs" | "leaderboard";
+  activeItem?: "docs" | "leaderboard" | "audit";
   sticky?: boolean;
   fullWidth?: boolean;
 }
@@ -47,6 +47,16 @@ export function Nav({
               LEADERBOARD
             </Link>
           )}
+          <Link
+            href="/audit"
+            className={`text-[11px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 transition-colors ${
+              activeItem === "audit"
+                ? "bg-black text-white"
+                : "hover:bg-[#FF10F0]"
+            }`}
+          >
+            AUDIT
+          </Link>
           <a
             href="https://github.com/514-labs/agent-evals"
             target="_blank"
