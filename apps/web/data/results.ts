@@ -25,6 +25,14 @@ export type EvalResult = {
   harness: string;
   agent: string;
   model: string;
+  run_metadata?: {
+    persona: string;
+    planMode: string;
+    promptPath: string;
+    promptSha256: string;
+    promptContent: string;
+    promptPreview?: string;
+  };
   highest_gate: number;
   normalized_score: number;
   composite_score?: {

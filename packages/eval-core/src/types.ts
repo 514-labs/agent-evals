@@ -21,6 +21,15 @@ export interface EfficiencyMetrics {
   llmApiCostUsd: number;
 }
 
+export interface RunMetadata {
+  persona: string;
+  planMode: string;
+  promptPath: string;
+  promptSha256: string;
+  promptContent: string;
+  promptPreview?: string;
+}
+
 export interface CompositeScoreBreakdown {
   total: number;
   components: {
@@ -37,6 +46,7 @@ export interface EvalOutput {
   harness: string;
   agent: string;
   model: string;
+  run_metadata?: RunMetadata;
   highest_gate: number;
   normalized_score: number;
   composite_score?: CompositeScoreBreakdown;

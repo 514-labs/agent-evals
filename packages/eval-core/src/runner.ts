@@ -21,6 +21,7 @@ export interface GateRunnerOptions {
   harness: string;
   agent: string;
   model: string;
+  runMetadata?: EvalOutput["run_metadata"];
   efficiency: EvalOutput["efficiency"];
   baselineMetrics?: BaselineMetrics;
   referenceMetrics?: ReferenceMetrics;
@@ -90,6 +91,7 @@ export async function runGateEvaluation(options: GateRunnerOptions): Promise<Eva
     harness: options.harness,
     agent: options.agent,
     model: options.model,
+    runMetadata: options.runMetadata,
     highestGate,
     normalizedScore: clamp(scoreSum / GATES.length),
     compositeScore,

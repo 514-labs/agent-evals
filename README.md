@@ -154,6 +154,18 @@ dec-bench run \
 - Extracts structured JSON result
 - Writes output to `results/<scenario>-<timestamp>.json`
 
+Run the full matrix with CLI-managed parallelism:
+
+```bash
+dec-bench run --matrix --parallel 9
+# or let the CLI choose based on host parallelism
+dec-bench run --matrix --parallel auto
+```
+
+- `--parallel 1` runs sequentially (default)
+- `--parallel auto` uses host available parallelism
+- higher values run multiple scenario/persona/mode jobs concurrently
+
 ### View Results
 
 ```bash

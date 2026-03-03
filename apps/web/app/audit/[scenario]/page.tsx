@@ -38,7 +38,7 @@ export default async function ScenarioAuditLandingPage({
 
   return (
     <div className="px-4 lg:px-8 py-8">
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-black/40 mb-4">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-black/40 mb-4">
         <Link href="/audit" className="hover:text-black transition-colors">
           Audit
         </Link>
@@ -50,7 +50,7 @@ export default async function ScenarioAuditLandingPage({
 
       <div className="border-[3px] border-black">
         <div className="bg-black px-4 py-2.5">
-          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
             No Runs Available
           </span>
         </div>
@@ -58,9 +58,9 @@ export default async function ScenarioAuditLandingPage({
           <h1 className="font-[family-name:var(--font-display)] uppercase tracking-tight text-4xl">
             {context?.title ?? formatScenarioName(scenario)}
           </h1>
-          <p className="mt-3 text-[12px] text-black/50 max-w-2xl leading-relaxed">
+          <p className="mt-3 text-sm text-black/50 max-w-2xl leading-relaxed">
             No run bundles have been exported for this scenario yet. Run{" "}
-            <code className="text-black/70 bg-black/5 px-1.5 py-0.5 text-[11px]">
+            <code className="text-black/70 bg-black/5 px-1.5 py-0.5 text-sm">
               pnpm export:audits
             </code>{" "}
             to generate audit bundles from result files.
@@ -68,13 +68,13 @@ export default async function ScenarioAuditLandingPage({
           <div className="mt-6 flex gap-3">
             <Link
               href="/audit"
-              className="text-[10px] font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-[#FF10F0] transition-colors"
+              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-[#FF10F0] transition-colors"
             >
               All Scenarios
             </Link>
             <Link
               href="/leaderboard"
-              className="text-[10px] font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-black hover:text-white transition-colors"
+              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-black hover:text-white transition-colors"
             >
               Leaderboard
             </Link>

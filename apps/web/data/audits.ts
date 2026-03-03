@@ -3,8 +3,49 @@ import { join, resolve } from "node:path";
 
 import type { EvalResult, GateName, GateResult } from "./results";
 
-export type AuditLogKind = "stdout" | "stderr" | "service" | "system" | "custom";
+export type AuditLogKind = "stdout" | "stderr" | "service" | "system" | "trace" | "custom";
 export type AuditCompression = "none" | "gzip";
+
+export interface AuditRunMetadata {
+  persona: string;
+  planMode: string;
+  promptPath: string;
+  promptSha256: string;
+  promptContent: string;
+  promptPreview?: string;
+}
+
+export interface AuditTraceSummary {
+  agentSteps: number;
+  toolCallCount: number;
+  toolResultCount?: number;
+  thinkingCount: number;
+  assistantTextCount?: number;
+  eventCount: number;
+}
+
+export interface AuditTraceEvent {
+  id: string;
+  kind: string;
+  role?: string;
+  name?: string;
+  content?: string;
+  [key: string]: unknown;
+}
+
+export interface AuditTracePayload {
+  schemaVersion: string;
+  source: string;
+  summary?: AuditTraceSummary;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    cacheCreationTokens?: number;
+    cacheReadTokens?: number;
+    totalCostUsd?: number;
+  };
+  events?: AuditTraceEvent[];
+}
 
 export interface AuditLogReference {
   id: string;
@@ -24,11 +65,13 @@ export interface AuditRunManifest {
   agent: string;
   model: string;
   version: string;
+  runMetadata?: AuditRunMetadata;
   highestGate: number;
   normalizedScore: number;
   efficiency: EvalResult["efficiency"];
   gates: Record<GateName, GateResult>;
   logs: AuditLogReference[];
+  traceSummary?: AuditTraceSummary;
   notes?: string[];
 }
 
@@ -169,11 +212,19 @@ function coerceManifest(path: string, data: Record<string, unknown>): AuditRunMa
     agent: String(data.agent ?? "unknown"),
     model: String(data.model ?? "unknown"),
     version: String(data.version ?? "unknown"),
+    runMetadata:
+      data.runMetadata && typeof data.runMetadata === "object"
+        ? (data.runMetadata as AuditRunMetadata)
+        : undefined,
     highestGate: Number(data.highestGate ?? 0),
     normalizedScore: Number(data.normalizedScore ?? 0),
     efficiency,
     gates,
     logs,
+    traceSummary:
+      data.traceSummary && typeof data.traceSummary === "object"
+        ? (data.traceSummary as AuditTraceSummary)
+        : undefined,
     notes: Array.isArray(data.notes)
       ? (data.notes.filter((value): value is string => typeof value === "string") as string[])
       : [],
@@ -323,6 +374,23 @@ export function readAuditLogChunk(
     hasMoreBefore: safeStart > 0,
     hasMoreAfter: safeEndExclusive < totalLines,
   };
+}
+
+export function getAuditRunTrace(scenario: string, runId: string): AuditTracePayload | null {
+  const manifest = getAuditRunManifest(scenario, runId);
+  if (!manifest) return null;
+  const traceLog = manifest.logs.find((log) => log.id === "trace");
+  if (!traceLog) return null;
+  const resolved = resolveAuditLogPath(scenario, runId, traceLog.id);
+  if (!resolved) return null;
+  try {
+    const raw = readFileSync(resolved.absolutePath, "utf8");
+    const parsed = JSON.parse(raw) as AuditTracePayload;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export function getScenarioAuditContext(scenarioId: string): AuditScenarioContext | null {

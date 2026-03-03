@@ -27,7 +27,7 @@ export function Nav({
         <div className="flex items-center gap-4">
           <Link
             href="/docs"
-            className={`text-[11px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 transition-colors ${
+            className={`text-xs font-bold uppercase tracking-[0.15em] px-2.5 py-1 transition-colors ${
               activeItem === "docs"
                 ? "bg-black text-white"
                 : "hover:bg-[#FF10F0]"
@@ -38,7 +38,7 @@ export function Nav({
           {showLeaderboard && (
             <Link
               href="/leaderboard"
-              className={`text-[11px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 transition-colors ${
+              className={`text-xs font-bold uppercase tracking-[0.15em] px-2.5 py-1 transition-colors ${
                 activeItem === "leaderboard"
                   ? "bg-black text-white"
                   : "hover:bg-[#FF10F0]"
@@ -49,7 +49,7 @@ export function Nav({
           )}
           <Link
             href="/audit"
-            className={`text-[11px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 transition-colors ${
+            className={`text-xs font-bold uppercase tracking-[0.15em] px-2.5 py-1 transition-colors ${
               activeItem === "audit"
                 ? "bg-black text-white"
                 : "hover:bg-[#FF10F0]"
@@ -61,7 +61,7 @@ export function Nav({
             href="https://github.com/514-labs/agent-evals"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] font-bold uppercase tracking-[0.15em] border-[2px] border-black px-3 py-1 hover:bg-black hover:text-white transition-all"
+            className="text-xs font-bold uppercase tracking-[0.15em] border-[2px] border-black px-2.5 py-1 hover:bg-black hover:text-white transition-all"
           >
             GH ↗
           </a>

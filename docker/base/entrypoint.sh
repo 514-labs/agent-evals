@@ -4,6 +4,22 @@ set -euo pipefail
 OUTPUT_DIR="/output"
 SESSION_LOG_PATH="${OUTPUT_DIR}/session.log"
 RESULT_JSON_PATH="${OUTPUT_DIR}/result.json"
+AGENT_METRICS_PATH="${OUTPUT_DIR}/agent-metrics.json"
+RUN_META_PATH="${OUTPUT_DIR}/run-meta.json"
+AGENT_RAW_PATH="${OUTPUT_DIR}/agent-raw.json"
+TRACE_PATH="${OUTPUT_DIR}/agent-trace.json"
+SESSION_JSONL_PATH="${OUTPUT_DIR}/session.jsonl"
+
+AGENT_STDOUT_START="__DEC_BENCH_AGENT_STDOUT_START__"
+AGENT_STDOUT_END="__DEC_BENCH_AGENT_STDOUT_END__"
+AGENT_RAW_START="__DEC_BENCH_AGENT_RAW_JSON_START__"
+AGENT_RAW_END="__DEC_BENCH_AGENT_RAW_JSON_END__"
+AGENT_TRACE_START="__DEC_BENCH_AGENT_TRACE_JSON_START__"
+AGENT_TRACE_END="__DEC_BENCH_AGENT_TRACE_JSON_END__"
+RUN_META_START="__DEC_BENCH_RUN_META_JSON_START__"
+RUN_META_END="__DEC_BENCH_RUN_META_JSON_END__"
+EVAL_RESULT_START="__DEC_BENCH_EVAL_RESULT_JSON_START__"
+EVAL_RESULT_END="__DEC_BENCH_EVAL_RESULT_JSON_END__"
 
 mkdir -p "${OUTPUT_DIR}"
 
@@ -103,8 +119,10 @@ agent_exit_code=0
 
 if [[ -x /opt/dec-bench/agent/run.sh ]]; then
   set +e
+  echo "${AGENT_STDOUT_START}"
   /opt/dec-bench/agent/run.sh 2>&1 | tee "${SESSION_LOG_PATH}"
   agent_exit_code="${PIPESTATUS[0]}"
+  echo "${AGENT_STDOUT_END}"
   set -e
 else
   echo "Missing agent runner at /opt/dec-bench/agent/run.sh" >&2
@@ -120,8 +138,58 @@ export EVAL_AGENT_STEPS="${EVAL_AGENT_STEPS:-0}"
 export EVAL_TOKENS_USED="${EVAL_TOKENS_USED:-0}"
 export EVAL_LLM_API_COST_USD="${EVAL_LLM_API_COST_USD:-0}"
 export EVAL_SESSION_LOG_PATH="${SESSION_LOG_PATH}"
+export EVAL_RUN_METADATA_JSON="${EVAL_RUN_METADATA_JSON:-{}}"
+
+if [[ -f "${AGENT_METRICS_PATH}" ]]; then
+  eval "$(
+    node -e '
+const fs = require("node:fs");
+const path = process.argv[1];
+let parsed = {};
+try {
+  parsed = JSON.parse(fs.readFileSync(path, "utf8"));
+} catch {
+  parsed = {};
+}
+const safeNum = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+process.stdout.write(`EVAL_AGENT_STEPS=${safeNum(parsed.agentSteps)}\n`);
+process.stdout.write(`EVAL_TOKENS_USED=${safeNum(parsed.tokensUsed)}\n`);
+process.stdout.write(`EVAL_LLM_API_COST_USD=${safeNum(parsed.llmApiCostUsd)}\n`);
+' "${AGENT_METRICS_PATH}"
+  )"
+fi
+
+if [[ -f "${RUN_META_PATH}" ]]; then
+  export EVAL_RUN_METADATA_JSON="$(cat "${RUN_META_PATH}")"
+  echo "${RUN_META_START}"
+  cat "${RUN_META_PATH}"
+  echo "${RUN_META_END}"
+fi
+
+if [[ -f "${AGENT_RAW_PATH}" ]]; then
+  echo "${AGENT_RAW_START}"
+  cat "${AGENT_RAW_PATH}"
+  echo "${AGENT_RAW_END}"
+fi
+
+if [[ -f "${SESSION_JSONL_PATH}" ]]; then
+  echo "__DEC_BENCH_SESSION_JSONL_START__"
+  cat "${SESSION_JSONL_PATH}"
+  echo "__DEC_BENCH_SESSION_JSONL_END__"
+fi
+
+if [[ -f "${TRACE_PATH}" ]]; then
+  echo "${AGENT_TRACE_START}"
+  cat "${TRACE_PATH}"
+  echo "${AGENT_TRACE_END}"
+fi
 
 tsx /opt/dec-bench/eval-core/src/cli.ts /scenario/assertions > "${RESULT_JSON_PATH}"
+echo "${EVAL_RESULT_START}"
 cat "${RESULT_JSON_PATH}"
+echo "${EVAL_RESULT_END}"
 
 exit "${agent_exit_code}"

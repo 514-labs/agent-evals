@@ -55,6 +55,8 @@ export default async function ComparePage({
     runId: r.runId,
     harness: r.harness,
     agent: r.agent,
+    model: r.model,
+    timestamp: r.timestamp,
     highestGate: r.highestGate,
     normalizedScore: r.normalizedScore,
   }));
@@ -73,7 +75,7 @@ export default async function ComparePage({
   return (
     <div className="px-4 lg:px-6 py-5">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-black/40 mb-4">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-black/40 mb-4">
         <Link href="/audit" className="hover:text-black transition-colors">
           Audit
         </Link>
@@ -95,13 +97,13 @@ export default async function ComparePage({
             {context?.title ?? formatScenarioName(scenario)}
             <span className="text-[#FF10F0] ml-2">Compare</span>
           </h1>
-          <p className="text-[11px] text-black/50 mt-2">
-            Side-by-side run playback with synchronized controls.
+          <p className="text-xs text-black/50 mt-2 leading-relaxed">
+            Side-by-side trace playback with synchronized controls.
           </p>
         </div>
         <Link
           href={`/audit/${scenario}/${resolvedLeftId}`}
-          className="text-[10px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-[2px] border-black hover:bg-[#FF10F0] transition-colors"
+          className="text-xs font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-2 border-black hover:bg-[#FF10F0] transition-colors"
         >
           Back to Run
         </Link>
@@ -118,10 +120,10 @@ export default async function ComparePage({
             className={`${sideIdx === 0 ? "border-r-[3px] border-black" : ""}`}
           >
             <div className="bg-black px-3 py-1.5 flex items-center justify-between">
-              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white">
                 {side.manifest.harness} · {side.manifest.agent}
               </span>
-              <span className="text-[9px] uppercase tracking-[0.14em] text-[#FF10F0]">
+              <span className="text-xs uppercase tracking-[0.14em] text-[#FF10F0]">
                 {side.manifest.highestGate}/5
               </span>
             </div>
@@ -134,13 +136,13 @@ export default async function ComparePage({
                   }`}
                 >
                   <div
-                    className={`w-[8px] h-[8px] mx-auto border-[1.5px] border-black ${
-                      g.passed ? "bg-black" : "bg-transparent"
+                    className={`w-[8px] h-[8px] mx-auto border-[1.5px] ${
+                      g.passed ? "border-black bg-black" : "border-black/25 bg-transparent"
                     }`}
                   />
                   <p
-                    className={`text-[7px] uppercase tracking-[0.08em] mt-0.5 ${
-                      g.passed ? "text-black/60" : "text-black/20"
+                    className={`text-xs uppercase tracking-[0.08em] mt-0.5 ${
+                      g.passed ? "text-black/60" : "text-black/35"
                     }`}
                   >
                     {g.gate.slice(0, 4)}
@@ -157,10 +159,10 @@ export default async function ComparePage({
                 { l: "Cost", v: `$${side.manifest.efficiency.llmApiCostUsd.toFixed(2)}` },
               ].map((m) => (
                 <div key={m.l} className="px-2 py-1.5 border-r border-black/5 last:border-r-0">
-                  <p className="text-[7px] font-bold uppercase tracking-[0.12em] text-black/35">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-black/35">
                     {m.l}
                   </p>
-                  <p className="text-[11px] font-bold">{m.v}</p>
+                  <p className="text-xs font-bold">{m.v}</p>
                 </div>
               ))}
             </div>

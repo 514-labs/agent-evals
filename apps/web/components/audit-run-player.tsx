@@ -184,7 +184,7 @@ export function AuditRunPlayer({
   if (error) {
     return (
       <div className="border-[3px] border-black bg-[#0d0d0d] p-6">
-        <p className="text-[11px] text-red-400">{error}</p>
+        <p className="text-sm text-red-400">{error}</p>
       </div>
     );
   }
@@ -199,17 +199,17 @@ export function AuditRunPlayer({
             <div className="w-[8px] h-[8px] bg-white/20" />
             <div className="w-[8px] h-[8px] bg-white/10" />
           </div>
-          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white truncate">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white truncate">
             {label || `${runId}`}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {loading && (
-            <span className="text-[8px] uppercase tracking-[0.14em] text-[#FF10F0] animate-pulse">
+            <span className="text-xs uppercase tracking-[0.14em] text-[#FF10F0] animate-pulse">
               Loading...
             </span>
           )}
-          <span className="text-[8px] uppercase tracking-[0.1em] text-white/30">
+          <span className="text-xs uppercase tracking-[0.1em] text-white/30">
             {position}/{lines.length}
           </span>
         </div>
@@ -275,7 +275,7 @@ export function AuditRunPlayer({
             <button
               type="button"
               onClick={cycleSpeed}
-              className="ml-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-white/50 hover:text-white border border-white/10 hover:border-white/30 transition-colors"
+              className="ml-1 px-2 py-0.5 text-xs font-bold uppercase tracking-[0.1em] text-white/50 hover:text-white border border-white/10 hover:border-white/30 transition-colors"
             >
               {effectiveSpeed}x
             </button>
@@ -299,7 +299,7 @@ export function AuditRunPlayer({
           compact ? "max-h-[28rem]" : "max-h-[36rem]",
         )}
       >
-        <code className="text-[12px] leading-[1.6] block">
+        <code className="text-sm leading-[1.6] block">
           {visibleLines.map((line, i) => (
             <div
               key={line.num}
@@ -323,14 +323,14 @@ export function AuditRunPlayer({
           ))}
           {position === 0 && !loading && lines.length > 0 && (
             <div className="flex items-center justify-center py-8">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-white/20">
+              <span className="text-xs uppercase tracking-[0.16em] text-white/20">
                 Press play to start
               </span>
             </div>
           )}
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <span className="text-[10px] uppercase tracking-[0.16em] text-[#FF10F0] animate-pulse">
+              <span className="text-xs uppercase tracking-[0.16em] text-[#FF10F0] animate-pulse">
                 Loading log data...
               </span>
             </div>

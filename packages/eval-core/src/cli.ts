@@ -32,6 +32,14 @@ async function main(): Promise<void> {
   const agentSteps = parseNumber(process.env.EVAL_AGENT_STEPS, 0);
   const tokensUsed = parseNumber(process.env.EVAL_TOKENS_USED, 0);
   const llmApiCostUsd = parseNumber(process.env.EVAL_LLM_API_COST_USD, 0);
+  const runMetadata = parseJsonEnv<{
+    persona: string;
+    planMode: string;
+    promptPath: string;
+    promptSha256: string;
+    promptContent: string;
+    promptPreview?: string;
+  }>("EVAL_RUN_METADATA_JSON");
 
   const baselineMetrics = parseJsonEnv<BaselineMetrics>("EVAL_BASELINE_METRICS");
   const referenceMetrics = parseJsonEnv<ReferenceMetrics>("EVAL_REFERENCE_METRICS");
@@ -59,6 +67,7 @@ async function main(): Promise<void> {
       harness: process.env.EVAL_HARNESS ?? "bare",
       agent: process.env.EVAL_AGENT ?? "claude-code",
       model: process.env.MODEL ?? "unknown",
+      runMetadata,
       efficiency: {
         wallClockSeconds,
         agentSteps,
