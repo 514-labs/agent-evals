@@ -90,15 +90,21 @@ wait_for_redpanda() {
   if [[ -z "${REDPANDA_BROKER:-}" ]]; then
     return 0
   fi
+  local broker="${REDPANDA_BROKER}"
+  local host="${broker%%:*}"
+  local port="${broker##*:}"
+  if [[ "${host}" == "${port}" ]]; then
+    port="9092"
+  fi
   echo "Waiting for Redpanda..."
-  for _ in $(seq 1 30); do
-    if rpk cluster info >/dev/null 2>&1; then
+  for _ in $(seq 1 45); do
+    if bash -lc ">/dev/tcp/${host}/${port}" >/dev/null 2>&1; then
       echo "Redpanda is ready."
       return 0
     fi
     sleep 1
   done
-  echo "Redpanda did not become ready." >&2
+  echo "Redpanda did not become ready at ${host}:${port}." >&2
   return 1
 }
 
