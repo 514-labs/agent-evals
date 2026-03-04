@@ -1,0 +1,34 @@
+{
+  "id": "foo-bar-clickhouse-materialized-view",
+  "title": "Foo Bar ClickHouse Materialized View",
+  "description": "Fix a broken ClickHouse materialized view that fails to refresh. The MV definition has incorrect dependencies and does not match the source table schema.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "classic-de",
+  "tasks": [
+    {
+      "id": "fix-materialized-view",
+      "description": "Repair the materialized view so it correctly aggregates from the source table and refreshes on insert.",
+      "category": "materialized-views"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "infrastructure": {
+    "services": ["clickhouse"],
+    "description": "ClickHouse with a broken materialized view over analytics.raw_events. MV fails to populate or has schema mismatch (writes cnt, target expects event_count)."
+  },
+  "tags": ["materialized-view", "transformation", "aggregation", "schema"],
+  "baselineMetrics": {
+    "queryLatencyMs": 1200,
+    "storageBytes": 500000000,
+    "costPerQueryUsd": 0.015
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 80,
+    "storageBytes": 150000000,
+    "costPerQueryUsd": 0.003
+  }
+}

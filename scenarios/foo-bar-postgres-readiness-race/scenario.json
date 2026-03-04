@@ -1,0 +1,23 @@
+{
+  "id": "foo-bar-postgres-readiness-race",
+  "title": "Foo Bar Postgres Readiness Race",
+  "description": "Fix a startup race: the app connects to Postgres immediately and fails when the database is not yet ready. Add retry/backoff logic so the app waits for Postgres to be ready.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harness": "bare",
+  "tasks": [
+    {
+      "id": "fix-readiness-race",
+      "description": "Add retry logic with backoff to the startup script so it waits for Postgres before connecting.",
+      "category": "debugging"
+    }
+  ],
+  "personaPrompts": { "naive": "prompts/naive.md", "savvy": "prompts/savvy.md" },
+  "infrastructure": {
+    "services": ["postgres-16"],
+    "description": "Postgres and a Python app. The app's startup script connects immediately and fails if Postgres is not ready."
+  },
+  "tags": ["postgres", "startup", "retry", "reliability"],
+  "baselineMetrics": { "queryLatencyMs": 0, "storageBytes": 0, "costPerQueryUsd": 0 },
+  "referenceMetrics": { "queryLatencyMs": 10, "storageBytes": 1000000, "costPerQueryUsd": 0 }
+}

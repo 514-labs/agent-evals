@@ -1,0 +1,1 @@
+We have an orders table in Postgres and need to stream changes to Redpanda so other services can react in real time. Can you set up the pipeline to capture inserts and updates from app.orders and publish them to a Kafka topic?

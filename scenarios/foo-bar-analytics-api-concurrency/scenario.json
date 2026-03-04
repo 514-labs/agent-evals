@@ -1,0 +1,34 @@
+{
+  "id": "foo-bar-analytics-api-concurrency",
+  "title": "Foo Bar Analytics API Concurrency",
+  "description": "Fix an analytics HTTP API that fails or returns inconsistent results under concurrent requests. The API uses a single shared ClickHouse connection that is not thread-safe.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "classic-de",
+  "tasks": [
+    {
+      "id": "fix-api-concurrency",
+      "description": "Make the analytics API handle concurrent requests correctly without connection exhaustion or race conditions.",
+      "category": "debugging"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "infrastructure": {
+    "services": ["clickhouse"],
+    "description": "ClickHouse seeded with analytics data. A broken API on port 3000 uses a single shared connection and fails under concurrent load."
+  },
+  "tags": ["api", "concurrency", "connection-pool", "reliability"],
+  "baselineMetrics": {
+    "queryLatencyMs": 500,
+    "storageBytes": 200000000,
+    "costPerQueryUsd": 0.01
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 100,
+    "storageBytes": 200000000,
+    "costPerQueryUsd": 0.004
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "foo-bar-postgres-table-partitioning",
+  "title": "Foo Bar Postgres Table Partitioning",
+  "description": "Fix a large unpartitioned Postgres table that is slow for date-range queries. Partition by date and migrate existing data.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "classic-de",
+  "tasks": [
+    {
+      "id": "partition-events-table",
+      "description": "Convert app.events to a partitioned table by created_at (monthly or daily) and migrate data.",
+      "category": "partitioning"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "infrastructure": {
+    "services": ["postgres-16"],
+    "description": "Postgres with app.events table (id, created_at, event_type, payload) with 50k+ rows. Table is unpartitioned and slow for date filters."
+  },
+  "tags": ["partitioning", "postgres", "migration", "storage"],
+  "baselineMetrics": {
+    "queryLatencyMs": 2000,
+    "storageBytes": 100000000,
+    "costPerQueryUsd": 0.01
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 100,
+    "storageBytes": 100000000,
+    "costPerQueryUsd": 0.003
+  }
+}
