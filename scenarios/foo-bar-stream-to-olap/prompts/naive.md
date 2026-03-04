@@ -1,0 +1,1 @@
+We have a Redpanda topic with metrics (host_id, metric_name, value, timestamp). We need to get this data into ClickHouse so we can run analytical queries. Can you build the consumer and set up the ClickHouse table?

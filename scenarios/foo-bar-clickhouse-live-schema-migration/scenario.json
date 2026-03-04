@@ -1,0 +1,34 @@
+{
+  "id": "foo-bar-clickhouse-live-schema-migration",
+  "title": "Foo Bar ClickHouse Live Schema Migration",
+  "description": "Add a new column to a live ClickHouse table with existing data. The migration must not block reads/writes and must backfill the new column for existing rows.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "classic-de",
+  "tasks": [
+    {
+      "id": "live-schema-migration",
+      "description": "Add region column to analytics.events, backfill existing rows, and ensure queries work with the new schema.",
+      "category": "migration"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "infrastructure": {
+    "services": ["clickhouse"],
+    "description": "ClickHouse with analytics.events (event_id, event_ts, event_type, user_id). Add region column without downtime."
+  },
+  "tags": ["schema", "migration", "ALTER", "backfill"],
+  "baselineMetrics": {
+    "queryLatencyMs": 300,
+    "storageBytes": 200000000,
+    "costPerQueryUsd": 0.008
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 100,
+    "storageBytes": 210000000,
+    "costPerQueryUsd": 0.004
+  }
+}
