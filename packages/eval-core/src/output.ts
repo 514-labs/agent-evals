@@ -11,6 +11,7 @@ export interface EvalOutputInput {
   normalizedScore: number;
   compositeScore?: EvalOutput["composite_score"];
   efficiency: EvalOutput["efficiency"];
+  runMetadata?: EvalOutput["run_metadata"];
 }
 
 export function createEvalOutput(input: EvalOutputInput): EvalOutput {
@@ -25,6 +26,10 @@ export function createEvalOutput(input: EvalOutputInput): EvalOutput {
     gates: input.gates,
     efficiency: input.efficiency,
   };
+
+  if (input.runMetadata) {
+    output.run_metadata = input.runMetadata;
+  }
 
   if (input.compositeScore) {
     output.composite_score = input.compositeScore;

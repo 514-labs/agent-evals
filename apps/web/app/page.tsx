@@ -200,8 +200,8 @@ export default async function HomePage() {
               >
                 BENCH
               </h1>
-              <div className="pb-2 lg:pb-4 max-w-xs brutal-fade-in">
-                <p className="text-[11px] uppercase leading-snug tracking-wider">
+              <div className="pb-2 lg:pb-4 max-w-[20.5rem] brutal-fade-in">
+                <p className="text-sm uppercase leading-snug tracking-wider">
                   An open-source{" "}
                   <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">
                     d
@@ -224,13 +224,13 @@ export default async function HomePage() {
           <div className="flex flex-wrap gap-4 mt-8 brutal-fade-in">
             <Link
               href="/leaderboard"
-              className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
+              className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
               LEADERBOARD →
             </Link>
             <Link
               href="/docs/running-evals"
-              className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
+              className="brutal-btn bg-black text-white border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
               RUN AN EVAL →
             </Link>
@@ -239,9 +239,9 @@ export default async function HomePage() {
       </section>
 
       {/* Marquee */}
-      <div className="relative z-10 mt-10 py-3 bg-black text-[#FF10F0] overflow-hidden border-y-[3px] border-black">
+      <div className="relative z-10 mt-10 py-2.5 bg-black text-[#FF10F0] overflow-hidden border-y-[3px] border-black">
         <div className="brutal-marquee flex whitespace-nowrap">
-          <span className="text-[11px] font-bold uppercase tracking-[0.3em]">
+          <span className="text-xs font-bold uppercase tracking-[0.3em]">
             {marqueeText.repeat(10)}
           </span>
         </div>
@@ -252,10 +252,10 @@ export default async function HomePage() {
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
           <div className="border-[3px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white">
             <div className="px-6 py-3 bg-black text-white flex items-center justify-between border-b-[3px] border-black">
-              <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+              <span className="text-xs font-bold uppercase tracking-[0.3em]">
                 EVALUATION RUN SCORING METHODOLOGY
               </span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-[#FF10F0]">
+              <span className="text-xs uppercase tracking-[0.2em] text-[#FF10F0]">
                 5 SEQUENTIAL GATES
               </span>
             </div>
@@ -265,11 +265,11 @@ export default async function HomePage() {
                 <span className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl tracking-tight uppercase">
                   Pass each gate in order
                 </span>
-                <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-0.5 bg-black text-white">
+                <span className="hidden sm:inline-block text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-0.5 bg-black text-white">
                   DETERMINISTIC
                 </span>
               </div>
-              <p className="text-[11px] uppercase tracking-wider text-black md:text-right max-w-sm font-medium">
+              <p className="text-sm uppercase tracking-wider text-black md:text-right max-w-sm font-medium">
                 Each gate is passed if all core and scenario assertions pass.
                 Quantitative metrics then rank evals within each gate.
               </p>
@@ -290,12 +290,12 @@ export default async function HomePage() {
                     <div className="text-[16px] md:text-[24px] font-[family-name:var(--font-display)] uppercase tracking-wide">
                       {g.label}
                     </div>
-                    <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-black/50 group-hover:text-white/50">
+                    <div className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-black/50 group-hover:text-white/50">
                       GATE
                     </div>
                   </div>
                   <div className="col-span-2 md:col-span-1 border-t-[3px] md:border-t-0 md:border-l-[3px] border-black p-6 md:p-8 flex items-center group-hover:border-white">
-                    <div className="text-[12px] md:text-[14px] uppercase tracking-widest text-black/70 group-hover:text-white/90 font-medium">
+                    <div className="text-sm md:text-sm uppercase tracking-widest text-black/70 group-hover:text-white/90 font-medium">
                       → {g.detail}
                     </div>
                   </div>
@@ -312,17 +312,18 @@ export default async function HomePage() {
           <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-7xl tracking-tight uppercase">
             SCENARIOS
           </h2>
-          <p className="mt-3 mb-12 text-[12px] uppercase tracking-wider text-black/50 max-w-lg">
-            v0.1 ships 9 scenarios on the Foo Bar synthetic domain. Each
-            scenario tests a different data engineering competency.
+          <p className="mt-3 mb-12 text-sm uppercase tracking-wider text-black/50 max-w-lg">
+            Nine real-world data engineering challenges across ingestion,
+            schema design, query optimization, debugging, and end-to-end
+            pipeline construction.
           </p>
 
           <div className="border-[3px] border-black">
             <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+              <span className="text-xs font-bold uppercase tracking-[0.3em]">
                 FOO BAR DOMAIN
               </span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
+              <span className="text-xs uppercase tracking-[0.2em] text-white/70">
                 {fooBarScenarios.length} SCENARIOS
               </span>
             </div>
@@ -340,11 +341,11 @@ export default async function HomePage() {
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-[14px] font-bold uppercase tracking-[0.1em]">
+                    <h3 className="text-sm font-bold uppercase tracking-[0.1em]">
                       {s.title}
                     </h3>
                     <span
-                      className={`text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-0.5 border-[2px] shrink-0 ml-3 ${
+                      className={`text-xs font-bold uppercase tracking-[0.15em] px-2 py-0.5 border-[2px] shrink-0 ml-3 ${
                         s.startingState === "broken"
                           ? "border-[#FF10F0] text-[#FF10F0] group-hover:border-black group-hover:text-black"
                           : "border-black/30 text-black/30 group-hover:border-black/60 group-hover:text-black/60"
@@ -353,17 +354,17 @@ export default async function HomePage() {
                       {s.startingState === "broken" ? "FIX" : "BUILD"}
                     </span>
                   </div>
-                  <p className="text-[11px] text-black/50 group-hover:text-black/70 transition-colors leading-relaxed mb-3">
+                  <p className="text-sm text-black/50 group-hover:text-black/70 transition-colors leading-relaxed mb-3">
                     {s.description}
                   </p>
                   <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] bg-black text-white px-2 py-0.5 group-hover:bg-black/80">
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] bg-black text-white px-2 py-0.5 group-hover:bg-black/80">
                       {s.competency}
                     </span>
                     {s.services.map((svc) => (
                       <span
                         key={svc}
-                        className="text-[9px] uppercase tracking-[0.15em] text-black/40 group-hover:text-black/60"
+                        className="text-xs uppercase tracking-[0.15em] text-black/40 group-hover:text-black/60"
                       >
                         {svc}
                       </span>
@@ -381,21 +382,21 @@ export default async function HomePage() {
               </h3>
               <div className="border-[3px] border-black">
                 <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+                  <span className="text-xs font-bold uppercase tracking-[0.3em]">
                     INTERNAL ANALYTICS & DATA WAREHOUSING
                   </span>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
+                  <span className="text-xs uppercase tracking-[0.2em] text-white/70">
                     {upNextDomains.length} DOMAINS
                   </span>
                 </div>
                 <div className="grid grid-cols-[1fr_1.5fr_1.5fr] gap-x-6 border-b-[2px] border-black/15 px-6 py-2">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                     DOMAIN
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                     EXAMPLE DATA
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                     CHARACTERISTIC CHALLENGES
                   </span>
                 </div>
@@ -404,13 +405,13 @@ export default async function HomePage() {
                     key={s.domain}
                     className="grid grid-cols-[1fr_1.5fr_1.5fr] gap-x-6 border-b-[1px] last:border-b-0 border-black/10 px-6 py-4 hover:bg-[#FF10F0] transition-colors group"
                   >
-                    <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
+                    <span className="text-xs font-bold uppercase tracking-[0.1em]">
                       {s.domain}
                     </span>
-                    <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                    <span className="text-xs text-black/60 group-hover:text-black/80 transition-colors">
                       {s.data}
                     </span>
-                    <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                    <span className="text-xs text-black/60 group-hover:text-black/80 transition-colors">
                       {s.challenge}
                     </span>
                   </div>
@@ -427,18 +428,18 @@ export default async function HomePage() {
           <div className="max-w-6xl mx-auto px-6 lg:px-12 pb-16">
             <div className="border-[3px] border-black">
               <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
+                <span className="text-xs font-bold uppercase tracking-[0.3em]">
                   USER-FACING ANALYTICS
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
+                <span className="text-xs uppercase tracking-[0.2em] text-white/70">
                   {upNextFeatures.length} FEATURES
                 </span>
               </div>
               <div className="grid grid-cols-[1fr_3fr] gap-x-6 border-b-[2px] border-black/15 px-6 py-2">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                   SCENARIO
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/50">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                   WHAT THE AGENT NEEDS TO BUILD / OPTIMIZE
                 </span>
               </div>
@@ -447,10 +448,10 @@ export default async function HomePage() {
                   key={s.scenario}
                   className="grid grid-cols-[1fr_3fr] gap-x-6 border-b-[1px] last:border-b-0 border-black/10 px-6 py-4 hover:bg-[#FF10F0] transition-colors group"
                 >
-                  <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
+                  <span className="text-xs font-bold uppercase tracking-[0.1em]">
                     {s.scenario}
                   </span>
-                  <span className="text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                  <span className="text-xs text-black/60 group-hover:text-black/80 transition-colors">
                     {s.task}
                   </span>
                 </div>
@@ -466,7 +467,7 @@ export default async function HomePage() {
           <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-7xl tracking-tight uppercase">
             HARNESSES
           </h2>
-          <p className="mt-3 mb-12 text-[12px] uppercase tracking-wider text-black/50 max-w-lg">
+          <p className="mt-3 mb-12 text-sm uppercase tracking-wider text-black/50 max-w-lg">
             Each scenario runs against multiple harness configurations. The
             harness determines what tools the agent has access to.
           </p>
@@ -481,18 +482,18 @@ export default async function HomePage() {
                     : ""
                 }`}
               >
-                <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
+                <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
                   {h.subtitle}
                 </span>
                 <h3 className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl uppercase tracking-tight leading-[0.9]">
                   {h.title}
                 </h3>
-                <p className="mt-3 text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+                <p className="mt-3 text-sm text-black/60 group-hover:text-black/80 transition-colors">
                   {h.description}
                 </p>
                 {h.install && (
                   <div className="mt-auto pt-6">
-                    <div className="bg-black text-[#FF10F0] p-3 text-[10px] font-[family-name:var(--font-body)] overflow-x-auto group-hover:bg-black/90">
+                    <div className="bg-black text-[#FF10F0] p-3 text-xs font-[family-name:var(--font-body)] overflow-x-auto group-hover:bg-black/90">
                       <code>$ {h.install}</code>
                     </div>
                   </div>
@@ -502,7 +503,7 @@ export default async function HomePage() {
           </div>
 
           <div className="mt-6 border-[2px] border-dashed border-black/20 px-6 py-4">
-            <p className="text-[11px] text-black/50">
+            <p className="text-sm text-black/50">
               The same scenario across different harnesses directly measures
               whether tooling helps agents perform better.
             </p>
@@ -515,7 +516,7 @@ export default async function HomePage() {
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-16">
           <div className="grid md:grid-cols-2">
             <div className="border-[3px] border-black p-8 bg-[#FF10F0]">
-              <span className="text-[9px] font-bold uppercase tracking-[0.3em] block mb-4">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4">
                 PERSONA
               </span>
               <h3 className="font-[family-name:var(--font-display)] text-3xl lg:text-5xl uppercase tracking-tight leading-[0.9]">
@@ -523,13 +524,13 @@ export default async function HomePage() {
                 <br />
                 VS SAVVY
               </h3>
-              <p className="mt-4 text-[12px] leading-relaxed text-black/60">
+              <p className="mt-4 text-sm leading-relaxed text-black/60">
                 Test agents with varying levels of data engineering expertise.
                 Measure adaptability across knowledge levels.
               </p>
             </div>
             <div className="border-[3px] border-black border-t-0 md:border-t-[3px] md:border-l-0 p-8 bg-black text-white">
-              <span className="text-[9px] font-bold uppercase tracking-[0.3em] block mb-4 text-[#FF10F0]">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] block mb-4 text-[#FF10F0]">
                 STRATEGY
               </span>
               <h3 className="font-[family-name:var(--font-display)] text-3xl lg:text-5xl uppercase tracking-tight leading-[0.9]">
@@ -537,7 +538,7 @@ export default async function HomePage() {
                 <br />
                 VS EXECUTE
               </h3>
-              <p className="mt-4 text-[12px] leading-relaxed text-white/70">
+              <p className="mt-4 text-sm leading-relaxed text-white/70">
                 Does your agent think before acting? Compare strategic planners
                 against direct executors.
               </p>
@@ -552,44 +553,44 @@ export default async function HomePage() {
           <h2 className="font-[family-name:var(--font-display)] text-4xl md:text-7xl tracking-tight uppercase">
             DATA STACK
           </h2>
-          <p className="mt-3 mb-12 text-[12px] uppercase tracking-wider text-black/50 max-w-lg">
+          <p className="mt-3 mb-12 text-sm uppercase tracking-wider text-black/50 max-w-lg">
             Real infrastructure, not mocks. Every scenario runs against a
             production-grade stack.
           </p>
 
           <div className="grid md:grid-cols-3 gap-0">
             <div className="border-[3px] border-black p-8 hover:bg-[#FF10F0] transition-colors group">
-              <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
                 OLTP
               </span>
               <h3 className="font-[family-name:var(--font-display)] text-4xl lg:text-5xl uppercase tracking-tight leading-[0.9]">
                 POSTGRES
               </h3>
-              <p className="mt-3 text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+              <p className="mt-3 text-sm text-black/60 group-hover:text-black/80 transition-colors">
                 Transactional source of truth. Schema migrations, referential
                 integrity, row-level operations.
               </p>
             </div>
             <div className="border-[3px] border-black border-t-0 md:border-t-[3px] md:border-l-0 p-8 hover:bg-[#FF10F0] transition-colors group">
-              <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
                 STREAMING
               </span>
               <h3 className="font-[family-name:var(--font-display)] text-4xl lg:text-5xl uppercase tracking-tight leading-[0.9]">
                 REDPANDA
               </h3>
-              <p className="mt-3 text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+              <p className="mt-3 text-sm text-black/60 group-hover:text-black/80 transition-colors">
                 High-throughput event streaming. Topic management, consumer
                 groups, exactly-once delivery.
               </p>
             </div>
             <div className="border-[3px] border-black border-t-0 md:border-t-[3px] md:border-l-0 p-8 hover:bg-[#FF10F0] transition-colors group">
-              <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/50 group-hover:text-black/70 block mb-3">
                 OLAP
               </span>
               <h3 className="font-[family-name:var(--font-display)] text-4xl lg:text-5xl uppercase tracking-tight leading-[0.9]">
                 CLICKHOUSE
               </h3>
-              <p className="mt-3 text-[11px] text-black/60 group-hover:text-black/80 transition-colors">
+              <p className="mt-3 text-sm text-black/60 group-hover:text-black/80 transition-colors">
                 Columnar analytics engine. Materialized views, real-time
                 aggregation, petabyte-scale queries.
               </p>
@@ -598,14 +599,14 @@ export default async function HomePage() {
 
           <div className="mt-6 border-[2px] border-dashed border-black/20 px-6 py-4 flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/50">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                 COMING SOON
               </span>
-              <span className="text-[11px] text-black/40">
+              <span className="text-xs text-black/40">
                 MySQL · DuckDB · Kafka · Snowflake · BigQuery · more
               </span>
             </div>
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-black/30">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/30">
               OPEN TO CONTRIBUTIONS
             </span>
           </div>
@@ -613,9 +614,9 @@ export default async function HomePage() {
       </section>
 
       {/* Marquee 2 */}
-      <div className="relative z-10 py-3 bg-[#FF10F0] overflow-hidden border-y-[3px] border-black">
+      <div className="relative z-10 py-2.5 bg-[#FF10F0] overflow-hidden border-y-[3px] border-black">
         <div className="brutal-marquee-reverse flex whitespace-nowrap">
-          <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-black">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-black">
             {"BENCHMARK YOUR AGENTS · CLIMB THE LEADERBOARD · OPEN SOURCE · CLICKHOUSE NATIVE · RUN LOCALLY · DOCKER POWERED · ".repeat(10)}
           </span>
         </div>
@@ -629,7 +630,7 @@ export default async function HomePage() {
             <br />
             YOUR EVAL
           </h2>
-          <p className="mt-6 text-[12px] text-black/50 max-w-md mx-auto">
+          <p className="mt-6 text-sm text-black/50 max-w-md mx-auto">
             Run 9 data engineering scenarios against your agents locally. Every
             eval is a single <code className="text-black/70">docker run</code>{" "}
             command.
@@ -637,13 +638,13 @@ export default async function HomePage() {
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
               href="/leaderboard"
-              className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
+              className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
               LEADERBOARD →
             </Link>
             <Link
               href="/docs/running-evals"
-              className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
+              className="brutal-btn bg-black text-white border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
               RUN AN EVAL →
             </Link>
@@ -651,7 +652,7 @@ export default async function HomePage() {
               href="https://github.com/514-labs/agent-evals"
               target="_blank"
               rel="noopener noreferrer"
-              className="brutal-btn bg-white text-black border-[3px] border-black px-8 py-3 text-[12px] font-bold uppercase tracking-[0.15em]"
+              className="brutal-btn bg-white text-black border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
               VIEW ON GITHUB ↗
             </a>

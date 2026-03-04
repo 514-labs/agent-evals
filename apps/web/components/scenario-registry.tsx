@@ -105,7 +105,7 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "text-[10px] uppercase tracking-[0.15em] px-2.5 py-1 border-[2px] transition-colors",
+        "text-xs uppercase tracking-[0.15em] px-2.5 py-1 border-[2px] transition-colors",
         active
           ? "bg-[#FF10F0] border-black text-black"
           : "bg-white border-black/20 text-black/60 hover:text-black hover:border-black"
@@ -119,7 +119,7 @@ function FilterChip({
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">{label}</p>
+      <p className="text-xs uppercase tracking-[0.16em] text-black/45">{label}</p>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   )
@@ -141,7 +141,7 @@ function ScriptBlock({ harnessId, script }: { harnessId: string; script: string 
   return (
     <div className="border-[3px] border-black overflow-hidden">
       <div className="flex items-center justify-between bg-black px-3 py-1.5 border-b-[3px] border-black">
-        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+        <span className="text-xs font-bold uppercase tracking-[0.15em] text-white">
           {">_ "}{filename}
         </span>
         <button
@@ -158,7 +158,7 @@ function ScriptBlock({ harnessId, script }: { harnessId: string; script: string 
         </button>
       </div>
       <pre className="px-4 py-3 overflow-x-auto bg-white">
-        <code className="text-[13px] leading-[1.7] text-black/80" style={{ fontFamily: "var(--font-body), ui-monospace, monospace" }}>
+        <code className="text-sm leading-[1.7] text-black/80" style={{ fontFamily: "var(--font-body), ui-monospace, monospace" }}>
           {preview.lines.map((line) => `${line}\n`).join("")}{scriptPreviewSuffix(preview.truncated)}
         </code>
       </pre>
@@ -340,7 +340,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
             type="button"
             onClick={() => setTab("scenarios")}
             className={cn(
-              "px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] border-[2px]",
+              "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
               tab === "scenarios" ? "bg-black text-white border-black" : "bg-white border-black text-black"
             )}
           >
@@ -350,13 +350,13 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
             type="button"
             onClick={() => setTab("harnesses")}
             className={cn(
-              "px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] border-[2px]",
+              "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
               tab === "harnesses" ? "bg-black text-white border-black" : "bg-white border-black text-black"
             )}
           >
             Harnesses
           </button>
-          <div className="ml-auto text-[10px] uppercase tracking-[0.2em] text-black/50">
+          <div className="ml-auto text-xs uppercase tracking-[0.2em] text-black/50">
             {tab === "scenarios" ? `${filteredScenarios.length} scenarios` : `${filteredHarnesses.length} harnesses`}
           </div>
         </div>
@@ -367,7 +367,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search title, description, tags..."
             aria-label="Search scenario and harness registry"
-            className="h-9 border-[2px] border-black text-[12px] tracking-wide placeholder:text-black/35 focus-visible:ring-[#FF10F0]/20 focus-visible:border-[#FF10F0]"
+            className="h-9 border-[2px] border-black text-sm tracking-wide placeholder:text-black/35 focus-visible:ring-[#FF10F0]/20 focus-visible:border-[#FF10F0]"
           />
 
           {tab === "scenarios" && (
@@ -376,7 +376,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                 <button
                   type="button"
                   className={cn(
-                    "h-9 shrink-0 px-3 text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] transition-colors",
+                    "h-9 shrink-0 px-3 text-xs font-bold uppercase tracking-[0.2em] border-[2px] transition-colors",
                     activeFilterCount > 0
                       ? "bg-[#FF10F0] border-black text-black"
                       : "bg-white border-black text-black hover:bg-black hover:text-white"
@@ -388,13 +388,13 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
               <SheetContent side="right" className="overflow-y-auto">
                 <SheetHeader>
                   <div className="flex items-center justify-between pr-8">
-                    <SheetTitle className="text-[11px] font-bold uppercase tracking-[0.2em]">
+                    <SheetTitle className="text-sm font-bold uppercase tracking-[0.2em]">
                       Filters
                     </SheetTitle>
                     <button
                       type="button"
                       onClick={clearScenarioFilters}
-                      className="text-[10px] uppercase tracking-[0.16em] text-black/50 hover:text-black"
+                      className="text-xs uppercase tracking-[0.16em] text-black/50 hover:text-black"
                     >
                       Clear All
                     </button>
@@ -492,19 +492,29 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <CardTitle className="font-[family-name:var(--font-display)] uppercase tracking-tight text-2xl">
-                          {scenario.title}
+                          <Link href={`/audit/${scenario.id}`} className="hover:underline">
+                            {scenario.title}
+                          </Link>
                         </CardTitle>
-                        <CardDescription className="mt-1 text-[12px] leading-relaxed text-black/60 max-w-2xl">
+                        <CardDescription className="mt-1 text-sm leading-relaxed text-black/60 max-w-2xl">
                           {scenario.description}
                         </CardDescription>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(expanded ? null : key)}
-                        className="text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-black hover:text-white"
-                      >
-                        {expanded ? "Close" : "Details"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/audit/${scenario.id}`}
+                          className="text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-[#FF10F0]"
+                        >
+                          Audit
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expanded ? null : key)}
+                          className="text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-black hover:text-white"
+                        >
+                          {expanded ? "Close" : "Details"}
+                        </button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -517,11 +527,11 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                       <Badge variant="outline">{scenario.taskCount} tasks</Badge>
                     </div>
 
-                    <div className="text-[11px] text-black/65">Harnesses: {scenario.harnesses.join(", ")}</div>
+                    <div className="text-sm text-black/65">Harnesses: {scenario.harnesses.join(", ")}</div>
 
                     {expanded && (
                       <div className="pt-2 border-t border-black/10 space-y-2">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">
+                        <p className="text-xs uppercase tracking-[0.16em] text-black/45">
                           Competencies
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -529,28 +539,28 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                             <Link
                               key={slug}
                               href={`/docs/evals/competencies/${slug}`}
-                              className="text-[10px] uppercase tracking-[0.14em] border-[2px] border-black/20 px-2 py-1 hover:border-black"
+                              className="text-xs uppercase tracking-[0.14em] border-[2px] border-black/20 px-2 py-1 hover:border-black"
                             >
                               {optionLabel(props.competencies, slug)}
                             </Link>
                           ))}
                         </div>
 
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Features</p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-black/45">Features</p>
                         <div className="flex flex-wrap gap-2">
                           {scenario.features.map((slug) => (
                             <Link
                               key={slug}
                               href={`/docs/evals/features/${slug}`}
-                              className="text-[10px] uppercase tracking-[0.14em] border-[2px] border-black/20 px-2 py-1 hover:border-black"
+                              className="text-xs uppercase tracking-[0.14em] border-[2px] border-black/20 px-2 py-1 hover:border-black"
                             >
                               {optionLabel(props.features, slug)}
                             </Link>
                           ))}
                         </div>
 
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">Services</p>
-                        <div className="text-[11px] text-black/65">{scenario.services.join(", ")}</div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-black/45">Services</p>
+                        <div className="text-sm text-black/65">{scenario.services.join(", ")}</div>
                       </div>
                     )}
                   </CardContent>
@@ -574,14 +584,14 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                       <CardTitle className="font-[family-name:var(--font-display)] uppercase tracking-tight text-2xl">
                         {harness.title}
                       </CardTitle>
-                      <CardDescription className="mt-1 text-[12px] leading-relaxed text-black/60 max-w-2xl">
+                      <CardDescription className="mt-1 text-sm leading-relaxed text-black/60 max-w-2xl">
                         {harness.description}
                       </CardDescription>
                     </div>
                     <button
                       type="button"
                       onClick={() => setExpandedId(expanded ? null : key)}
-                      className="text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-black hover:text-white"
+                      className="text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-black hover:text-white"
                     >
                       {expanded ? "Close" : "Details"}
                     </button>
@@ -599,10 +609,10 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
 
                   {expanded && (
                     <div className="pt-2 border-t border-black/10 space-y-2">
-                      <p className="text-[10px] uppercase tracking-[0.16em] text-black/45">
+                      <p className="text-xs uppercase tracking-[0.16em] text-black/45">
                         Allowlisted Endpoints
                       </p>
-                      <div className="text-[11px] text-black/65">
+                      <div className="text-sm text-black/65">
                         {harness.allowlistedEndpoints && harness.allowlistedEndpoints.length > 0
                           ? harness.allowlistedEndpoints.join(", ")
                           : "none"}
@@ -617,15 +627,15 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
       )}
 
       <div className="border-[2px] border-black/20 p-4">
-        <p className="text-[10px] uppercase tracking-[0.2em] text-black/50 mb-2">Contribute New Scenarios</p>
-        <p className="text-[12px] text-black/65 mb-3">
+        <p className="text-xs uppercase tracking-[0.2em] text-black/50 mb-2">Contribute New Scenarios</p>
+        <p className="text-sm text-black/65 mb-3">
           Scaffold with <code>dec-bench create</code>, register with{" "}
           <code>dec-bench registry add</code>, then open a PR with{" "}
           <code>dec-bench registry publish</code>.
         </p>
         <Link
           href="/docs/add-eval/getting-started"
-          className="inline-block text-[10px] font-bold uppercase tracking-[0.2em] border-[2px] border-black px-3 py-1.5 hover:bg-[#FF10F0]"
+          className="inline-block text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-3 py-1.5 hover:bg-[#FF10F0]"
         >
           Open Getting Started
         </Link>

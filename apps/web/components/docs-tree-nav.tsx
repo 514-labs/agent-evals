@@ -66,7 +66,7 @@ function FolderNode({ node, currentUrl, depth }: { node: Node & { type: "folder"
           <button
             type="button"
             onClick={targetUrl ? handleLabelClick : () => setOpen((prev) => !prev)}
-            className={`text-[12px] tracking-wide border-l-[3px] cursor-pointer flex-1 p-2 rounded-md text-left ${
+            className={`text-xs tracking-wide border-l-[3px] cursor-pointer flex-1 p-1.5 rounded-md text-left ${
               isActive
                 ? "font-bold text-black border-[#FF10F0]"
                 : "text-black/90 hover:text-black border-transparent"
@@ -100,7 +100,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
         key={node.$id ?? `${depth}-${String(node.name)}`}
         className="pt-4 pb-1 first:pt-0"
       >
-        <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 px-2">
+        <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/40 px-2">
           {node.name ?? "Section"}
         </span>
       </li>
@@ -116,7 +116,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
           <SidebarMenuSubButton
             asChild
             isActive={isActive}
-            className={`!text-[12px] tracking-wide !bg-transparent translate-x-0 border-l-[3px] ${
+            className={`!text-xs tracking-wide !bg-transparent translate-x-0 border-l-[3px] ${
               isActive
                 ? "!text-black border-[#FF10F0]"
                 : "!text-black/90 hover:!text-black border-black/10"
@@ -133,7 +133,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
         <SidebarMenuButton
           asChild
           isActive={isActive}
-          className={`text-[12px] tracking-wide !bg-transparent border-l-[3px] ${
+          className={`text-xs tracking-wide !bg-transparent border-l-[3px] ${
             isActive
               ? "font-bold !text-black border-[#FF10F0]"
               : "!text-black/90 hover:!text-black border-transparent"
@@ -155,7 +155,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
           <SidebarMenuButton
             asChild
             isActive={isActive}
-            className={`text-[12px] tracking-wide !bg-transparent border-l-[3px] ${
+            className={`text-xs tracking-wide !bg-transparent border-l-[3px] ${
               isActive
                 ? "font-bold !text-black border-[#FF10F0]"
                 : "!text-black/90 hover:!text-black border-transparent"
@@ -164,7 +164,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
             <Link href={node.index.url}>{node.name}</Link>
           </SidebarMenuButton>
         ) : (
-          <SidebarMenuButton className="text-[12px] tracking-wide !text-black/90 pointer-events-none !bg-transparent border-l-[3px] border-transparent">
+            <SidebarMenuButton className="text-xs tracking-wide !text-black/90 pointer-events-none !bg-transparent border-l-[3px] border-transparent">
             {node.name}
           </SidebarMenuButton>
         )}

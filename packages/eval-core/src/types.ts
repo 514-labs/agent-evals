@@ -7,6 +7,30 @@ export type GateName =
 
 export type AssertionResultMap = Record<string, boolean>;
 
+export interface AssertionResult {
+  passed: boolean;
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface AssertionLog {
+  passed: boolean;
+  durationMs: number;
+  message?: string;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+export type AssertionLogMap = Record<string, AssertionLog>;
+
+export type AssertionLogOutput = Record<
+  GateName,
+  {
+    core: AssertionLogMap;
+    scenario: AssertionLogMap;
+  }
+>;
+
 export interface GateResult {
   passed: boolean;
   score: number;
@@ -19,6 +43,15 @@ export interface EfficiencyMetrics {
   agentSteps: number;
   tokensUsed: number;
   llmApiCostUsd: number;
+}
+
+export interface RunMetadata {
+  persona: string;
+  planMode: string;
+  promptPath: string;
+  promptSha256: string;
+  promptContent: string;
+  promptPreview?: string;
 }
 
 export interface CompositeScoreBreakdown {
@@ -37,6 +70,7 @@ export interface EvalOutput {
   harness: string;
   agent: string;
   model: string;
+  run_metadata?: RunMetadata;
   highest_gate: number;
   normalized_score: number;
   composite_score?: CompositeScoreBreakdown;
