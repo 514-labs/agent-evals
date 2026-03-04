@@ -17,7 +17,7 @@ interface MetricItem {
 
 export function RunMetricsGrid({ metrics }: { metrics: MetricItem[] }) {
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={400}>
       <div className="grid grid-cols-4 lg:grid-cols-7 gap-0">
         {metrics.map((metric) => (
           <Tooltip key={metric.label}>

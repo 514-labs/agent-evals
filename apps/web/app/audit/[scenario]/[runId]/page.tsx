@@ -220,8 +220,8 @@ export default async function ScenarioAuditRunPage({
                     {meta.number}
                   </span>
                   <div
-                    className={`w-2 h-2 border-[1.5px] border-black ${
-                      passed ? "bg-black" : "bg-transparent"
+                    className={`w-2 h-2 border-[1.5px] ${
+                      passed ? "border-black bg-black" : "border-black/20 bg-transparent"
                     }`}
                   />
                 </div>

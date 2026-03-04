@@ -158,7 +158,7 @@ export function AuditLogViewer({
             {logs.length} {logs.length === 1 ? "file" : "files"} · {formatBytes(totalBytes)}
           </span>
         </div>
-        <span className="text-xs uppercase tracking-[0.14em] text-white/50 group-open/debug:rotate-90 transition-transform">
+        <span className="text-xl leading-none font-bold text-white/50 group-open/debug:rotate-45 transition-transform">
           +
         </span>
       </summary>
@@ -215,8 +215,8 @@ export function AuditLogViewer({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="relative bg-[#0d0d0d]">
+      {/* Content — fixed height to prevent layout bounce on open/close */}
+      <div className="relative bg-[#0d0d0d] h-96">
         {loading && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
             <span className="text-xs uppercase tracking-[0.2em] text-[#FF10F0]">
@@ -229,7 +229,7 @@ export function AuditLogViewer({
         ) : (
           <pre
             ref={scrollRef}
-            className="m-0 max-h-144 overflow-auto p-0"
+            className="m-0 h-full overflow-auto p-0"
           >
             <code className="text-xs leading-[1.6] block">
               {lines.map((line, i) => {

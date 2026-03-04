@@ -114,7 +114,7 @@ export function AuditTracePanel({
 
       {/* Filter bar: one button per event kind, equal width */}
       {kindCounts.length > 0 && (
-        <TooltipProvider>
+        <TooltipProvider delayDuration={400}>
           <div
             className="grid gap-0 border-b border-black/10"
             style={{ gridTemplateColumns: `repeat(${kindCounts.length}, 1fr)` }}
