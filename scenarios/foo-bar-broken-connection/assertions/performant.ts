@@ -1,7 +1,13 @@
-import type { AssertionContext } from "@dec-bench/eval-core";
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-export async function select_query_under_50ms(ctx: AssertionContext): Promise<boolean> {
+export async function select_query_under_50ms(ctx: AssertionContext): Promise<AssertionResult> {
   const start = Date.now();
   await ctx.pg.query("SELECT * FROM app.users");
-  return Date.now() - start < 50;
+  const elapsed = Date.now() - start;
+  const passed = elapsed < 50;
+  return {
+    passed,
+    message: passed ? "Select query under 50ms." : `Select query took ${elapsed}ms.`,
+    details: { elapsedMs: elapsed },
+  };
 }

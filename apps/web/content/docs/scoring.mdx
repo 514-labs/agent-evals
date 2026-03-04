@@ -91,3 +91,40 @@ Two values drive the leaderboard:
 ```
 
 This agent cleared gates 1--3, failed gate 4 on performance, so `highest_gate` is 3. The `normalized_score` of 0.74 reflects the weighted scenario assertions across all gates.
+
+## Assertion Log Sidecar
+
+Rich per-assertion runtime logs are stored in a separate sidecar file, not in the main result JSON. This keeps scoring output lean while preserving audit evidence.
+
+- Sidecar file name: `.assertion-log.json` (copied into audit bundles as `logs/assertion-log.json`)
+- Manifest log entry id: `assertion_log`
+- Shape: gate -> `{ core, scenario }` -> assertion name -> `{ passed, durationMs, message?, error?, details? }`
+
+```json title="assertion-log.json"
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": { "exitCode": 0 }
+      }
+    },
+    "scenario": {
+      "target_table_exists": {
+        "passed": true,
+        "durationMs": 45,
+        "message": "Target table exists.",
+        "details": { "expected": 1, "actual": 1 }
+      }
+    }
+  },
+  "correct": { "core": {}, "scenario": {} },
+  "robust": { "core": {}, "scenario": {} },
+  "performant": { "core": {}, "scenario": {} },
+  "production": { "core": {}, "scenario": {} }
+}
+```
+
+The audit rubric panel uses this sidecar to show assertion-specific evidence (duration, message, thrown error, details JSON) for each assertion row.

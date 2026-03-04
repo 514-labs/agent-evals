@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createHash } from "node:crypto";
+import { codeToHtml } from "shiki";
 
 import { AuditLogViewer } from "@/components/audit-log-viewer";
+import { AuditRubricPanel } from "@/components/audit-rubric-panel";
 import { AuditTracePanel } from "@/components/audit-trace-panel";
+import { RunMetricsGrid } from "@/components/run-metrics-grid";
 import {
+  getAssertionLogs,
   getAuditRunTrace,
   getAuditRunManifest,
+  getAssertionSources,
+  getCoreAssertionSource,
   getScenarioAuditContext,
   getScenarioAuditIndex,
   listAuditScenarios,
@@ -74,8 +80,38 @@ export default async function ScenarioAuditRunPage({
   const index = getScenarioAuditIndex(scenario);
   const context = getScenarioAuditContext(scenario);
   const trace = getAuditRunTrace(scenario, runId);
+  const assertionLogs = getAssertionLogs(scenario, runId);
   if (!manifest || !index) {
     notFound();
+  }
+
+  const assertionSources = getAssertionSources(scenario);
+
+  const highlightCode = async (code: string) =>
+    codeToHtml(code, {
+      lang: "typescript",
+      themes: { light: "vitesse-light", dark: "vitesse-dark" },
+    });
+
+  const highlightedScenarioSources: Partial<Record<string, string>> = {};
+  for (const [gate, source] of Object.entries(assertionSources.scenario)) {
+    if (source) {
+      highlightedScenarioSources[gate] = await highlightCode(source);
+    }
+  }
+
+  const highlightedCoreSources: Record<string, string> = {};
+  const allCoreNames = new Set<string>();
+  for (const gateResult of Object.values(manifest.gates)) {
+    for (const name of Object.keys(gateResult.core)) {
+      allCoreNames.add(name);
+    }
+  }
+  for (const name of allCoreNames) {
+    const src = getCoreAssertionSource(name);
+    if (src) {
+      highlightedCoreSources[name] = await highlightCode(src);
+    }
   }
 
   const scorePercent = Math.round(manifest.normalizedScore * 100);
@@ -202,33 +238,111 @@ export default async function ScenarioAuditRunPage({
         </div>
       </div>
 
-      {/* Metrics strip */}
-      <div className="grid grid-cols-4 lg:grid-cols-7 gap-0 border-[3px] border-black mb-4">
-        {[
-          { label: "Score", value: `${scorePercent}%`, accent: scorePercent >= 80 },
-          { label: "Gate", value: String(manifest.highestGate), accent: manifest.highestGate >= 4 },
-          { label: "Assertions", value: `${passedAssertions}/${totalAssertions}`, accent: passedAssertions === totalAssertions },
-          { label: "Runtime", value: formatDuration(manifest.efficiency.wallClockSeconds), accent: false },
-          { label: "Steps", value: String(manifest.efficiency.agentSteps), accent: false },
-          { label: "Tokens", value: manifest.efficiency.tokensUsed.toLocaleString(), accent: false },
-          { label: "Cost", value: `$${manifest.efficiency.llmApiCostUsd.toFixed(2)}`, accent: false },
-        ].map((metric) => (
-          <div
-            key={metric.label}
-            className="p-2.5 border-r border-black/10 last:border-r-0 border-b lg:border-b-0"
-          >
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-black/40">
-              {metric.label}
-            </p>
-            <p
-              className={`font-[family-name:var(--font-display)] text-lg mt-0.5 ${
-                metric.accent ? "text-[#FF10F0]" : ""
-              }`}
-            >
-              {metric.value}
-            </p>
+      {/* Scenario context: above runs so users see what the agent faced first */}
+      <div className="grid xl:grid-cols-2 gap-4 mb-4">
+        {/* Scenario identity + tags */}
+        <div className="border-[3px] border-black">
+          <div className="bg-black px-4 py-2">
+            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
+              Scenario
+            </span>
           </div>
-        ))}
+          <div className="grid grid-cols-2 gap-0">
+            {[
+              { label: "ID", value: scenario },
+              { label: "Domain", value: context?.domain ?? "—" },
+              { label: "Tier", value: context?.tier ?? "—" },
+              { label: "Harness", value: context?.harness ?? manifest.harness },
+            ].map((field) => (
+              <div
+                key={field.label}
+                className="px-3 py-2 border-r border-black/10 odd:border-r-black/10 border-b border-b-black/10"
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-black/40">
+                  {field.label}
+                </p>
+                <p className="text-xs mt-0.5">{field.value}</p>
+              </div>
+            ))}
+          </div>
+          {context?.tags && context.tags.length > 0 && (
+            <div className="px-3 py-2 flex flex-wrap gap-1">
+              {context.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="text-xs font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border border-black/15 text-black/45"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Starting State + Tasks as separate sections */}
+        <div className="space-y-4">
+          {/* Starting State */}
+          {context?.infrastructure && (
+            <div className="border-[3px] border-black">
+              <div className="bg-black px-4 py-2 flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
+                  Starting State
+                </span>
+                <div className="flex items-center gap-1">
+                  {context.infrastructure.services.map((service) => (
+                    <span
+                      key={service}
+                      className="text-xs font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 bg-white/15 text-white"
+                    >
+                      {service}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              {context.infrastructure.description && (
+                <div className="px-3 py-2.5">
+                  <p className="text-xs text-black/55 leading-normal">
+                    {context.infrastructure.description}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tasks */}
+          <div className="border-[3px] border-black">
+            <div className="bg-black px-4 py-2 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
+                Tasks
+              </span>
+              <span className="text-xs uppercase tracking-[0.14em] text-white/70">
+                {(context?.tasks ?? []).length}
+              </span>
+            </div>
+            <div className="divide-y divide-black/10">
+              {(context?.tasks ?? []).map((task) => (
+                <div key={task.id} className="px-3 py-2">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-bold uppercase tracking-[0.14em]">
+                      {task.id}
+                    </span>
+                    <span className="text-xs uppercase tracking-[0.12em] text-black/30 bg-black/5 px-1 py-0">
+                      {task.category}
+                    </span>
+                  </div>
+                  <p className="text-xs text-black/55 leading-normal">
+                    {task.description}
+                  </p>
+                </div>
+              ))}
+              {(!context?.tasks || context.tasks.length === 0) && (
+                <div className="px-3 py-3 text-xs text-black/35">
+                  No task metadata available.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main grid: sidebar + content */}
@@ -277,17 +391,16 @@ export default async function ScenarioAuditRunPage({
 
         {/* Main content */}
         <div className="space-y-4 min-w-0">
-          {/* Run identity + prompt: consolidated into one block */}
+          {/* Run identity + prompt */}
           <div className="border-[3px] border-black">
             <div className="bg-black px-4 py-2 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
                 Run Configuration
               </span>
-              <span className="text-xs uppercase tracking-[0.14em] text-white/40">
+              <span className="text-xs uppercase tracking-[0.14em] text-white/70">
                 {formatTimestamp(manifest.timestamp)}
               </span>
             </div>
-            {/* Identity row */}
             <div className="grid grid-cols-3 md:grid-cols-7 gap-0 border-b border-black/10">
               {[
                 { label: "Harness", value: manifest.harness },
@@ -317,7 +430,6 @@ export default async function ScenarioAuditRunPage({
                 </div>
               ))}
             </div>
-            {/* Prompt content */}
             <details>
               <summary className="cursor-pointer list-none px-4 py-2 flex items-center justify-between hover:bg-black/3 transition-colors">
                 <div className="flex items-center gap-3">
@@ -325,6 +437,13 @@ export default async function ScenarioAuditRunPage({
                     Prompt Used
                   </span>
                   <span
+                    title={
+                      promptHashMatchesCurrent === true
+                        ? "The SHA-256 hash of the prompt used in this run matches the prompt file on disk. The agent ran with the latest version."
+                        : promptHashMatchesCurrent === false
+                          ? "The prompt used in this run differs from the current prompt file on disk. Results may not reflect latest prompt changes."
+                          : "Unable to compare — either the run or the current prompt hash is unavailable."
+                    }
                     className={`text-xs font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 ${
                       promptHashMatchesCurrent === true
                         ? "bg-[#FF10F0]/20 text-black/70"
@@ -365,184 +484,46 @@ export default async function ScenarioAuditRunPage({
             </details>
           </div>
 
+          {/* Run Metrics */}
+          <div className="border-[3px] border-black">
+            <div className="bg-black px-4 py-2 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
+                Run Metrics
+              </span>
+              <span className="text-xs uppercase tracking-[0.14em] text-white/70">
+                {scorePercent}% score
+              </span>
+            </div>
+            <RunMetricsGrid
+              metrics={[
+                { label: "Score", value: `${scorePercent}%`, accent: scorePercent >= 80, description: "Weighted score across all gate assertions. 100% means every assertion in every gate passed." },
+                { label: "Gate", value: String(manifest.highestGate), accent: manifest.highestGate >= 4, description: "Highest quality gate passed (1 = Functional, 2 = Correct, 3 = Robust, 4 = Performant, 5 = Production). Gates are sequential — a higher gate means all lower gates also passed." },
+                { label: "Assertions", value: `${passedAssertions}/${totalAssertions}`, accent: passedAssertions === totalAssertions, description: "Number of individual test assertions that passed out of the total. Each gate contains multiple assertions that verify specific behaviors.", dividerAfter: true },
+                { label: "Runtime", value: formatDuration(manifest.efficiency.wallClockSeconds), accent: false, description: "Total wall-clock time from when the agent started to when it finished, including all tool execution and waiting." },
+                { label: "Steps", value: String(manifest.efficiency.agentSteps), accent: false, description: "Number of prompt-response cycles the agent completed. Each step is one round of the agent receiving context, reasoning, and taking an action." },
+                { label: "Tokens", value: manifest.efficiency.tokensUsed.toLocaleString(), accent: false, description: "Total LLM tokens consumed (input + output) across all steps. Higher counts indicate more verbose reasoning or more context provided to the model." },
+                { label: "Cost", value: `$${manifest.efficiency.llmApiCostUsd.toFixed(2)}`, accent: false, description: "Estimated API cost based on token usage and the model's per-token pricing. Does not include infrastructure or compute costs." },
+              ]}
+            />
+          </div>
+
           {/* Agent interaction timeline */}
           <AuditTracePanel summary={manifest.traceSummary} trace={trace} />
 
-          {/* Log viewer */}
+          {/* Rubric (full width) */}
+          <AuditRubricPanel
+            gates={manifest.gates}
+            passedAssertions={passedAssertions}
+            totalAssertions={totalAssertions}
+            assertionLogs={assertionLogs}
+            highlightedSources={{
+              scenario: highlightedScenarioSources,
+              core: highlightedCoreSources,
+            }}
+          />
+
+          {/* Debugging output (collapsed by default) */}
           <AuditLogViewer scenario={scenario} runId={runId} logs={manifest.logs} />
-
-          {/* Rubric + Scenario side-by-side */}
-          <div className="grid xl:grid-cols-2 gap-4">
-            {/* Rubric */}
-            <div className="border-[3px] border-black">
-              <div className="bg-black px-4 py-2 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-                  Rubric
-                </span>
-                <span className="text-xs uppercase tracking-[0.14em] text-[#FF10F0]">
-                  {passedAssertions}/{totalAssertions}
-                </span>
-              </div>
-              <div className="divide-y divide-black/10">
-                {GATE_ORDER.map((gate) => {
-                  const detail = manifest.gates[gate];
-                  const meta = GATE_LABELS[gate]!;
-                  if (!detail) return null;
-                  const allAssertions = [
-                    ...Object.entries(detail.core).map(([name, passed]) => ({
-                      name,
-                      passed,
-                      type: "core" as const,
-                    })),
-                    ...Object.entries(detail.scenario).map(([name, passed]) => ({
-                      name,
-                      passed,
-                      type: "scenario" as const,
-                    })),
-                  ];
-                  return (
-                    <div key={gate}>
-                      <div
-                        className={`px-3 py-1.5 flex items-center justify-between ${
-                          detail.passed ? "bg-[#FF10F0]/10" : ""
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-[family-name:var(--font-display)] text-base">
-                            {meta.number}
-                          </span>
-                          <span className="text-xs font-bold uppercase tracking-[0.14em]">
-                            {meta.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-black/45">
-                            {(detail.score * 100).toFixed(0)}%
-                          </span>
-                          <span
-                            className={`text-xs font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border-2 ${
-                              detail.passed
-                                ? "border-black bg-[#FF10F0] text-black"
-                                : "border-black/20 text-black/40"
-                            }`}
-                          >
-                            {detail.passed ? "Pass" : "Fail"}
-                          </span>
-                        </div>
-                      </div>
-                      {allAssertions.length > 0 && (
-                        <div className="px-3 py-1.5">
-                          {allAssertions.map((assertion) => (
-                            <div
-                              key={`${gate}-${assertion.type}-${assertion.name}`}
-                              className="flex items-center justify-between py-1"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span
-                                  className={`text-xs uppercase tracking-[0.1em] px-1 shrink-0 ${
-                                    assertion.type === "core"
-                                      ? "bg-black/8 text-black/45"
-                                      : "bg-black/4 text-black/35"
-                                  }`}
-                                >
-                                  {assertion.type}
-                                </span>
-                                <span className="text-xs text-black/65 truncate">
-                                  {assertion.name.replace(/_/g, " ")}
-                                </span>
-                              </div>
-                              <span
-                                className={`text-sm font-bold shrink-0 leading-none ${
-                                  assertion.passed ? "text-[#FF10F0]" : "text-black/20"
-                                }`}
-                              >
-                                {assertion.passed ? "+" : "x"}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Scenario info */}
-            <div className="space-y-4">
-              <div className="border-[3px] border-black">
-                <div className="bg-black px-4 py-2">
-                  <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-                    Scenario
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-0">
-                  {[
-                    { label: "ID", value: scenario },
-                    { label: "Domain", value: context?.domain ?? "—" },
-                    { label: "Tier", value: context?.tier ?? "—" },
-                    { label: "Harness", value: context?.harness ?? manifest.harness },
-                  ].map((field) => (
-                    <div
-                      key={field.label}
-                      className="px-3 py-2 border-r border-black/10 odd:border-r-black/10 border-b border-b-black/10"
-                    >
-                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-black/40">
-                        {field.label}
-                      </p>
-                      <p className="text-xs mt-0.5">{field.value}</p>
-                    </div>
-                  ))}
-                </div>
-                {context?.tags && context.tags.length > 0 && (
-                  <div className="px-3 py-2 flex flex-wrap gap-1">
-                    {context.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-xs font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border border-black/15 text-black/45"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Tasks */}
-              <div className="border-[3px] border-black">
-                <div className="bg-black px-4 py-2 flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-                    Tasks
-                  </span>
-                  <span className="text-xs uppercase tracking-[0.14em] text-white/40">
-                    {(context?.tasks ?? []).length}
-                  </span>
-                </div>
-                <div className="divide-y divide-black/10">
-                  {(context?.tasks ?? []).map((task) => (
-                    <div key={task.id} className="px-3 py-2">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs font-bold uppercase tracking-[0.14em]">
-                          {task.id}
-                        </span>
-                        <span className="text-xs uppercase tracking-[0.12em] text-black/30 bg-black/5 px-1 py-0">
-                          {task.category}
-                        </span>
-                      </div>
-                      <p className="text-xs text-black/55 leading-normal">
-                        {task.description}
-                      </p>
-                    </div>
-                  ))}
-                  {(!context?.tasks || context.tasks.length === 0) && (
-                    <div className="px-3 py-3 text-xs text-black/35">
-                      No task metadata available.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -47,6 +47,24 @@ export interface AuditTracePayload {
   events?: AuditTraceEvent[];
 }
 
+export interface AssertionLog {
+  passed: boolean;
+  durationMs: number;
+  message?: string;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+export type AssertionLogMap = Record<string, AssertionLog>;
+
+export type AssertionLogOutput = Record<
+  GateName,
+  {
+    core: AssertionLogMap;
+    scenario: AssertionLogMap;
+  }
+>;
+
 export interface AuditLogReference {
   id: string;
   label: string;
@@ -100,6 +118,11 @@ export interface ScenarioTask {
   category: string;
 }
 
+export interface ScenarioInfrastructure {
+  services: string[];
+  description?: string;
+}
+
 export interface ScenarioDefinition {
   id: string;
   title: string;
@@ -110,6 +133,7 @@ export interface ScenarioDefinition {
   tasks: ScenarioTask[];
   personaPrompts?: Record<string, string>;
   tags?: string[];
+  infrastructure?: ScenarioInfrastructure;
 }
 
 export interface ScenarioPromptContent {
@@ -127,6 +151,7 @@ export interface AuditScenarioContext {
   harness: string;
   tags: string[];
   tasks: ScenarioTask[];
+  infrastructure?: ScenarioInfrastructure;
   prompts: ScenarioPromptContent[];
 }
 
@@ -393,6 +418,164 @@ export function getAuditRunTrace(scenario: string, runId: string): AuditTracePay
   }
 }
 
+function toAssertionLogMap(raw: unknown): AssertionLogMap {
+  if (!raw || typeof raw !== "object") return {};
+  const entries = Object.entries(raw as Record<string, unknown>);
+  const output: AssertionLogMap = {};
+  for (const [name, value] of entries) {
+    if (!value || typeof value !== "object") continue;
+    const log = value as Record<string, unknown>;
+    const passed = Boolean(log.passed);
+    const durationMs = Number(log.durationMs ?? 0);
+    output[name] = {
+      passed,
+      durationMs: Number.isFinite(durationMs) ? durationMs : 0,
+      message: typeof log.message === "string" ? log.message : undefined,
+      error: typeof log.error === "string" ? log.error : undefined,
+      details:
+        log.details && typeof log.details === "object"
+          ? (log.details as Record<string, unknown>)
+          : undefined,
+    };
+  }
+  return output;
+}
+
+export function getAssertionLogs(scenario: string, runId: string): AssertionLogOutput | null {
+  const manifest = getAuditRunManifest(scenario, runId);
+  if (!manifest) return null;
+  const assertionLog = manifest.logs.find((log) => log.id === "assertion_log");
+  if (!assertionLog) return null;
+
+  const resolved = resolveAuditLogPath(scenario, runId, assertionLog.id);
+  if (!resolved) return null;
+
+  try {
+    const raw = readFileSync(resolved.absolutePath, "utf8");
+    const parsed = JSON.parse(raw) as Partial<Record<GateName, unknown>>;
+    const gates: GateName[] = ["functional", "correct", "robust", "performant", "production"];
+    const output = {} as AssertionLogOutput;
+    for (const gate of gates) {
+      const gateValue = parsed?.[gate];
+      if (!gateValue || typeof gateValue !== "object") {
+        output[gate] = { core: {}, scenario: {} };
+        continue;
+      }
+      const gateRecord = gateValue as Record<string, unknown>;
+      output[gate] = {
+        core: toAssertionLogMap(gateRecord.core),
+        scenario: toAssertionLogMap(gateRecord.scenario),
+      };
+    }
+    return output;
+  } catch {
+    return null;
+  }
+}
+
+export interface AssertionSourceMap {
+  scenario: Record<GateName, string | null>;
+  core: string;
+}
+
+const CORE_ASSERTION_SOURCE: Record<string, string> = {
+  process_exits_clean: `async function process_exits_clean(): Promise<AssertionResult> {
+  return {
+    passed: processExitCode === 0,
+    message: processExitCode === 0
+      ? "Agent process exited cleanly."
+      : \`Agent process exited with code \${processExitCode}.\`,
+    details: { exitCode: processExitCode },
+  };
+}`,
+  no_unhandled_errors: `async function no_unhandled_errors(): Promise<AssertionResult> {
+  if (!sessionLogPath) {
+    return {
+      passed: true,
+      message: "Session log path unavailable; unhandled error scan skipped.",
+    };
+  }
+  const sessionLog = safeRead(sessionLogPath);
+  if (!sessionLog) {
+    return {
+      passed: true,
+      message: "Session log missing or unreadable; unhandled error scan skipped.",
+      details: { sessionLogPath },
+    };
+  }
+  const passed = !/unhandled|traceback|panic:/i.test(sessionLog);
+  return {
+    passed,
+    message: passed
+      ? "No unhandled errors, tracebacks, or panics found in session log."
+      : "Unhandled error indicators found in session log.",
+    details: { sessionLogPath },
+  };
+}`,
+  idempotent_rerun: `async function idempotent_rerun(): Promise<AssertionResult> {
+  return {
+    passed: true,
+    message: "Idempotent rerun check is currently a placeholder assertion.",
+  };
+}`,
+  uses_env_vars: `async function uses_env_vars(ctx: AssertionContext): Promise<AssertionResult> {
+  const hasPostgres = Boolean(ctx.env("POSTGRES_URL"));
+  const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
+  const passed = hasPostgres && hasClickHouse;
+  return {
+    passed,
+    message: passed
+      ? "Required data store environment variables are available."
+      : "Missing required data store environment variables.",
+    details: {
+      hasPostgresUrl: hasPostgres,
+      hasClickhouseUrl: hasClickHouse,
+    },
+  };
+}`,
+  no_secrets_in_code: `async function no_secrets_in_code(): Promise<AssertionResult> {
+  return {
+    passed: true,
+    message: "Secret scanning assertion is currently a placeholder.",
+  };
+}`,
+};
+
+export function getCoreAssertionSource(name: string): string | null {
+  return CORE_ASSERTION_SOURCE[name] ?? null;
+}
+
+export function getAssertionSources(scenarioId: string): AssertionSourceMap {
+  const gates: GateName[] = ["functional", "correct", "robust", "performant", "production"];
+  const gateFiles: Record<GateName, string> = {
+    functional: "functional.ts",
+    correct: "correct.ts",
+    robust: "robust.ts",
+    performant: "performant.ts",
+    production: "production.ts",
+  };
+
+  const sourcesDir = resolveScenarioSourcesDir();
+  const assertionsDir = join(sourcesDir, scenarioId, "assertions");
+
+  const scenario = {} as Record<GateName, string | null>;
+  for (const gate of gates) {
+    const filePath = join(assertionsDir, gateFiles[gate]);
+    if (existsSync(filePath)) {
+      try {
+        scenario[gate] = readFileSync(filePath, "utf8");
+      } catch {
+        scenario[gate] = null;
+      }
+    } else {
+      scenario[gate] = null;
+    }
+  }
+
+  const coreLines = Object.values(CORE_ASSERTION_SOURCE).join("\n\n");
+  return { scenario, core: coreLines };
+}
+
 export function getScenarioAuditContext(scenarioId: string): AuditScenarioContext | null {
   if (!isSafeSegment(scenarioId)) return null;
 
@@ -424,6 +607,7 @@ export function getScenarioAuditContext(scenarioId: string): AuditScenarioContex
     harness: scenario.harness,
     tags: scenario.tags ?? [],
     tasks: scenario.tasks ?? [],
+    infrastructure: scenario.infrastructure,
     prompts,
   };
 }

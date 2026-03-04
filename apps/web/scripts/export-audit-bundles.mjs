@@ -6,6 +6,7 @@ import { basename, extname, join, resolve } from "node:path";
 const SIDECAR_SUFFIXES = [
   ".agent-raw.json",
   ".trace.json",
+  ".assertion-log.json",
   ".run-meta.json",
   ".session.jsonl",
   ".infra.stdout",
@@ -281,6 +282,19 @@ function main() {
         bytes: statSync(resultStderrPath).size,
         compression: "none",
         sourcePath: resultStderrPath,
+      });
+    }
+
+    const resultAssertionLogPath = sidecarPath(resultsDir, fileName, "assertion-log.json");
+    if (existsSync(resultAssertionLogPath)) {
+      extraLogs.push({
+        id: "assertion_log",
+        label: "Assertion Log",
+        kind: "system",
+        relativePath: "logs/assertion-log.json",
+        bytes: statSync(resultAssertionLogPath).size,
+        compression: "none",
+        sourcePath: resultAssertionLogPath,
       });
     }
     for (const log of extraLogs) {

@@ -187,45 +187,63 @@ Each gate has a TypeScript file that exports named assertion functions. The gate
 | Performant | It is fast enough | query latency, pipeline runtime thresholds |
 | Production | You would ship it | env-var usage, tests present, secret hygiene |
 
-Each assertion is a named async function that returns `true` (pass) or `false` (fail). The framework provides a context object with database clients and environment access.
+Each assertion is a named async function that returns an `AssertionResult` object with `passed`, plus optional `message` and `details` fields. The framework provides a context object with database clients and environment access, and the message/details are surfaced in the audit panel's per-assertion log tab.
 
 ```ts title="assertions/functional.ts"
-import type { AssertionContext } from "@dec-bench/eval-core";
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
-export async function target_table_exists(ctx: AssertionContext): Promise<boolean> {
+export async function target_table_exists(ctx: AssertionContext): Promise<AssertionResult> {
   const rows = await queryRows<{ n: number }>(
     ctx,
     "SELECT count() AS n FROM system.tables WHERE database = 'analytics' AND name = 'events'",
   );
-  return Number(rows[0]?.n ?? 0) === 1;
+  const count = Number(rows[0]?.n ?? 0);
+  const passed = count === 1;
+  return {
+    passed,
+    message: passed ? "Target table exists." : `Expected 1 table, got ${count}.`,
+    details: { expected: 1, actual: count },
+  };
 }
 
-export async function table_has_rows(ctx: AssertionContext): Promise<boolean> {
+export async function table_has_rows(ctx: AssertionContext): Promise<AssertionResult> {
   const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events");
-  return Number(rows[0]?.n ?? 0) > 0;
+  const count = Number(rows[0]?.n ?? 0);
+  const passed = count > 0;
+  return {
+    passed,
+    message: passed ? "Table has rows." : "Table is empty.",
+    details: { rowCount: count },
+  };
 }
 ```
 
 ```ts title="assertions/correct.ts"
-import type { AssertionContext } from "@dec-bench/eval-core";
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
-export async function all_fifteen_events_loaded(ctx: AssertionContext): Promise<boolean> {
+export async function all_fifteen_events_loaded(ctx: AssertionContext): Promise<AssertionResult> {
   const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events");
-  return Number(rows[0]?.n ?? 0) === 15;
+  const count = Number(rows[0]?.n ?? 0);
+  const passed = count === 15;
+  return {
+    passed,
+    message: passed ? "All 15 events loaded." : `Expected 15, got ${count}.`,
+    details: { expected: 15, actual: count },
+  };
 }
 ```
 
-Keep assertions deterministic, fast, and focused on a single check each. The framework maps each exported function name directly to the assertion keys in the scoring output.
+Keep assertions deterministic, fast, and focused on a single check each. The framework maps each exported function name directly to the assertion keys in the scoring output and assertion-log sidecar.
 
 ## 5) Select or Add a Harness
 

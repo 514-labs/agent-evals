@@ -1,3 +1,5 @@
+import { writeFileSync } from "node:fs";
+
 import type { BaselineMetrics, ObservedMetrics, ReferenceMetrics } from "@dec-bench/scenarios";
 
 import { createAssertionContext } from "./context.js";
@@ -32,6 +34,7 @@ async function main(): Promise<void> {
   const agentSteps = parseNumber(process.env.EVAL_AGENT_STEPS, 0);
   const tokensUsed = parseNumber(process.env.EVAL_TOKENS_USED, 0);
   const llmApiCostUsd = parseNumber(process.env.EVAL_LLM_API_COST_USD, 0);
+  const assertionLogPath = process.env.ASSERTION_LOG_PATH ?? "/output/assertion-log.json";
   const runMetadata = parseJsonEnv<{
     persona: string;
     planMode: string;
@@ -57,7 +60,7 @@ async function main(): Promise<void> {
 
   const handle = createAssertionContext(process.env);
   try {
-    const output = await runGateEvaluation({
+    const { output, assertionLogs } = await runGateEvaluation({
       assertionsDir,
       context: handle.context,
       processExitCode,
@@ -78,6 +81,7 @@ async function main(): Promise<void> {
       referenceMetrics,
       observedMetrics,
     });
+    writeFileSync(assertionLogPath, `${JSON.stringify(assertionLogs, null, 2)}\n`, "utf8");
     process.stdout.write(`${JSON.stringify(output)}\n`);
   } finally {
     await handle.close();

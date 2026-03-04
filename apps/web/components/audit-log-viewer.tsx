@@ -58,10 +58,11 @@ export function AuditLogViewer({
   runId: string;
   logs: LogRef[];
 }) {
-  const [showSystemLogs, setShowSystemLogs] = useState(false);
   const defaultLog = useMemo(() => {
-    const interaction = logs.find((entry) => entry.kind === "stdout" || entry.kind === "trace");
-    return interaction ?? logs[0] ?? null;
+    const stderrLog = logs.find((entry) => entry.kind === "stderr");
+    if (stderrLog) return stderrLog;
+    const stdoutLog = logs.find((entry) => entry.kind === "stdout");
+    return stdoutLog ?? logs[0] ?? null;
   }, [logs]);
   const [activeLogId, setActiveLogId] = useState(defaultLog?.id ?? "");
   const [chunk, setChunk] = useState<ChunkResponse | null>(null);
@@ -70,21 +71,16 @@ export function AuditLogViewer({
   const [startLine, setStartLine] = useState(0);
   const scrollRef = useRef<HTMLPreElement>(null);
 
-  const visibleLogs = useMemo(() => {
-    if (showSystemLogs) return logs;
-    return logs.filter((entry) => entry.kind === "stdout" || entry.kind === "trace");
-  }, [logs, showSystemLogs]);
-
   const activeLog = useMemo(
-    () => visibleLogs.find((entry) => entry.id === activeLogId) ?? visibleLogs[0] ?? null,
-    [activeLogId, visibleLogs],
+    () => logs.find((entry) => entry.id === activeLogId) ?? logs[0] ?? null,
+    [activeLogId, logs],
   );
 
   useEffect(() => {
-    if (!activeLog && visibleLogs.length > 0) {
-      setActiveLogId(visibleLogs[0]!.id);
+    if (!activeLog && logs.length > 0) {
+      setActiveLogId(logs[0]!.id);
     }
-  }, [activeLog, visibleLogs]);
+  }, [activeLog, logs]);
 
   useEffect(() => {
     setStartLine(0);
@@ -131,10 +127,12 @@ export function AuditLogViewer({
     };
   }, [activeLog, runId, scenario, startLine]);
 
+  const totalBytes = logs.reduce((sum, log) => sum + log.bytes, 0);
+
   if (logs.length === 0) {
     return (
       <div className="border-[3px] border-black bg-black p-6">
-        <p className="text-xs uppercase tracking-[0.14em] text-white/40">
+        <p className="text-xs uppercase tracking-[0.14em] text-white/70">
           No logs attached for this run.
         </p>
       </div>
@@ -143,34 +141,31 @@ export function AuditLogViewer({
 
   const lines = chunk?.content.split("\n") ?? [];
   const lineNumWidth = String((chunk?.endLine ?? 0) + 1).length;
-  const hasSystemLogs = logs.some(
-    (log) => log.kind === "system" || log.kind === "stderr" || log.kind === "service",
-  );
 
   return (
-    <div className="border-[3px] border-black overflow-hidden">
-      {/* Terminal chrome */}
-      <div className="bg-black px-4 py-2 flex items-center justify-between gap-3">
+    <details className="border-[3px] border-black overflow-hidden group/debug">
+      <summary className="bg-black px-4 py-2 flex items-center justify-between gap-3 cursor-pointer list-none select-none hover:bg-black/90 transition-colors">
         <div className="flex items-center gap-3">
           <div className="flex gap-1">
-            <div className="w-2 h-2 bg-[#FF10F0]" />
-            <div className="w-2 h-2 bg-white/20" />
-            <div className="w-2 h-2 bg-white/10" />
+            <div className="w-2 h-2 bg-white/30" />
+            <div className="w-2 h-2 bg-white/15" />
+            <div className="w-2 h-2 bg-white/8" />
           </div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-white">
-            Agent Output
+            Debugging Output
           </p>
-        </div>
-        {chunk && (
-          <span className="text-xs uppercase tracking-[0.14em] text-white/30">
-            {chunk.totalLines.toLocaleString()} lines
+          <span className="text-xs uppercase tracking-[0.14em] text-white/50">
+            {logs.length} {logs.length === 1 ? "file" : "files"} · {formatBytes(totalBytes)}
           </span>
-        )}
-      </div>
+        </div>
+        <span className="text-xs uppercase tracking-[0.14em] text-white/50 group-open/debug:rotate-90 transition-transform">
+          +
+        </span>
+      </summary>
 
       {/* Tab bar */}
       <div className="bg-[#111] px-3 py-1.5 flex items-center gap-1.5 border-b border-white/10 overflow-x-auto">
-        {visibleLogs.map((log) => (
+        {logs.map((log) => (
           <button
             key={log.id}
             type="button"
@@ -187,20 +182,6 @@ export function AuditLogViewer({
             <span className="text-white/20">{formatBytes(log.bytes)}</span>
           </button>
         ))}
-        {hasSystemLogs && (
-          <button
-            type="button"
-            onClick={() => setShowSystemLogs((current) => !current)}
-            className={cn(
-              "ml-auto px-2 py-1 text-xs uppercase tracking-[0.14em] border border-white/25 transition-colors",
-              showSystemLogs
-                ? "text-white bg-white/15"
-                : "text-white/55 hover:text-white/80",
-            )}
-          >
-            {showSystemLogs ? "Hide System" : "System Logs"}
-          </button>
-        )}
       </div>
 
       {/* Pagination */}
@@ -274,6 +255,6 @@ export function AuditLogViewer({
           </pre>
         )}
       </div>
-    </div>
+    </details>
   );
 }

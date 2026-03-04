@@ -29,6 +29,8 @@ const SESSION_JSONL_START: &str = "__DEC_BENCH_SESSION_JSONL_START__";
 const SESSION_JSONL_END: &str = "__DEC_BENCH_SESSION_JSONL_END__";
 const EVAL_RESULT_START: &str = "__DEC_BENCH_EVAL_RESULT_JSON_START__";
 const EVAL_RESULT_END: &str = "__DEC_BENCH_EVAL_RESULT_JSON_END__";
+const ASSERTION_LOG_START: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_START__";
+const ASSERTION_LOG_END: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_END__";
 
 #[derive(Args, Clone)]
 pub struct RunArgs {
@@ -289,6 +291,7 @@ async fn run_single(
     let run_meta_json = extract_marked_block(&stdout_buffer, RUN_META_START, RUN_META_END);
     let session_jsonl = extract_marked_block(&stdout_buffer, SESSION_JSONL_START, SESSION_JSONL_END);
     let marked_result_json = extract_marked_block(&stdout_buffer, EVAL_RESULT_START, EVAL_RESULT_END);
+    let assertion_log_json = extract_marked_block(&stdout_buffer, ASSERTION_LOG_START, ASSERTION_LOG_END);
 
     let mut cleaned_stdout = stdout_buffer.clone();
     for (start, end) in [
@@ -298,6 +301,7 @@ async fn run_single(
         (RUN_META_START, RUN_META_END),
         (SESSION_JSONL_START, SESSION_JSONL_END),
         (EVAL_RESULT_START, EVAL_RESULT_END),
+        (ASSERTION_LOG_START, ASSERTION_LOG_END),
     ] {
         cleaned_stdout = strip_marked_block(&cleaned_stdout, start, end);
     }
@@ -358,6 +362,13 @@ async fn run_single(
         fs::write(&session_path, ensure_trailing_newline(&content))
             .with_context(|| format!("Failed to write {}", session_path.display()))?;
         println!("Wrote session JSONL: {}", session_path.display());
+    }
+
+    if let Some(content) = assertion_log_json.filter(|value| !value.trim().is_empty()) {
+        let assertion_log_path = output_path.with_extension("assertion-log.json");
+        fs::write(&assertion_log_path, ensure_trailing_newline(&content))
+            .with_context(|| format!("Failed to write {}", assertion_log_path.display()))?;
+        println!("Wrote assertion log: {}", assertion_log_path.display());
     }
 
     if !stderr_buffer.is_empty() {

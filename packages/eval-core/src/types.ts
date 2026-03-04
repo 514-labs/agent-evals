@@ -7,6 +7,30 @@ export type GateName =
 
 export type AssertionResultMap = Record<string, boolean>;
 
+export interface AssertionResult {
+  passed: boolean;
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface AssertionLog {
+  passed: boolean;
+  durationMs: number;
+  message?: string;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+export type AssertionLogMap = Record<string, AssertionLog>;
+
+export type AssertionLogOutput = Record<
+  GateName,
+  {
+    core: AssertionLogMap;
+    scenario: AssertionLogMap;
+  }
+>;
+
 export interface GateResult {
   passed: boolean;
   score: number;
