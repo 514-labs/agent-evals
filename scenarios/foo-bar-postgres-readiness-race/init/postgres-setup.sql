@@ -1,0 +1,6 @@
+CREATE SCHEMA IF NOT EXISTS app;
+
+CREATE TABLE app.health (
+  id SERIAL PRIMARY KEY,
+  checked_at TIMESTAMPTZ DEFAULT now()
+);
