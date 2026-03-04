@@ -7,23 +7,34 @@ import {
   startingStates,
   taskCategories,
   tiers,
-} from "@/data/registry"
+} from "@/data/registry";
+import { upNext } from "@/flags";
 
-import { ScenarioRegistry } from "@/components/scenario-registry"
+import { ScenarioRegistry } from "@/components/scenario-registry";
 
-export function ScenarioRegistryBlock() {
+export async function ScenarioRegistryBlock() {
+  const showUpNext = await upNext();
+
+  const filteredScenarios = showUpNext
+    ? scenarios
+    : scenarios.filter((s) => s.domain === "foo-bar");
+
+  const filteredDomains = showUpNext
+    ? domains
+    : domains.filter((d) => d.slug === "foo-bar");
+
   return (
     <div className="not-prose">
-    <ScenarioRegistry
-      scenarios={scenarios}
-      harnesses={harnesses}
-      domains={domains}
-      competencies={competencies}
-      features={features}
-      taskCategories={taskCategories}
-      tiers={tiers}
-      startingStates={startingStates}
-    />
+      <ScenarioRegistry
+        scenarios={filteredScenarios}
+        harnesses={harnesses}
+        domains={filteredDomains}
+        competencies={competencies}
+        features={features}
+        taskCategories={taskCategories}
+        tiers={tiers}
+        startingStates={startingStates}
+      />
     </div>
-  )
+  );
 }

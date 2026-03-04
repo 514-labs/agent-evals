@@ -10,4 +10,13 @@ export { createAssertionContext } from "./context.js";
 export { loadScenarioAssertions } from "./discovery.js";
 export { runGateEvaluation } from "./runner.js";
 export { createEvalOutput } from "./output.js";
-export type { EvalOutput, EfficiencyMetrics, GateName, GateResult } from "./types.js";
+export type {
+  AssertionLog,
+  AssertionLogMap,
+  AssertionLogOutput,
+  AssertionResult,
+  EvalOutput,
+  EfficiencyMetrics,
+  GateName,
+  GateResult,
+} from "./types.js";

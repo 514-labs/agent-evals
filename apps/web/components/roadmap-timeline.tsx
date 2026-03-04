@@ -15,7 +15,7 @@ function StatusBadge({ status }: { status: "active" | "next" | "future" }) {
     future: "FUTURE",
   }
   return (
-    <span className={`text-[9px] font-bold uppercase tracking-[0.3em] border-[2px] px-2 py-0.5 inline-block ${styles[status]}`}>
+    <span className={`text-xs font-bold uppercase tracking-[0.3em] border-[2px] px-2 py-0.5 inline-block ${styles[status]}`}>
       {labels[status]}
     </span>
   )
@@ -45,7 +45,7 @@ export function RoadmapTimeline({
           </span>
         </div>
         <div className="px-6 pb-4">
-          <p className="text-[12px] text-black/50 tracking-wide">{currentDescription}</p>
+          <p className="text-sm text-black/50 tracking-wide">{currentDescription}</p>
         </div>
       </div>
 
@@ -63,11 +63,11 @@ export function RoadmapTimeline({
               <div key={item.label} className="flex items-start gap-3 group">
                 <span className="mt-1.5 block size-2 border-[2px] border-black shrink-0 group-hover:bg-[#FF10F0] transition-colors" />
                 <div>
-                  <span className="text-[12px] font-bold uppercase tracking-[0.1em]">
+                  <span className="text-sm font-bold uppercase tracking-[0.1em]">
                     {item.label}
                   </span>
                   {item.description && (
-                    <p className="text-[11px] text-black/50 mt-0.5">{item.description}</p>
+                    <p className="text-sm text-black/50 mt-0.5">{item.description}</p>
                   )}
                 </div>
               </div>
@@ -87,11 +87,11 @@ export function RoadmapTimeline({
               <div key={item.label} className="flex items-start gap-3">
                 <span className="mt-1.5 block size-2 border-[2px] border-dashed border-black/20 shrink-0" />
                 <div>
-                  <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-black/40">
+                  <span className="text-sm font-bold uppercase tracking-[0.1em] text-black/40">
                     {item.label}
                   </span>
                   {item.description && (
-                    <p className="text-[11px] text-black/30 mt-0.5">{item.description}</p>
+                    <p className="text-sm text-black/30 mt-0.5">{item.description}</p>
                   )}
                 </div>
               </div>

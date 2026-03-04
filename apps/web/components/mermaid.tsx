@@ -57,7 +57,7 @@ export function Mermaid({ chart }: { chart: string }) {
   if (error) {
     return (
       <div className="dec-mermaid border-destructive/50">
-        <pre className="text-[12px] text-destructive whitespace-pre-wrap">{error}</pre>
+        <pre className="text-sm text-destructive whitespace-pre-wrap">{error}</pre>
       </div>
     )
   }

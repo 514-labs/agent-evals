@@ -1,9 +1,18 @@
 import { readFileSync } from "node:fs";
 
+import type { BaselineMetrics, ObservedMetrics, ReferenceMetrics } from "@dec-bench/scenarios";
+
 import type { AssertionContext } from "./context.js";
 import { loadScenarioAssertions, type AssertionFn } from "./discovery.js";
-import type { EvalOutput, GateName, GateResult } from "./types.js";
+import type {
+  AssertionLogMap,
+  AssertionLogOutput,
+  EvalOutput,
+  GateName,
+  GateResult,
+} from "./types.js";
 import { createEvalOutput } from "./output.js";
+import { computeScore } from "./score.js";
 
 const GATES: GateName[] = ["functional", "correct", "robust", "performant", "production"];
 const PASS_THRESHOLD = 0.8;
@@ -18,10 +27,16 @@ export interface GateRunnerOptions {
   harness: string;
   agent: string;
   model: string;
+  runMetadata?: EvalOutput["run_metadata"];
   efficiency: EvalOutput["efficiency"];
+  baselineMetrics?: BaselineMetrics;
+  referenceMetrics?: ReferenceMetrics;
+  observedMetrics?: ObservedMetrics;
 }
 
-export async function runGateEvaluation(options: GateRunnerOptions): Promise<EvalOutput> {
+export async function runGateEvaluation(
+  options: GateRunnerOptions,
+): Promise<{ output: EvalOutput; assertionLogs: AssertionLogOutput }> {
   const discovered = await loadScenarioAssertions(options.assertionsDir);
   const gates: Record<GateName, GateResult> = {
     functional: emptyGate(),
@@ -29,6 +44,13 @@ export async function runGateEvaluation(options: GateRunnerOptions): Promise<Eva
     robust: emptyGate(),
     performant: emptyGate(),
     production: emptyGate(),
+  };
+  const assertionLogs: AssertionLogOutput = {
+    functional: { core: {}, scenario: {} },
+    correct: { core: {}, scenario: {} },
+    robust: { core: {}, scenario: {} },
+    performant: { core: {}, scenario: {} },
+    production: { core: {}, scenario: {} },
   };
 
   let blocked = false;
@@ -46,15 +68,19 @@ export async function runGateEvaluation(options: GateRunnerOptions): Promise<Eva
       options.context,
     );
     const scenario = await runAssertions(discovered[gate], options.context);
-    const corePassed = allPassed(core);
-    const scenarioScore = calcScore(scenario);
+    const corePassed = allPassed(core.results);
+    const scenarioScore = calcScore(scenario.results);
     const passed = corePassed && scenarioScore >= PASS_THRESHOLD;
 
     gates[gate] = {
       passed,
       score: scenarioScore,
-      core,
-      scenario,
+      core: core.results,
+      scenario: scenario.results,
+    };
+    assertionLogs[gate] = {
+      core: core.logs,
+      scenario: scenario.logs,
     };
 
     scoreSum += scenarioScore;
@@ -65,17 +91,35 @@ export async function runGateEvaluation(options: GateRunnerOptions): Promise<Eva
     }
   }
 
-  return createEvalOutput({
-    scenario: options.scenario,
-    version: options.version,
-    harness: options.harness,
-    agent: options.agent,
-    model: options.model,
-    highestGate,
-    normalizedScore: clamp(scoreSum / GATES.length),
-    gates,
-    efficiency: options.efficiency,
-  });
+  let compositeScore: EvalOutput["composite_score"];
+  if (options.baselineMetrics && options.referenceMetrics && options.observedMetrics) {
+    const breakdown = computeScore(
+      options.baselineMetrics,
+      options.referenceMetrics,
+      options.observedMetrics,
+    );
+    compositeScore = {
+      total: breakdown.total,
+      components: breakdown.components,
+    };
+  }
+
+  return {
+    output: createEvalOutput({
+      scenario: options.scenario,
+      version: options.version,
+      harness: options.harness,
+      agent: options.agent,
+      model: options.model,
+      runMetadata: options.runMetadata,
+      highestGate,
+      normalizedScore: clamp(scoreSum / GATES.length),
+      compositeScore,
+      gates,
+      efficiency: options.efficiency,
+    }),
+    assertionLogs,
+  };
 }
 
 function emptyGate(): GateResult {
@@ -108,16 +152,31 @@ function allPassed(resultMap: Record<string, boolean>): boolean {
 async function runAssertions(
   assertions: Record<string, AssertionFn>,
   context: AssertionContext,
-): Promise<Record<string, boolean>> {
+): Promise<{ results: Record<string, boolean>; logs: AssertionLogMap }> {
   const results: Record<string, boolean> = {};
+  const logs: AssertionLogMap = {};
   for (const [name, fn] of Object.entries(assertions)) {
+    const started = Date.now();
     try {
-      results[name] = Boolean(await fn(context));
-    } catch {
+      const outcome = await fn(context);
+      const passed = Boolean(outcome.passed);
+      results[name] = passed;
+      logs[name] = {
+        passed,
+        durationMs: Date.now() - started,
+        message: outcome.message,
+        details: outcome.details,
+      };
+    } catch (error) {
       results[name] = false;
+      logs[name] = {
+        passed: false,
+        durationMs: Date.now() - started,
+        error: error instanceof Error ? error.stack ?? error.message : String(error),
+      };
     }
   }
-  return results;
+  return { results, logs };
 }
 
 function getCoreAssertions(
@@ -127,30 +186,71 @@ function getCoreAssertions(
 ): Record<string, AssertionFn> {
   if (gate === "functional") {
     return {
-      process_exits_clean: async () => processExitCode === 0,
+      process_exits_clean: async () => ({
+        passed: processExitCode === 0,
+        message:
+          processExitCode === 0
+            ? "Agent process exited cleanly."
+            : `Agent process exited with code ${processExitCode}.`,
+        details: { exitCode: processExitCode },
+      }),
       no_unhandled_errors: async () => {
         if (!sessionLogPath) {
-          return true;
+          return {
+            passed: true,
+            message: "Session log path unavailable; unhandled error scan skipped.",
+          };
         }
         const sessionLog = safeRead(sessionLogPath);
         if (!sessionLog) {
-          return true;
+          return {
+            passed: true,
+            message: "Session log missing or unreadable; unhandled error scan skipped.",
+            details: { sessionLogPath },
+          };
         }
-        return !/unhandled|traceback|panic:/i.test(sessionLog);
+        const passed = !/unhandled|traceback|panic:/i.test(sessionLog);
+        return {
+          passed,
+          message: passed
+            ? "No unhandled errors, tracebacks, or panics found in session log."
+            : "Unhandled error indicators found in session log.",
+          details: { sessionLogPath },
+        };
       },
     };
   }
 
   if (gate === "robust") {
     return {
-      idempotent_rerun: async () => true,
+      idempotent_rerun: async () => ({
+        passed: true,
+        message: "Idempotent rerun check is currently a placeholder assertion.",
+      }),
     };
   }
 
   if (gate === "production") {
     return {
-      uses_env_vars: async (ctx) => Boolean(ctx.env("POSTGRES_URL") && ctx.env("CLICKHOUSE_URL")),
-      no_secrets_in_code: async () => true,
+      uses_env_vars: async (ctx) => {
+        const hasPostgres = Boolean(ctx.env("POSTGRES_URL"));
+        const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
+        const passed = hasPostgres && hasClickHouse;
+        return {
+          passed,
+          message: passed
+            ? "Required data store environment variables are available."
+            : "Missing required data store environment variables.",
+          details: {
+            hasPostgresUrl: hasPostgres,
+            hasClickhouseUrl: hasClickHouse,
+          },
+        };
+      },
+      no_secrets_in_code: async () => ({
+        passed: true,
+        message: "Secret scanning assertion is currently a placeholder.",
+      }),
     };
   }
 

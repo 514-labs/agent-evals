@@ -43,9 +43,9 @@ Pass all options as flags to skip prompts entirely:
 
 ```bash title="Scaffold a new scenario"
 dec-bench create \
-  --name ecommerce-pipeline \
-  --domain e-commerce \
-  --tier tier-2
+  --name foo-bar-my-scenario \
+  --domain foo-bar \
+  --tier tier-1
 ```
 
 ### Available flags
@@ -53,7 +53,7 @@ dec-bench create \
 | Flag | Required | Default | Description |
 |------|----------|---------|-------------|
 | `--name` / `-n` | yes | — | Scenario ID, used as directory name and JSON id |
-| `--domain` / `-d` | yes | — | Business domain (`foo-bar`, `b2b-saas`, `b2c-saas`, `ugc`, `e-commerce`, `advertising`, `consumption-based-infra`) |
+| `--domain` / `-d` | yes | — | Business domain (`foo-bar` for v0.1) |
 | `--tier` / `-t` | no | `tier-1` | Difficulty tier (`tier-1`, `tier-2`, `tier-3`) |
 | `--harness` | no | `bare` | Evaluation harness profile |
 | `--dir` | no | `scenarios` | Root directory for scenario output |
@@ -61,7 +61,7 @@ dec-bench create \
 ### What gets generated
 
 <Files>
-  <Folder name="scenarios/ecommerce-pipeline" defaultOpen>
+  <Folder name="scenarios/foo-bar-my-scenario" defaultOpen>
     <Folder name="assertions" defaultOpen>
       <File name="correct.ts" />
       <File name="functional.ts" />
@@ -101,7 +101,7 @@ flowchart TD
 
 Pick the eval target before you write any files:
 
-- **Domain**: choose a workload profile from [Domains](/docs/evals/domains)
+- **Domain**: for v0.1, use `foo-bar`. See [Foo Bar](/docs/evals/domains/foo-bar) for context.
 - **Competency focus**: choose primary skill(s) from [Competencies](/docs/evals/competencies)
 - **Tier**: set difficulty -- see [Difficulty Tiers](/docs/evals/difficulty-tiers) for guidance on scoping
 - **Starting-state model**:
@@ -120,16 +120,18 @@ Each scenario has a `prompts/` directory with two files -- one per persona. Each
 Both prompts ask for the same outcome and are scored against the same assertions. The persona changes how much the user helps the agent, not what success looks like.
 
 ```markdown title="prompts/naive.md"
-I need to get my order data into ClickHouse so I can run daily
-reports on it. Right now the data is just sitting in Postgres.
-Can you set that up for me?
+I have a bunch of CSV files that need to go into ClickHouse.
+Some of them have messy data — weird dates, missing values.
+Can you get it all loaded into a clean table?
 ```
 
 ```markdown title="prompts/savvy.md"
-Build a pipeline that replicates raw.orders from Postgres into
-ClickHouse as analytics.fct_orders_daily. Deduplicate on order_id
-using ReplacingMergeTree, partition by month, and make the pipeline
-idempotent so I can schedule it on a cron.
+Ingest five CSV files from /data/csv/ into a single ClickHouse
+table `analytics.events`. Handle DD/MM/YYYY dates, mixed null
+representations (N/A, null, empty), duplicate header rows
+mid-file, and trailing delimiters. Target schema: event_id
+String, event_ts DateTime, user_id String, event_type String,
+value Float64 (nullable values should be 0).
 ```
 
 ## 3) Set Up Infrastructure and Seed Data
@@ -185,55 +187,80 @@ Each gate has a TypeScript file that exports named assertion functions. The gate
 | Performant | It is fast enough | query latency, pipeline runtime thresholds |
 | Production | You would ship it | env-var usage, tests present, secret hygiene |
 
-Each assertion is a named async function that returns `true` (pass) or `false` (fail). The framework provides a context object with database clients and environment access.
+Each assertion is a named async function that returns an `AssertionResult` object with `passed`, plus optional `message` and `details` fields. The framework provides a context object with database clients and environment access, and the message/details are surfaced in the audit panel's per-assertion log tab.
 
 ```ts title="assertions/functional.ts"
-import type { AssertionContext } from "@dec-bench/eval-core";
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-export async function target_tables_exist({ clickhouse }: AssertionContext) {
-  const result = await clickhouse.query("EXISTS TABLE analytics.fct_orders_daily");
-  return result.data[0][0] === 1;
+async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
+  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+  return (await (result as any).json()) as T[];
 }
 
-export async function table_has_rows({ clickhouse }: AssertionContext) {
-  const result = await clickhouse.query("SELECT count() AS n FROM analytics.fct_orders_daily");
-  return Number(result.data[0].n) > 0;
+export async function target_table_exists(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows<{ n: number }>(
+    ctx,
+    "SELECT count() AS n FROM system.tables WHERE database = 'analytics' AND name = 'events'",
+  );
+  const count = Number(rows[0]?.n ?? 0);
+  const passed = count === 1;
+  return {
+    passed,
+    message: passed ? "Target table exists." : `Expected 1 table, got ${count}.`,
+    details: { expected: 1, actual: count },
+  };
+}
+
+export async function table_has_rows(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events");
+  const count = Number(rows[0]?.n ?? 0);
+  const passed = count > 0;
+  return {
+    passed,
+    message: passed ? "Table has rows." : "Table is empty.",
+    details: { rowCount: count },
+  };
 }
 ```
 
 ```ts title="assertions/correct.ts"
-import type { AssertionContext } from "@dec-bench/eval-core";
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-export async function row_counts_match({ clickhouse, pg }: AssertionContext) {
-  const source = await pg.query("SELECT count(DISTINCT order_id) AS n FROM raw.orders");
-  const target = await clickhouse.query("SELECT count() AS n FROM analytics.fct_orders_daily");
-  return Number(target.data[0].n) === Number(source.rows[0].n);
+async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
+  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+  return (await (result as any).json()) as T[];
 }
 
-export async function revenue_checksum({ clickhouse, pg }: AssertionContext) {
-  const source = await pg.query("SELECT sum(total_amount)::numeric AS s FROM raw.orders");
-  const target = await clickhouse.query("SELECT sum(daily_revenue) AS s FROM analytics.fct_orders_daily");
-  return Number(target.data[0].s) === Number(source.rows[0].s);
+export async function all_fifteen_events_loaded(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events");
+  const count = Number(rows[0]?.n ?? 0);
+  const passed = count === 15;
+  return {
+    passed,
+    message: passed ? "All 15 events loaded." : `Expected 15, got ${count}.`,
+    details: { expected: 15, actual: count },
+  };
 }
 ```
 
-Keep assertions deterministic, fast, and focused on a single check each. The framework maps each exported function name directly to the assertion keys in the scoring output.
+Keep assertions deterministic, fast, and focused on a single check each. The framework maps each exported function name directly to the assertion keys in the scoring output and assertion-log sidecar.
 
 ## 5) Select or Add a Harness
 
 A harness installs tools in the image layer used by the agent.
 
-Use an existing harness profile when possible (for example, `bare`, `classic-de`, or `olap-for-swe`). Create a custom harness only if tool requirements are truly new.
+Use an existing harness profile when possible. v0.1 ships with three:
 
-```bash title="harnesses/classic-de.sh"
-pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0 dbt-clickhouse==1.10.0 polars==1.38.1 great-expectations==1.13.0
-```
+| Harness | What it installs |
+|---------|-----------------|
+| `bare` | Nothing -- Python, Node.js, database CLIs only |
+| `classic-de` | dbt-core, dbt-postgres, dbt-clickhouse, polars, great-expectations |
+| `olap-for-swe` | MooseStack (moose-cli, moose-lib) |
 
-For restricted network mode, add optional endpoint allowlisting:
+Create a custom harness only if tool requirements are truly new:
 
-```bash title="harnesses/custom/iptables.sh"
-iptables -I OUTPUT -d pypi.org -j ACCEPT
-iptables -I OUTPUT -d registry.npmjs.org -j ACCEPT
+```bash title="harnesses/custom.sh"
+pip3 install --no-cache-dir my-special-tool==1.0.0
 ```
 
 ## 6) Register the Scenario
@@ -242,16 +269,16 @@ Create scenario metadata that maps cleanly to DEC Bench scenario types:
 
 ```json title="scenario.json example"
 {
-  "id": "ecommerce-pipeline",
-  "title": "E-commerce Pipeline Recovery",
-  "description": "Restore and harden a broken daily orders pipeline.",
-  "tier": "tier-2",
-  "domain": "e-commerce",
-  "harness": "classic-de",
+  "id": "foo-bar-csv-ingest",
+  "title": "Foo Bar CSV Ingest",
+  "description": "Load five messy CSV files into clean ClickHouse tables.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harness": "bare",
   "tasks": [
     {
-      "id": "fix-orders-model",
-      "description": "Produce a correct and idempotent daily orders model.",
+      "id": "ingest-csvs",
+      "description": "Create a ClickHouse table and load all five CSV files.",
       "category": "ingestion"
     }
   ],
@@ -259,16 +286,16 @@ Create scenario metadata that maps cleanly to DEC Bench scenario types:
     "naive": "prompts/naive.md",
     "savvy": "prompts/savvy.md"
   },
-  "tags": ["ingestion", "transformation", "reliability"],
+  "tags": ["csv", "ingestion", "data-cleaning", "type-coercion"],
   "baselineMetrics": {
-    "queryLatencyMs": 1200,
-    "storageBytes": 980000000,
-    "costPerQueryUsd": 0.024
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
   },
   "referenceMetrics": {
-    "queryLatencyMs": 180,
-    "storageBytes": 450000000,
-    "costPerQueryUsd": 0.005
+    "queryLatencyMs": 50,
+    "storageBytes": 5000000,
+    "costPerQueryUsd": 0.001
   }
 }
 ```
@@ -281,8 +308,8 @@ Run:
 
 ```bash title="Run one eval"
 dec-bench run \
-  --scenario ecommerce-pipeline \
-  --harness classic-de \
+  --scenario foo-bar-csv-ingest \
+  --harness bare \
   --persona naive \
   --mode no-plan
 ```
@@ -309,10 +336,3 @@ pnpm --filter @dec-bench/scenarios check-types
 pnpm --filter @dec-bench/scenarios lint
 pnpm lint
 ```
-
-## Next Steps
-
-- [Advanced](/docs/add-eval/advanced)
-- [Architecture](/docs/architecture)
-- [Scoring](/docs/scoring)
-- [Running Evals](/docs/running-evals)
