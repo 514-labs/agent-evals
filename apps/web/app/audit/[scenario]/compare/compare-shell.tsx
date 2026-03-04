@@ -103,10 +103,10 @@ function RunSelector({
             type="button"
             onClick={() => setOpen((o) => !o)}
             className={cn(
-              "text-xs font-bold uppercase tracking-[0.14em] px-2 py-0.5 border transition-colors",
+              "text-xs font-bold uppercase tracking-[0.14em] px-2.5 py-1 border-2 transition-colors",
               open
                 ? "border-[#FF10F0] bg-[#FF10F0] text-black"
-                : "border-white/30 text-white/50 hover:text-white hover:border-white",
+                : "border-[#FF10F0] text-[#FF10F0] hover:bg-[#FF10F0] hover:text-black",
             )}
           >
             {open ? "Close" : "Change"}
