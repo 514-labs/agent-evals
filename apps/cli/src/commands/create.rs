@@ -169,12 +169,18 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     println!();
     println!("Next steps:");
     println!("  1. Fill in prompts/naive.md and prompts/savvy.md");
-    println!("  2. Add init scripts and seed data");
-    println!("  3. Implement gate assertions");
-    println!("  4. Complete scenario.json metadata");
-    println!();
-    println!("Run with:");
-    println!("  dec-bench run --scenario {}", args.name);
+    println!("  2. Add init scripts, seed data, and gate assertions");
+    println!("  3. Complete scenario.json metadata");
+    println!("  4. Validate the scenario:");
+    println!("     dec-bench validate --scenario {}", args.name);
+    println!("  5. Build the local eval image:");
+    println!("     dec-bench build --scenario {}", args.name);
+    println!("  6. Run the eval:");
+    println!("     dec-bench run --scenario {}", args.name);
+    println!("  7. Inspect the latest run:");
+    println!("     dec-bench results --latest --scenario {}", args.name);
+    println!("  8. Open the audit UI for a run:");
+    println!("     dec-bench audit open --scenario {} --run-id <run-id>", args.name);
 
     Ok(())
 }

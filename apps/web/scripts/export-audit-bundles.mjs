@@ -23,6 +23,8 @@ function parseArgs(argv) {
     resultsDir: "",
     auditsDir: "",
     logsDir: "",
+    scenario: "",
+    runId: "",
     overwrite: false,
   };
 
@@ -31,6 +33,8 @@ function parseArgs(argv) {
     if (arg === "--results-dir") args.resultsDir = argv[++i];
     else if (arg === "--audits-dir") args.auditsDir = argv[++i];
     else if (arg === "--logs-dir") args.logsDir = argv[++i];
+    else if (arg === "--scenario") args.scenario = argv[++i];
+    else if (arg === "--run-id") args.runId = argv[++i];
     else if (arg === "--overwrite") args.overwrite = true;
   }
 
@@ -81,9 +85,9 @@ function resolveResultsDir(inputPath) {
   if (envDir && existsSync(resolve(envDir))) return resolve(envDir);
 
   const candidates = [
+    inputPath,
     "results",
     "../../results",
-    inputPath,
     "data/results",
     "apps/web/data/results",
   ];
@@ -261,6 +265,8 @@ function main() {
     const scenario = inferScenarioId(fileName, parsed);
     if (!scenario) continue;
     const runId = detectRunId(fileName, parsed);
+    if (args.scenario && args.scenario !== scenario) continue;
+    if (args.runId && args.runId !== runId) continue;
     const runDir = join(auditsDir, scenario, runId);
     const stdoutPath = join(runDir, "stdout.log");
     const logsSubdir = join(runDir, "logs");

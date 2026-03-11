@@ -1,0 +1,70 @@
+name: CLI CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  cli-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: pnpm install --frozen-lockfile
+      - run: cargo test --manifest-path apps/cli/Cargo.toml
+
+  workspace-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dec-bench/eval-core test
+      - run: pnpm --filter web test:data
+
+  installer-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: Build Linux CLI archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --release --locked --manifest-path apps/cli/Cargo.toml --target x86_64-unknown-linux-gnu
+          mkdir -p dist staging
+          cp target/x86_64-unknown-linux-gnu/release/dec-bench staging/dec-bench
+          chmod +x staging/dec-bench
+          archive="dec-bench-smoke-x86_64-unknown-linux-gnu.tar.gz"
+          tar -C staging -czf "dist/${archive}" dec-bench
+          shasum -a 256 "dist/${archive}" > dist/checksums.txt
+      - name: Install via hosted installer script
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$(basename "$(ls dist/*.tar.gz)")"
+          python3 -m http.server 8765 --directory dist >/tmp/dec-bench-installer-smoke.log 2>&1 &
+          server_pid="$!"
+          trap 'kill "$server_pid"' EXIT
+          DEC_BENCH_INSTALL_URL="http://127.0.0.1:8765/${archive}" \
+          DEC_BENCH_INSTALL_CHECKSUM_URL="http://127.0.0.1:8765/checksums.txt" \
+          DEC_BENCH_INSTALL_DIR="$RUNNER_TEMP/bin" \
+          sh ./install.sh
+          "$RUNNER_TEMP/bin/dec-bench" --help >/dev/null

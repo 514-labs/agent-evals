@@ -1,116 +1,43 @@
 # DEC Bench
 
-**Data Engineering Competency Bench** — an open-source benchmark for evaluating AI agent competency on real-world data engineering tasks and workloads.
+**Data Engineering Competency Bench** is an open-source benchmark for evaluating AI agents on real data engineering work.
 
-## What is DEC Bench?
+The `0.1` workflow is CLI-first:
 
-DEC Bench measures how well AI agents perform actual data engineering work — not toy SQL puzzles, but realistic scenarios drawn from production domains. Agents are evaluated against a real infrastructure stack and scored on a formula that rewards correctness first, then optimizes for speed, cost, quality, and efficiency.
+- install `dec-bench`
+- scaffold and validate a scenario
+- build and run evals
+- inspect results from the terminal
+- open the localhost audit UI for a specific run
 
-## Running Evals
+Docker is still the runtime, but the CLI is the product surface.
 
-Each benchmark run is a single `docker run` command. No setup, no config files, no cloud accounts. 
-The image tag encodes exactly what is being evaluated: **scenario × harness × agent × model**.
+## Install
 
-```bash
-docker run \
-  -e ANTHROPIC_API_KEY=sk-ant-... \
-  -e OPENAI_API_KEY=sk-... \
-  -e CURSOR_API_KEY=cur-... \
-  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.classic-de.claude-code.sonnet-4.v1.0.0
-```
-
-Output is a JSON payload on stdout containing the score, efficiency metrics, and a path to the session log.
-
-## Scoring
-
-Scoring uses a **gated assertion model** with five sequential gates representing increasing levels of production readiness.
-
-1. **Functional** — "It runs"
-2. **Correct** — "It produces right answers"
-3. **Robust** — "It handles real-world conditions"
-4. **Performant** — "It's fast enough"
-5. **Production** — "You'd ship this"
-
-A gate passes when all core assertions (universal) and scenario-specific assertions for that gate pass. Efficiency metrics (wall clock time, agent steps, tokens, API cost) are tracked separately as tiebreakers and never inflate the gate-based score.
-
-## Scenarios
-
-### Internal Analytics & Data Warehousing
-
-| Domain            | Example Data                                          | Characteristic Challenges                                    |
-|-------------------|-------------------------------------------------------|--------------------------------------------------------------|
-| Foo Bar (Dummy)   | Synthetic tables, generated events, placeholder metrics | Dummy data for testing eval scaffolding and pipeline wiring  |
-| B2B SaaS          | Product usage events, subscription lifecycle          | High-cardinality user/account dimensions, event versioning   |
-| B2C SaaS          | User activity streams, content interactions           | Massive event volumes, time-series heavy, retention queries  |
-| UGC               | Posts, comments, reactions, moderation signals         | Variable schema (JSON-heavy), content search + analytics     |
-| E-Commerce        | Orders, inventory, catalog, customer behavior         | Transactional correctness critical, complex JOINs            |
-| Advertising       | Impressions, clicks, conversions, bid data            | Extreme write throughput, real-time aggregation              |
-| Consumption Infra | API calls, compute usage, storage metering            | Billing accuracy critical, high-cardinality metering keys    |
-
-### User-Facing Analytics
-
-| Feature          | What the agent needs to build / optimize                                          |
-|------------------|-----------------------------------------------------------------------------------|
-| Dashboards       | Pre-aggregated models, sub-second query latency, concurrent access                |
-| Exported Reports | Batch query optimization, large result sets, scheduling                           |
-| Feeds            | Real-time materialized views, incremental updates, personalization queries        |
-| Analytical Chat  | Ad-hoc query generation, EXPLAIN-based optimization, natural language → SQL       |
-
-## Agent Modes
-
-Agents are tested across two dimensions:
-
-- **Persona** — *Naive vs Savvy*: Agents are given varying levels of data engineering expertise to measure adaptability across knowledge levels.
-- **Strategy** — *Plan vs Execute*: Compare agents that think before acting (strategic planners) against those that execute directly.
-
-## Data Stack
-
-Every scenario runs against real infrastructure, not mocks:
-
-| Layer     | Technology  | Role                                                                      |
-|-----------|-------------|---------------------------------------------------------------------------|
-| OLTP      | Postgres    | Transactional source of truth — schema migrations, referential integrity  |
-| Streaming | Redpanda    | High-throughput event streaming — topic management, consumer groups        |
-| OLAP      | ClickHouse  | Columnar analytics — materialized views, real-time aggregation            |
-
-More stacks coming soon (MySQL, DuckDB, Kafka, Snowflake, BigQuery). Contributions welcome.
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js >= 20
-- [pnpm](https://pnpm.io/) 10.4+
-- Docker
-- Rust toolchain (for `apps/cli`)
-
-### Install & Run
+The recommended install path is:
 
 ```bash
-pnpm install
-pnpm dev
+curl -fsSL https://decbench.ai/install.sh | sh
 ```
 
-The web app (docs + leaderboard) runs at `http://localhost:3000`.
+`https://decbench.ai/install.sh` is the stable public entrypoint served by the Vercel-hosted app. The installer detects OS and architecture, resolves release or preview assets from GitHub releases in `514-labs/agent-evals`, verifies checksums when available, installs `dec-bench`, and prints the next PATH step if needed.
 
-## CLI Workflow (Local Evals)
-
-The CLI now supports scenario scaffolding, running eval containers, listing scenarios, and reading stored results.
-
-Built-in agent runner IDs:
-
-- `claude-code`
-- `codex`
-- `cursor`
-
-### Build CLI
+For local contributor builds:
 
 ```bash
 cd apps/cli
 cargo build
 ```
 
-### Scaffold a Scenario
+## Quick Start
+
+List scenarios:
+
+```bash
+dec-bench list
+```
+
+Scaffold a new scenario:
 
 ```bash
 dec-bench create \
@@ -119,121 +46,129 @@ dec-bench create \
   --tier tier-1
 ```
 
-This creates:
-
-- `scenario.json`
-- `prompts/naive.md` and `prompts/savvy.md`
-- `init/` seed scripts
-- `assertions/` files for all five gates
-- `supervisord.conf`
-
-### Build a Local Eval Image
-
-Use the layered build helper:
+Validate it before you build:
 
 ```bash
-./docker/build.sh \
-  --scenario ecommerce-pipeline-recovery \
-  --harness classic-de \
-  --agent claude-code \
-  --model claude-sonnet-4-20250514 \
-  --version v1.0.0
+dec-bench validate --scenario my-first-eval
 ```
 
-This builds:
+Build the local eval image:
 
-1. base image (`docker/base/Dockerfile`)
-2. scenario layer (`docker/scenario/Dockerfile`)
-3. harness layer (`docker/harness/Dockerfile`)
-4. agent layer (`docker/agent/Dockerfile`)
+```bash
+dec-bench build \
+  --scenario foo-bar-csv-ingest \
+  --harness base-rt \
+  --agent claude-code \
+  --model claude-sonnet-4-20250514 \
+  --version v0.1.0
+```
 
-### Run an Eval via CLI
+Run an eval:
 
 ```bash
 dec-bench run \
-  --scenario ecommerce-pipeline-recovery \
-  --harness classic-de \
+  --scenario foo-bar-csv-ingest \
+  --harness base-rt \
   --persona naive \
   --mode no-plan
 ```
 
-- Streams container logs
-- Extracts structured JSON result
-- Writes output to `results/<scenario>-<timestamp>.json`
-
-Run the full matrix with CLI-managed parallelism:
+Inspect the latest run:
 
 ```bash
-dec-bench run --matrix --parallel 9
-# or let the CLI choose based on host parallelism
-dec-bench run --matrix --parallel auto
+dec-bench results --latest --scenario foo-bar-csv-ingest
 ```
 
-- `--parallel 1` runs sequentially (default)
-- `--parallel auto` uses host available parallelism
-- higher values run multiple scenario/persona/mode jobs concurrently
-
-### View Results
+Open the localhost audit UI for a run:
 
 ```bash
-dec-bench results --format table
-dec-bench results --format json
-dec-bench results --format csv
+dec-bench audit open \
+  --scenario foo-bar-csv-ingest \
+  --run-id foo-bar-csv-ingest-1770000000
 ```
 
-Filter by scenario:
+## What The CLI Does
+
+`dec-bench` now covers the full author loop for `0.1`:
+
+- `dec-bench create` scaffolds a new scenario
+- `dec-bench validate` catches missing files and metadata before a Docker build
+- `dec-bench build` wraps the layered image build
+- `dec-bench run` launches the eval and prints a stable `run_id`
+- `dec-bench results` shows run summaries or a single run with artifact paths
+- `dec-bench audit export` creates audit bundles for the web UI
+- `dec-bench audit open` exports a run, starts or reuses the local web app, and opens the exact audit URL
+
+Built-in agent runner IDs:
+
+- `claude-code`
+- `codex`
+- `cursor`
+
+## Scoring
+
+DEC Bench uses a gated assertion model with five sequential gates:
+
+1. Functional
+2. Correct
+3. Robust
+4. Performant
+5. Production
+
+A run only reaches the next gate after it clears the previous one. Efficiency metrics such as wall-clock time, agent steps, tokens, and API cost act as tiebreakers. They do not inflate the gate score.
+
+## Data Stack
+
+Scenarios run against real infrastructure, not mocks:
+
+| Layer | Technology | Role |
+|---|---|---|
+| OLTP | Postgres | Transactional source of truth |
+| Streaming | Redpanda | Event transport and consumers |
+| OLAP | ClickHouse | Analytical storage and query execution |
+
+## Version Policy
+
+`0.1` now uses one version story:
+
+- the CLI crate version is `0.1.0`
+- release tags and installable binaries use `v0.1.0`
+- the default image suffix for `dec-bench build` and `dec-bench run` is `v0.1.0`
+- preview builds use preview tags and install through the same installer with `DEC_BENCH_INSTALL_VERSION=<preview-tag>`
+
+## Advanced Docker Usage
+
+If you need to run an image directly, the tag format is still:
+
+```text
+{scenario}.{harness}.{agent}.{model}.{version}
+```
+
+Example:
 
 ```bash
-dec-bench results --scenario ecommerce-pipeline-recovery --format json
+docker run \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.claude-code.claude-sonnet-4-20250514.v0.1.0
 ```
 
-### Reference Scenario
-
-A complete reference implementation is included at:
-
-- `scenarios/ecommerce-pipeline-recovery/`
-
-It contains prompts, seed SQL, service config, and gate assertions.
+Direct Docker usage is supported, but it is now the advanced path.
 
 ## Testing
 
-### Workspace checks
+The `0.1` regression path is layered and explicit:
 
 ```bash
-pnpm --filter @dec-bench/eval-core check-types
-pnpm --filter @dec-bench/scenarios check-types
+cargo test --manifest-path apps/cli/Cargo.toml
+pnpm --filter @dec-bench/eval-core test
+pnpm --filter web test:data
 ```
 
-### CLI checks and tests
-
-```bash
-cd apps/cli
-cargo check
-cargo test
-```
-
-The CLI test suite includes:
-
-- Unit tests for command internals
-- Integration tests for multi-command flows
-- End-to-end command tests against the built binary
-
-### Project Structure
-
-```
-├── apps/
-│   └── web/              # Next.js app (landing page, docs, leaderboard)
-├── packages/
-│   ├── ui/               # Shared UI components (shadcn/ui)
-│   ├── eval-core/        # Core evaluation logic
-│   ├── scenarios/         # Scenario definitions
-│   ├── eslint-config/    # Shared ESLint config
-│   └── typescript-config/ # Shared TypeScript config
-```
+CI also smoke-tests the installer against a freshly built Linux archive before preview or release artifacts are treated as ready.
 
 ## Contributing
 
-DEC Bench is open source. We welcome contributions — new scenarios, additional data stack support, evaluation improvements, and more.
+DEC Bench is open source. Contributions are welcome across scenarios, harnesses, evaluation logic, docs, and distribution tooling.
 
 ## Sponsors
 
