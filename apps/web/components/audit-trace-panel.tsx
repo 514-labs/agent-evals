@@ -23,6 +23,7 @@ function previewValue(value: unknown, maxLen = 280): string {
 }
 
 const KIND_COLORS: Record<string, string> = {
+  system_message: "bg-zinc-700 text-white",
   tool_use: "bg-blue-600 text-white",
   tool_result: "bg-blue-900 text-blue-200",
   thinking: "bg-amber-500 text-black",
@@ -33,6 +34,7 @@ const KIND_COLORS: Record<string, string> = {
 };
 
 const FILTER_ACCENT: Record<string, string> = {
+  system_message: "border-b-zinc-700",
   tool_use: "border-b-blue-600",
   tool_result: "border-b-blue-900",
   thinking: "border-b-amber-500",
@@ -43,6 +45,7 @@ const FILTER_ACCENT: Record<string, string> = {
 };
 
 const KIND_DISPLAY_ORDER = [
+  "system_message",
   "tool_use",
   "tool_result",
   "thinking",
@@ -53,6 +56,7 @@ const KIND_DISPLAY_ORDER = [
 ];
 
 const KIND_DESCRIPTIONS: Record<string, string> = {
+  system_message: "System prompt or control instructions injected by the harness/agent runtime. Click to filter.",
   tool_use: "Requests from the agent to invoke an external tool (e.g. file read, shell command, browser action). Click to filter.",
   tool_result: "Responses returned to the agent after a tool executed. Contains the output or error from the tool invocation. Click to filter.",
   thinking: "Internal reasoning blocks where the agent planned its next action before responding. Not visible to the user during the run. Click to filter.",

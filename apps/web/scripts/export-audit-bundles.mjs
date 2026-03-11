@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 
 const SIDECAR_SUFFIXES = [
   ".agent-raw.json",
@@ -76,6 +76,26 @@ function extractEvalResult(raw) {
   return null;
 }
 
+function resolveResultsDir(inputPath) {
+  const envDir = process.env.DEC_BENCH_RESULTS_DIR?.trim();
+  if (envDir && existsSync(resolve(envDir))) return resolve(envDir);
+
+  const candidates = [
+    "results",
+    "../../results",
+    inputPath,
+    "data/results",
+    "apps/web/data/results",
+  ];
+
+  for (const candidate of candidates) {
+    const resolved = resolve(candidate);
+    if (existsSync(resolved)) return resolved;
+  }
+
+  return resolve("apps/web/data/results");
+}
+
 function safeTimestampFromName(name) {
   const match = name.match(/(\d{10,})$/);
   if (!match) return new Date(0).toISOString();
@@ -86,20 +106,39 @@ function safeTimestampFromName(name) {
 
 function loadResults(resultsDir) {
   if (!existsSync(resultsDir)) return [];
-  return readdirSync(resultsDir)
-    .filter(
-      (name) =>
-        (name.endsWith(".json") || name.endsWith(".stdout.log") || /-run\d*\.log$/i.test(name)) &&
-        !isSidecarFile(name),
-    )
-    .map((fileName) => {
-      const fullPath = join(resultsDir, fileName);
-      const raw = readFileSync(fullPath, "utf8");
-      const parsed = fileName.endsWith(".json") ? JSON.parse(raw) : extractEvalResult(raw);
-      if (!parsed) return null;
-      return { fileName, parsed };
-    })
-    .filter(Boolean);
+
+  const stack = [resultsDir];
+  const output = [];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const absolute = join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(absolute);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (
+        !entry.name.endsWith(".json") &&
+        !entry.name.endsWith(".stdout.log") &&
+        !/-run\d*\.log$/i.test(entry.name)
+      ) {
+        continue;
+      }
+      if (isSidecarFile(entry.name)) continue;
+      const raw = readFileSync(absolute, "utf8");
+      const parsed = extractEvalResult(raw);
+      if (!parsed) continue;
+      output.push({
+        fileName: entry.name,
+        fileDir: dirname(absolute),
+        parsed,
+      });
+    }
+  }
+
+  return output;
 }
 
 function detectRunId(fileName, result) {
@@ -107,9 +146,9 @@ function detectRunId(fileName, result) {
   return canonicalResultBase(fileName);
 }
 
-function sidecarPath(resultsDir, resultFileName, extension) {
+function sidecarPath(resultDir, resultFileName, extension) {
   const base = canonicalResultBase(resultFileName);
-  return join(resultsDir, `${base}.${extension}`);
+  return join(resultDir, `${base}.${extension}`);
 }
 
 function inferScenarioId(fileName, result) {
@@ -208,14 +247,11 @@ function collectExtraLogs(logsDir, runId) {
 
 function main() {
   const args = parseArgs(process.argv);
-
+  const resultsDir = resolveResultsDir(args.resultsDir);
   const runtimeResultsDir = resolve("..", "..", "results");
-  const defaultResultsDir = existsSync(runtimeResultsDir) ? runtimeResultsDir : resolve("data/results");
   const defaultAuditsDir = existsSync(runtimeResultsDir)
     ? resolve(runtimeResultsDir, "audits")
-    : resolve("data/audits");
-
-  const resultsDir = args.resultsDir ? resolve(args.resultsDir) : defaultResultsDir;
+    : resolve("apps/web/data/audits");
   const auditsDir = args.auditsDir ? resolve(args.auditsDir) : defaultAuditsDir;
   const logsDir = args.logsDir ? resolve(args.logsDir) : "";
 
@@ -223,7 +259,7 @@ function main() {
   const results = loadResults(resultsDir);
   const indexByScenario = new Map();
 
-  for (const { fileName, parsed } of results) {
+  for (const { fileName, fileDir, parsed } of results) {
     const scenario = inferScenarioId(fileName, parsed);
     if (!scenario) continue;
     const runId = detectRunId(fileName, parsed);
@@ -238,7 +274,7 @@ function main() {
 
     mkdirSync(logsSubdir, { recursive: true });
 
-    const resultStdoutPath = sidecarPath(resultsDir, fileName, "stdout");
+    const resultStdoutPath = sidecarPath(fileDir, fileName, "stdout");
     if (existsSync(resultStdoutPath)) {
       writeFileSync(stdoutPath, readFileSync(resultStdoutPath));
     } else {
@@ -248,7 +284,7 @@ function main() {
     const stdoutBytes = statSync(stdoutPath).size;
 
     const extraLogs = collectExtraLogs(logsDir, runId);
-    const resultInfraStdoutPath = sidecarPath(resultsDir, fileName, "infra.stdout");
+    const resultInfraStdoutPath = sidecarPath(fileDir, fileName, "infra.stdout");
     if (existsSync(resultInfraStdoutPath)) {
       extraLogs.push({
         id: "infra",
@@ -261,7 +297,7 @@ function main() {
       });
     }
 
-    const resultTracePath = sidecarPath(resultsDir, fileName, "trace.json");
+    const resultTracePath = sidecarPath(fileDir, fileName, "trace.json");
     if (existsSync(resultTracePath)) {
       extraLogs.push({
         id: "trace",
@@ -283,7 +319,7 @@ function main() {
       }
     }
 
-    const resultAgentRawPath = sidecarPath(resultsDir, fileName, "agent-raw.json");
+    const resultAgentRawPath = sidecarPath(fileDir, fileName, "agent-raw.json");
     if (existsSync(resultAgentRawPath)) {
       extraLogs.push({
         id: "agent_raw",
@@ -296,7 +332,7 @@ function main() {
       });
     }
 
-    const resultSessionJsonlPath = sidecarPath(resultsDir, fileName, "session.jsonl");
+    const resultSessionJsonlPath = sidecarPath(fileDir, fileName, "session.jsonl");
     if (existsSync(resultSessionJsonlPath)) {
       extraLogs.push({
         id: "session_jsonl",
@@ -309,7 +345,7 @@ function main() {
       });
     }
 
-    const resultRunMetaPath = sidecarPath(resultsDir, fileName, "run-meta.json");
+    const resultRunMetaPath = sidecarPath(fileDir, fileName, "run-meta.json");
     if (existsSync(resultRunMetaPath)) {
       try {
         const runMetaRaw = readFileSync(resultRunMetaPath, "utf8");
@@ -322,7 +358,7 @@ function main() {
       }
     }
 
-    const resultStderrPath = sidecarPath(resultsDir, fileName, "stderr");
+    const resultStderrPath = sidecarPath(fileDir, fileName, "stderr");
     if (existsSync(resultStderrPath)) {
       extraLogs.push({
         id: "stderr",
@@ -335,7 +371,7 @@ function main() {
       });
     }
 
-    const resultAssertionLogPath = sidecarPath(resultsDir, fileName, "assertion-log.json");
+    const resultAssertionLogPath = sidecarPath(fileDir, fileName, "assertion-log.json");
     if (existsSync(resultAssertionLogPath)) {
       extraLogs.push({
         id: "assertion_log",

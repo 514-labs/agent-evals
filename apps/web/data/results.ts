@@ -1,7 +1,7 @@
 import "server-only";
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 export type GateResult = {
   passed: boolean;
@@ -57,20 +57,64 @@ export type LeaderboardEntry = EvalResult & {
   rank: number;
 };
 
-function resolveResultsDir(): string {
-  const explicitDir = process.env.DEC_BENCH_RESULTS_DIR;
+const SIDECAR_SUFFIXES = [
+  ".agent-raw.json",
+  ".trace.json",
+  ".assertion-log.json",
+  ".run-meta.json",
+  ".session.jsonl",
+  ".infra.stdout",
+  ".stdout",
+  ".stderr",
+];
+
+function isSidecarFile(name: string): boolean {
+  return SIDECAR_SUFFIXES.some((suffix) => name.endsWith(suffix));
+}
+
+function resolveResultsDir(): string | null {
+  const explicitDir = process.env.DEC_BENCH_RESULTS_DIR?.trim();
   if (explicitDir && existsSync(explicitDir)) return explicitDir;
 
-  const runtimeDir = join(process.cwd(), "..", "..", "results");
-  if (existsSync(runtimeDir)) return runtimeDir;
+  const runtimeCandidates = [join(process.cwd(), "..", "..", "results"), join(process.cwd(), "results")];
+  for (const candidate of runtimeCandidates) {
+    if (existsSync(candidate)) return candidate;
+  }
 
   const useSampleData = process.env.DEC_BENCH_USE_SAMPLE_DATA === "1";
-  if (!useSampleData) return runtimeDir;
+  if (!useSampleData) return runtimeCandidates[0] ?? null;
 
-  const localDir = join(process.cwd(), "data", "results");
-  if (existsSync(localDir)) return localDir;
+  const sampleCandidates = [join(process.cwd(), "data", "results"), join(process.cwd(), "apps", "web", "data", "results")];
+  for (const candidate of sampleCandidates) {
+    if (existsSync(candidate)) return candidate;
+  }
 
-  return join(process.cwd(), "apps", "web", "data", "results");
+  return runtimeCandidates[0] ?? null;
+}
+
+function collectResultFiles(dir: string): string[] {
+  const files: string[] = [];
+  const entries = readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const absolutePath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectResultFiles(absolutePath));
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    if (
+      !entry.name.endsWith(".json") &&
+      !entry.name.endsWith(".stdout.log") &&
+      !/-run\d*\.log$/i.test(entry.name)
+    ) {
+      continue;
+    }
+    if (isSidecarFile(entry.name)) continue;
+    files.push(absolutePath);
+  }
+
+  return files;
 }
 
 function normalizeHarness(harness: string): string {
@@ -127,27 +171,19 @@ function extractEvalResult(raw: string): EvalResult | null {
 
 function loadResults(): EvalResult[] {
   const dir = resolveResultsDir();
-  if (!existsSync(dir)) return [];
+  if (!dir || !existsSync(dir)) return [];
 
-  const files = readdirSync(dir, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isFile() &&
-        (entry.name.endsWith(".json") ||
-          entry.name.endsWith(".stdout.log") ||
-          /-run\d*\.log$/i.test(entry.name)),
-    )
-    .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b));
+  const files = collectResultFiles(dir).sort((a, b) => a.localeCompare(b));
 
   const results: EvalResult[] = [];
 
-  for (const fileName of files) {
+  for (const filePath of files) {
     try {
-      const raw = readFileSync(join(dir, fileName), "utf8");
+      const raw = readFileSync(filePath, "utf8");
       const parsed = extractEvalResult(raw);
       if (!parsed) continue;
 
+      const fileName = basename(filePath);
       const baseName = fileName.replace(/\.json$/i, "").replace(/\.log$/i, "");
       const scenarioFromFile = inferScenarioFromFileBase(baseName);
       const scenario =

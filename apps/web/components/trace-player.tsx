@@ -38,6 +38,13 @@ const KIND_CONFIG: Record<
   string,
   { label: string; color: string; border: string; bg: string; icon: string }
 > = {
+  system_message: {
+    label: "SYSTEM",
+    color: "text-zinc-300",
+    border: "border-l-zinc-500",
+    bg: "bg-zinc-500/10",
+    icon: "⚙",
+  },
   thinking: {
     label: "THINKING",
     color: "text-amber-300",

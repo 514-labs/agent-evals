@@ -207,7 +207,14 @@ async fn run_single(
         format!("EVAL_VERSION={}", args.version),
         format!("MODEL={}", args.model),
     ];
-    for key in ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "POSTGRES_URL", "CLICKHOUSE_URL"] {
+    for key in [
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "CODEX_API_KEY",
+        "CURSOR_API_KEY",
+        "POSTGRES_URL",
+        "CLICKHOUSE_URL",
+    ] {
         if let Ok(value) = std::env::var(key) {
             env.push(format!("{key}={value}"));
         }
@@ -426,33 +433,65 @@ fn parse_json_value(raw: &str) -> Option<serde_json::Value> {
     serde_json::from_str::<serde_json::Value>(raw.trim()).ok()
 }
 
-fn extract_marked_block(stdout_buffer: &str, start_marker: &str, end_marker: &str) -> Option<String> {
-    let start = stdout_buffer.find(start_marker)?;
-    let after_start = start + start_marker.len();
-    let remainder = &stdout_buffer[after_start..];
-    let end_rel = remainder.find(end_marker)?;
-    let mut content = remainder[..end_rel].to_string();
-    if let Some(trimmed) = content.strip_prefix('\n') {
-        content = trimmed.to_string();
+fn find_line_marker(buffer: &str, marker: &str, from: usize) -> Option<(usize, usize)> {
+    let bytes = buffer.as_bytes();
+    let mut cursor = from;
+    while let Some(rel) = buffer[cursor..].find(marker) {
+        let start = cursor + rel;
+        let before_ok = start == 0 || bytes.get(start.saturating_sub(1)) == Some(&b'\n');
+        let after = start + marker.len();
+        let after_ok = after == bytes.len()
+            || bytes.get(after) == Some(&b'\n')
+            || bytes.get(after) == Some(&b'\r');
+        if before_ok && after_ok {
+            let mut line_end = after;
+            if bytes.get(line_end) == Some(&b'\r') {
+                line_end += 1;
+            }
+            if bytes.get(line_end) == Some(&b'\n') {
+                line_end += 1;
+            }
+            return Some((start, line_end));
+        }
+        cursor = after;
     }
-    Some(content.trim_end_matches('\n').to_string())
+    None
+}
+
+fn collect_marked_blocks(stdout_buffer: &str, start_marker: &str, end_marker: &str) -> Vec<(usize, usize, String)> {
+    let mut blocks = vec![];
+    let mut cursor = 0;
+    while let Some((start_idx, content_start)) = find_line_marker(stdout_buffer, start_marker, cursor) {
+        let Some((end_idx, block_end)) = find_line_marker(stdout_buffer, end_marker, content_start) else {
+            break;
+        };
+        let content = stdout_buffer[content_start..end_idx]
+            .trim_end_matches('\n')
+            .trim_end_matches('\r')
+            .to_string();
+        blocks.push((start_idx, block_end, content));
+        cursor = block_end;
+    }
+    blocks
+}
+
+fn extract_marked_block(stdout_buffer: &str, start_marker: &str, end_marker: &str) -> Option<String> {
+    let blocks = collect_marked_blocks(stdout_buffer, start_marker, end_marker);
+    blocks.last().map(|(_, _, content)| content.clone())
 }
 
 fn strip_marked_block(stdout_buffer: &str, start_marker: &str, end_marker: &str) -> String {
-    let start = match stdout_buffer.find(start_marker) {
-        Some(value) => value,
-        None => return stdout_buffer.to_string(),
-    };
-    let after_start = start + start_marker.len();
-    let remainder = &stdout_buffer[after_start..];
-    let end_rel = match remainder.find(end_marker) {
-        Some(value) => value,
-        None => return stdout_buffer.to_string(),
-    };
-    let end = after_start + end_rel + end_marker.len();
+    let blocks = collect_marked_blocks(stdout_buffer, start_marker, end_marker);
+    if blocks.is_empty() {
+        return stdout_buffer.to_string();
+    }
     let mut output = String::with_capacity(stdout_buffer.len());
-    output.push_str(&stdout_buffer[..start]);
-    output.push_str(&stdout_buffer[end..]);
+    let mut cursor = 0;
+    for (start, end, _) in blocks {
+        output.push_str(&stdout_buffer[cursor..start]);
+        cursor = end;
+    }
+    output.push_str(&stdout_buffer[cursor..]);
     output
 }
 
@@ -632,5 +671,51 @@ mod tests {
     fn parse_parallelism_rejects_zero() {
         let err = parse_parallelism("0").expect_err("zero should be rejected");
         assert!(err.contains(">= 1"));
+    }
+
+    #[test]
+    fn extract_marked_block_uses_line_delimited_markers_and_last_block() {
+        let sample = [
+            "__DEC_BENCH_AGENT_TRACE_JSON_START__ embedded in agent text",
+            "__DEC_BENCH_AGENT_TRACE_JSON_START__",
+            "{\"first\":true}",
+            "__DEC_BENCH_AGENT_TRACE_JSON_END__",
+            "other logs",
+            "__DEC_BENCH_AGENT_TRACE_JSON_START__",
+            "{\"second\":true}",
+            "__DEC_BENCH_AGENT_TRACE_JSON_END__",
+        ]
+        .join("\n");
+
+        let extracted = extract_marked_block(
+            &sample,
+            "__DEC_BENCH_AGENT_TRACE_JSON_START__",
+            "__DEC_BENCH_AGENT_TRACE_JSON_END__",
+        )
+        .expect("block should be extracted");
+        assert_eq!(extracted, "{\"second\":true}");
+    }
+
+    #[test]
+    fn strip_marked_block_removes_all_line_delimited_blocks() {
+        let sample = [
+            "a",
+            "__DEC_BENCH_RUN_META_JSON_START__",
+            "{\"x\":1}",
+            "__DEC_BENCH_RUN_META_JSON_END__",
+            "b",
+            "__DEC_BENCH_RUN_META_JSON_START__",
+            "{\"x\":2}",
+            "__DEC_BENCH_RUN_META_JSON_END__",
+            "c",
+        ]
+        .join("\n");
+
+        let stripped = strip_marked_block(
+            &sample,
+            "__DEC_BENCH_RUN_META_JSON_START__",
+            "__DEC_BENCH_RUN_META_JSON_END__",
+        );
+        assert_eq!(stripped, "a\nb\nc");
     }
 }

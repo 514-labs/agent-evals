@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   getAuditRunManifest,
+  getAuditRunTrace,
   getScenarioAuditContext,
   getScenarioAuditIndex,
   listAuditScenarios,
@@ -126,6 +127,180 @@ test("audit loaders index manifests and read log chunks", () => {
     const context = getScenarioAuditContext(scenario);
     assert.ok(context);
     assert.equal(context?.prompts[0]?.content, "hello prompt");
+  } finally {
+    process.chdir(originalCwd);
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test("cursor trace normalization extracts readable event content", () => {
+  const originalCwd = process.cwd();
+  const fixtureRoot = mkdtempSync(join(tmpdir(), "audit-trace-"));
+
+  try {
+    process.chdir(fixtureRoot);
+
+    const scenario = "scenario-cursor";
+    const runId = "run-cursor-001";
+    const runDir = join(fixtureRoot, "data", "audits", scenario, runId);
+    mkdirSync(join(runDir, "logs"), { recursive: true });
+    writeFileSync(join(runDir, "stdout.log"), "ok\n", "utf8");
+    writeFileSync(
+      join(runDir, "logs", "trace.json"),
+      JSON.stringify(
+        {
+          schemaVersion: "2",
+          source: "cursor-stream-json",
+          events: [
+            {
+              id: "evt-0",
+              kind: "user",
+              payload: {
+                type: "user",
+                message: {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: "You are running inside a sandboxed Docker container for a benchmark evaluation. Keep going.\n\nactual scenario prompt",
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              id: "evt-1",
+              kind: "assistant",
+              payload: {
+                type: "assistant",
+                timestamp_ms: 1000,
+                message: {
+                  role: "assistant",
+                  content: [{ type: "text", text: "first response" }],
+                },
+              },
+            },
+            {
+              id: "evt-2",
+              kind: "tool_call",
+              payload: {
+                type: "tool_call",
+                subtype: "started",
+                call_id: "call-1",
+                tool_call: {
+                  shellToolCall: {
+                    args: {
+                      command: "echo hi",
+                      description: "run command",
+                    },
+                  },
+                },
+              },
+            },
+            {
+              id: "evt-3",
+              kind: "tool_call",
+              payload: {
+                type: "tool_call",
+                subtype: "completed",
+                call_id: "call-1",
+                tool_call: {
+                  shellToolCall: {
+                    result: {
+                      success: {
+                        stdout: "ok",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            {
+              id: "evt-4",
+              kind: "result",
+              payload: {
+                type: "result",
+                result: "final answer",
+                is_error: false,
+              },
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    writeFileSync(
+      join(runDir, "manifest.json"),
+      JSON.stringify(
+        {
+          schemaVersion: "1",
+          runId,
+          scenario,
+          timestamp: "2026-03-04T00:00:00.000Z",
+          harness: "bare",
+          agent: "cursor",
+          model: "composer",
+          version: "v0.1.0",
+          highestGate: 1,
+          normalizedScore: 0.5,
+          efficiency: {
+            wallClockSeconds: 1,
+            agentSteps: 1,
+            tokensUsed: 1,
+            llmApiCostUsd: 0,
+          },
+          gates: {
+            functional: { passed: true, score: 1, core: {}, scenario: {} },
+            correct: { passed: false, score: 0, core: {}, scenario: {} },
+            robust: { passed: false, score: 0, core: {}, scenario: {} },
+            performant: { passed: false, score: 0, core: {}, scenario: {} },
+            production: { passed: false, score: 0, core: {}, scenario: {} },
+          },
+          logs: [
+            {
+              id: "stdout",
+              label: "Run stdout",
+              kind: "stdout",
+              relativePath: "stdout.log",
+              bytes: 3,
+              compression: "none",
+            },
+            {
+              id: "trace",
+              label: "Agent trace",
+              kind: "trace",
+              relativePath: "logs/trace.json",
+              bytes: 100,
+              compression: "none",
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const trace = getAuditRunTrace(scenario, runId);
+    assert.ok(trace);
+    assert.equal(trace?.events?.[0]?.kind, "system_message");
+    assert.equal(
+      trace?.events?.[0]?.content,
+      "You are running inside a sandboxed Docker container for a benchmark evaluation. Keep going.",
+    );
+    assert.equal(trace?.events?.[1]?.kind, "user_message");
+    assert.equal(trace?.events?.[1]?.content, "actual scenario prompt");
+    assert.equal(trace?.events?.[2]?.kind, "assistant_text");
+    assert.equal(trace?.events?.[2]?.content, "first response");
+    assert.equal(trace?.events?.[3]?.kind, "tool_use");
+    assert.equal(trace?.events?.[3]?.content, "run command");
+    assert.equal(trace?.events?.[4]?.kind, "tool_result");
+    assert.equal(trace?.events?.[4]?.content, "ok");
+    assert.equal(trace?.events?.[5]?.kind, "assistant_final");
+    assert.equal(trace?.events?.[5]?.content, "final answer");
   } finally {
     process.chdir(originalCwd);
     rmSync(fixtureRoot, { recursive: true, force: true });

@@ -53,7 +53,10 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     psycopg2-binary \
     sqlalchemy
 
-RUN npm install -g @anthropic-ai/claude-code tsx
+RUN npm install -g @anthropic-ai/claude-code @openai/codex tsx
+RUN curl -fsSL https://cursor.com/install | bash \
+    && ln -sf /root/.local/bin/agent /usr/local/bin/agent \
+    && ln -sf /root/.local/bin/cursor-agent /usr/local/bin/cursor-agent
 
 WORKDIR /opt/dec-bench/eval-core
 COPY packages/eval-core/src ./src

@@ -47,6 +47,305 @@ export interface AuditTracePayload {
   events?: AuditTraceEvent[];
 }
 
+function normalizeTraceText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map((item) => normalizeTraceText(item)).filter(Boolean).join("\n");
+  if (!value || typeof value !== "object") return "";
+  const maybeText = (value as { text?: unknown }).text;
+  if (typeof maybeText === "string") return maybeText;
+  const maybeContent = (value as { content?: unknown }).content;
+  if (typeof maybeContent === "string") return maybeContent;
+  if (Array.isArray(maybeContent)) return normalizeTraceText(maybeContent);
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+const CURSOR_BENCH_SYSTEM_PROMPT_PREFIX =
+  "You are running inside a sandboxed Docker container for a benchmark evaluation.";
+
+function splitCursorBenchSystemPrompt(text: string): {
+  systemPrompt: string;
+  userPrompt: string;
+} {
+  const trimmed = text.trimStart();
+  if (!trimmed.startsWith(CURSOR_BENCH_SYSTEM_PROMPT_PREFIX)) {
+    return {
+      systemPrompt: "",
+      userPrompt: text,
+    };
+  }
+
+  const splitIdx = trimmed.indexOf("\n\n");
+  if (splitIdx < 0) {
+    return {
+      systemPrompt: "",
+      userPrompt: text,
+    };
+  }
+  const systemPrompt = trimmed.slice(0, splitIdx).trim();
+  const userPrompt = trimmed.slice(splitIdx + 2).trimStart();
+  if (systemPrompt.length === 0) {
+    return {
+      systemPrompt: "",
+      userPrompt: text,
+    };
+  }
+  return {
+    systemPrompt,
+    userPrompt: userPrompt.length > 0 ? userPrompt : text,
+  };
+}
+
+function extractTraceMessageText(message: unknown): string {
+  if (typeof message === "string") return message;
+  if (!message || typeof message !== "object") return "";
+  const maybeText = (message as { text?: unknown }).text;
+  if (typeof maybeText === "string") return maybeText;
+  const maybeContent = (message as { content?: unknown }).content;
+  if (typeof maybeContent === "string") return maybeContent;
+  if (Array.isArray(maybeContent)) {
+    const chunks: string[] = [];
+    for (const block of maybeContent) {
+      if (!block || typeof block !== "object") continue;
+      const blockText = (block as { text?: unknown }).text;
+      if (typeof blockText === "string") {
+        chunks.push(blockText);
+        continue;
+      }
+      const blockContent = (block as { content?: unknown }).content;
+      if (typeof blockContent === "string") chunks.push(blockContent);
+    }
+    if (chunks.length > 0) return chunks.join("\n");
+  }
+  return normalizeTraceText(message);
+}
+
+function normalizeCursorToolName(toolCall: unknown): string | null {
+  if (!toolCall || typeof toolCall !== "object") return null;
+  const firstKey = Object.keys(toolCall)[0];
+  if (!firstKey) return null;
+  return firstKey.replace(/ToolCall$/, "") || firstKey;
+}
+
+function normalizeCursorToolArgs(toolCall: unknown): Record<string, unknown> | null {
+  if (!toolCall || typeof toolCall !== "object") return null;
+  const first = Object.values(toolCall)[0];
+  if (!first || typeof first !== "object") return null;
+  const args = (first as { args?: unknown }).args;
+  return args && typeof args === "object" ? (args as Record<string, unknown>) : null;
+}
+
+function normalizeCursorToolResult(
+  toolCall: unknown,
+): { content: string; isError: boolean } {
+  if (!toolCall || typeof toolCall !== "object") {
+    return { content: "", isError: false };
+  }
+  const first = Object.values(toolCall)[0];
+  if (!first || typeof first !== "object") {
+    return { content: "", isError: false };
+  }
+  const result = (first as { result?: unknown }).result;
+  if (!result || typeof result !== "object") {
+    return { content: "", isError: false };
+  }
+  const resultRecord = result as Record<string, unknown>;
+  let content = "";
+  let isError = false;
+
+  const success = resultRecord.success;
+  if (success && typeof success === "object") {
+    const successRecord = success as Record<string, unknown>;
+    const stdout = normalizeTraceText(
+      successRecord.stdout ??
+        successRecord.interleavedOutput ??
+        successRecord.content ??
+        "",
+    );
+    const stderr = normalizeTraceText(successRecord.stderr ?? "");
+    content = [stdout, stderr].filter((part) => part.trim().length > 0).join("\n");
+  }
+
+  if (resultRecord.error !== undefined) {
+    isError = true;
+    const errorText = normalizeTraceText(resultRecord.error);
+    content = [content, errorText].filter((part) => part.trim().length > 0).join("\n");
+  }
+
+  if (!content) {
+    content = normalizeTraceText(resultRecord);
+  }
+
+  return { content, isError };
+}
+
+function normalizeCursorTrace(trace: AuditTracePayload): AuditTracePayload {
+  const events = trace.events ?? [];
+  if (events.length === 0) return trace;
+
+  const normalizedEvents = events
+    .flatMap((event) => {
+    const payload = (event as { payload?: Record<string, unknown> }).payload;
+    const payloadType =
+      payload && typeof payload.type === "string" ? payload.type : event.kind;
+    const payloadTs = payload?.timestamp_ms;
+    const timestamp =
+      typeof event.timestamp === "string"
+        ? event.timestamp
+        : typeof payloadTs === "number" && Number.isFinite(payloadTs)
+          ? new Date(payloadTs).toISOString()
+          : event.timestamp;
+
+    if (payloadType === "user") {
+      const content =
+        event.content ?? extractTraceMessageText(payload?.message ?? payload?.content);
+      if (typeof content !== "string") {
+        return [
+          {
+            ...event,
+            kind: "user_message",
+            role: "user",
+            timestamp,
+            content,
+          },
+        ];
+      }
+      const parsed = splitCursorBenchSystemPrompt(content);
+      const mapped: AuditTraceEvent[] = [];
+      if (parsed.systemPrompt.trim().length > 0) {
+        mapped.push({
+          ...event,
+          id: `${event.id}.system`,
+          kind: "system_message",
+          role: "system",
+          timestamp,
+          content: parsed.systemPrompt,
+        });
+      }
+      mapped.push({
+        ...event,
+        id: `${event.id}.user`,
+        kind: "user_message",
+        role: "user",
+        timestamp,
+        content: parsed.userPrompt,
+      });
+      return mapped;
+    }
+
+    if (payloadType === "assistant") {
+      const content =
+        event.content ?? extractTraceMessageText(payload?.message ?? payload?.content);
+      if (typeof content === "string" && content.trim().length === 0) return [];
+      return [
+        {
+          ...event,
+          kind: "assistant_text",
+          role: "assistant",
+          timestamp,
+          content,
+        },
+      ];
+    }
+
+    if (payloadType === "thinking") {
+      const content = event.content ?? normalizeTraceText(payload?.text ?? payload?.message ?? "");
+      if (typeof content === "string" && content.trim().length === 0) return [];
+      return [
+        {
+          ...event,
+          kind: "thinking",
+          role: "assistant",
+          timestamp,
+          content,
+        },
+      ];
+    }
+
+    if (payloadType === "tool_call") {
+      const subtype = typeof payload?.subtype === "string" ? payload.subtype : "";
+      const toolCall = payload?.tool_call;
+      const toolName = normalizeCursorToolName(toolCall);
+      const toolUseId =
+        typeof payload?.call_id === "string" ? payload.call_id : event.toolUseId;
+      if (subtype === "started") {
+        const args = normalizeCursorToolArgs(toolCall);
+        return [
+          {
+            ...event,
+            kind: "tool_use",
+            role: "assistant",
+            timestamp,
+            name: event.name ?? toolName ?? undefined,
+            toolName: event.toolName ?? toolName ?? undefined,
+            toolUseId,
+            input: event.input ?? args ?? undefined,
+            content:
+              event.content ??
+              normalizeTraceText(
+                args?.description ?? args?.command ?? args?.path ?? args ?? "",
+              ),
+          },
+        ];
+      }
+      const result = normalizeCursorToolResult(toolCall);
+      return [
+        {
+          ...event,
+          kind: "tool_result",
+          role: "tool",
+          timestamp,
+          toolName: event.toolName ?? toolName ?? undefined,
+          toolUseId,
+          isError: event.isError ?? result.isError,
+          content: event.content ?? result.content,
+        },
+      ];
+    }
+
+    if (payloadType === "result") {
+      return [
+        {
+          ...event,
+          kind: "assistant_final",
+          role: "assistant",
+          timestamp,
+          isError:
+            event.isError ??
+            (typeof payload?.is_error === "boolean" ? payload.is_error : false),
+          content:
+            event.content ??
+            normalizeTraceText(payload?.result ?? payload?.message ?? payload?.text ?? ""),
+        },
+      ];
+    }
+
+    if (payloadType === "system") {
+      return [
+        {
+          ...event,
+          kind: "event",
+          role: "system",
+          timestamp,
+          content:
+            event.content ??
+            normalizeTraceText(payload?.subtype ?? payload?.message ?? "system event"),
+        },
+      ];
+    }
+
+    return [{ ...event, timestamp }];
+  });
+
+  return {
+    ...trace,
+    events: normalizedEvents,
+  };
+}
+
 export interface AssertionLog {
   passed: boolean;
   durationMs: number;
@@ -425,6 +724,9 @@ export function getAuditRunTrace(scenario: string, runId: string): AuditTracePay
     const raw = readFileSync(resolved.absolutePath, "utf8");
     const parsed = JSON.parse(raw) as AuditTracePayload;
     if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.source === "cursor-stream-json") {
+      return normalizeCursorTrace(parsed);
+    }
     return parsed;
   } catch {
     return null;

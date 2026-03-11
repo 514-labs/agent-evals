@@ -43,7 +43,7 @@ The Dockerfile runs it at build time. Contributing a harness = writing a shell s
 
 ## Agent + Model
 
-A runner script baked into the image:
+Agent-specific runner scripts are baked into the image (`claude-code`, `codex`, and `cursor`):
 
 ```bash title="agents/claude-code/run.sh"
 PROMPT_FILE="/scenario/prompts/${PERSONA:-naive}.md"
@@ -66,10 +66,19 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -P OUTPUT DROP
 ```
 
-Each agent adds its LLM provider:
+Each agent adds its LLM provider endpoints:
 
 ```bash title="agents/claude-code/iptables.sh"
 iptables -I OUTPUT -d api.anthropic.com -j ACCEPT
+```
+
+```bash title="agents/codex/iptables.sh"
+iptables -I OUTPUT -d api.openai.com -j ACCEPT
+```
+
+```bash title="agents/cursor/iptables.sh"
+iptables -I OUTPUT -d api.cursor.sh -j ACCEPT
+iptables -I OUTPUT -d api2.cursor.sh -j ACCEPT
 ```
 
 Each harness may add endpoints for its tools when running in restricted mode.
