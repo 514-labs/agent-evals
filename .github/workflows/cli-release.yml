@@ -15,7 +15,7 @@ jobs:
       cli_version: ${{ steps.version.outputs.cli_version }}
       release_tag: ${{ steps.version.outputs.release_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - id: version
         env:
           GITHUB_REF_NAME: ${{ github.ref_name }}
@@ -56,7 +56,7 @@ jobs:
             target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -71,7 +71,7 @@ jobs:
           archive="dec-bench-${{ needs.meta.outputs.release_tag }}-${{ matrix.target }}.tar.gz"
           tar -C staging -czf "dist/${archive}" dec-bench
           shasum -a 256 "dist/${archive}" > "dist/${{ matrix.target }}-checksums.txt"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cli-release-${{ matrix.target }}
           path: dist/*
@@ -80,8 +80,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
         with:
           pattern: cli-release-*
           path: dist
@@ -106,7 +106,7 @@ jobs:
     needs: [meta, build, smoke]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: cli-release-*
           path: dist
