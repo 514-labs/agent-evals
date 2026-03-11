@@ -1,21 +1,42 @@
 ---
 title: "Overview"
-description: "One command. Real infrastructure. JSON results."
+description: "Install the CLI, run real infrastructure, inspect results, open the audit UI."
 ---
+
+Install `dec-bench`:
+
+```bash title="Install the CLI"
+curl -fsSL https://decbench.ai/install.sh | sh
+```
+
+The branded installer is served from `decbench.ai` and fetches stable releases or preview builds from GitHub releases in `514-labs/agent-evals`.
 
 Run a benchmark:
 
-```bash title="Run a benchmark"
-docker run \
-  -e ANTHROPIC_API_KEY=sk-ant-... \
-  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.claude-code.sonnet-4.v0.1.0
+```bash title="Build and run a benchmark"
+dec-bench build --scenario foo-bar-csv-ingest
+dec-bench run --scenario foo-bar-csv-ingest
 ```
 
-JSON hits stdout. Nothing else to install, configure, or deploy.
+Inspect the latest run:
+
+```bash title="Inspect the latest run"
+dec-bench results --latest --scenario foo-bar-csv-ingest
+```
+
+Open the audit UI:
+
+```bash title="Open localhost audit UI"
+dec-bench audit open \
+  --scenario foo-bar-csv-ingest \
+  --run-id foo-bar-csv-ingest-1770000000
+```
 
 ## How It Works
 
-Every image encodes four variables:
+The CLI is the main workflow in `0.1`. Docker is the runtime underneath it.
+
+Every built image still encodes the same variables:
 
 ```text title="Image tag format"
 {scenario}.{harness}.{agent}.{model}.{version}
@@ -25,19 +46,25 @@ Every image encodes four variables:
 |----------|-----------|----------|
 | **Scenario** | A data engineering problem with infrastructure, seed data, a prompt, and validation | `foo-bar-csv-ingest`, `foo-bar-time-grain-rollups`, `foo-bar-cross-system-reconciliation` |
 | **Harness** | Tools pre-installed for the agent | `base-rt`, `classic-de`, `olap-for-swe` |
-| **Agent** | The AI coding agent | Claude Code (v0.1), with Codex and Aider coming next |
+| **Agent** | The AI coding agent | Claude Code, Codex, Cursor |
 | **Model** | The LLM behind the agent | `claude-sonnet-4-20250514`, `haiku-4.5` |
 
-Each combination builds a distinct, immutable container. No runtime flags. The image tag *is* the configuration.
+Each combination builds a distinct container. The CLI manages the build, run, result capture, and audit handoff.
 
 ## v0.1 Release
 
-The v0.1 release now includes 36 Foo Bar scenarios (13 tier-1, 18 tier-2, 5 tier-3), 3 harness configurations (Base RT, Classic DE, OLAP for SWE), and Claude Code as the primary agent.
+The `0.1` release includes:
+
+- 36 Foo Bar scenarios
+- 3 harness configurations
+- installable CLI binaries
+- a one-line installer
+- localhost audit flow through the existing web UI
 
 ## Next Steps
 
 - [Architecture](/docs/architecture) -- how images are layered and built
-- [Scoring](/docs/scoring) -- 5 sequential gates, efficiency tiebreakers
-- [Running Evals](/docs/running-evals) -- API keys, build matrix, custom agents
+- [Scoring](/docs/scoring) -- 5 sequential gates and efficiency tiebreakers
+- [Running Evals](/docs/running-evals) -- install, build, run, results, audit
 - [Foo Bar Domain](/docs/evals/domains/foo-bar) -- full 36-scenario catalog
 - [Add an Eval](/docs/add-eval/getting-started) -- contribute a new scenario

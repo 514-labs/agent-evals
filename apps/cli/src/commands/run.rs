@@ -67,7 +67,7 @@ pub struct RunArgs {
     pub model: String,
 
     /// Image version suffix
-    #[arg(long, default_value = "v1.0.0")]
+    #[arg(long, default_value = "v0.1.0")]
     pub version: String,
 
     /// Directory where run outputs are persisted
@@ -313,12 +313,13 @@ async fn run_single(
         cleaned_stdout = strip_marked_block(&cleaned_stdout, start, end);
     }
 
-    let result_json = marked_result_json
+    let mut result_json = marked_result_json
         .as_deref()
         .and_then(parse_json_value)
         .unwrap_or_else(|| extract_result_json(&cleaned_stdout, scenario_id, &args.harness, exit_code));
-    let output_path = write_result_file(&args.results_dir, scenario_id, &result_json)?;
+    let (output_path, run_id) = write_result_file(&args.results_dir, scenario_id, &mut result_json)?;
     println!("Wrote result: {}", output_path.display());
+    println!("Run ID: {}", run_id);
 
     let stdout_path = output_path.with_extension("stdout");
     let output_stdout = match agent_stdout {
@@ -399,6 +400,13 @@ async fn run_single(
     if !stderr_buffer.is_empty() {
         warn!("Container produced stderr output.");
     }
+
+    println!("Next steps:");
+    println!("  dec-bench results --run-id {}", run_id);
+    println!(
+        "  dec-bench audit open --scenario {} --run-id {}",
+        scenario_id, run_id
+    );
 
     Ok(())
 }
@@ -503,15 +511,28 @@ fn ensure_trailing_newline(content: &str) -> String {
     }
 }
 
-fn write_result_file(results_dir: &str, scenario_id: &str, value: &serde_json::Value) -> Result<PathBuf> {
+fn write_result_file(
+    results_dir: &str,
+    scenario_id: &str,
+    value: &mut serde_json::Value,
+) -> Result<(PathBuf, String)> {
     let dir = PathBuf::from(results_dir);
     fs::create_dir_all(&dir).with_context(|| format!("Failed to create {}", dir.display()))?;
-    let filename = format!("{}-{}.json", scenario_id, unix_timestamp());
+    let run_id = value
+        .get("run_id")
+        .and_then(|raw| raw.as_str())
+        .filter(|raw| !raw.trim().is_empty())
+        .map(|raw| raw.trim().to_string())
+        .unwrap_or_else(|| format!("{}-{}", scenario_id, unix_timestamp()));
+    if let Some(object) = value.as_object_mut() {
+        object.insert("run_id".to_string(), serde_json::Value::String(run_id.clone()));
+    }
+    let filename = format!("{}.json", run_id);
     let output_path = dir.join(filename);
     let payload = serde_json::to_string_pretty(value)?;
     fs::write(&output_path, format!("{payload}\n"))
         .with_context(|| format!("Failed to write {}", output_path.display()))?;
-    Ok(output_path)
+    Ok((output_path, run_id))
 }
 
 fn resolve_repo_path(rel: &str) -> Result<PathBuf> {
@@ -621,17 +642,19 @@ mod tests {
     #[test]
     fn write_result_file_writes_json_payload() {
         let temp = tempfile::tempdir().expect("temp dir");
-        let payload = serde_json::json!({
+        let mut payload = serde_json::json!({
             "scenario": "test-scenario",
             "highest_gate": 3
         });
 
-        let path = write_result_file(temp.path().to_str().unwrap_or(""), "test-scenario", &payload)
+        let (path, run_id) =
+            write_result_file(temp.path().to_str().unwrap_or(""), "test-scenario", &mut payload)
             .expect("write_result_file succeeds");
         let raw = fs::read_to_string(path).expect("result file readable");
         let value: serde_json::Value = serde_json::from_str(&raw).expect("valid json");
         assert_eq!(value["scenario"], "test-scenario");
         assert_eq!(value["highest_gate"], 3);
+        assert_eq!(value["run_id"], run_id);
     }
 
     #[test]

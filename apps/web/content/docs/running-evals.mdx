@@ -1,20 +1,26 @@
 ---
 title: "Running Evals"
-description: "Pass your keys, pick an image, read the JSON."
+description: "Install the CLI, build and run evals, inspect the latest run, and open the audit UI."
 ---
 
 ## Quick Start
 
-```bash title="Run a single eval"
-docker run \
-  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.claude-code.sonnet-4.v0.1.0
-  -e OPENAI_API_KEY=$OPENAI_API_KEY \
-  -e CURSOR_API_KEY=$CURSOR_API_KEY \
-  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.claude-code.sonnet-4.v0.1.0
+```bash title="Install the CLI"
+curl -fsSL https://decbench.ai/install.sh | sh
 ```
 
-The image tag tells you exactly what runs: `{scenario}.{harness}.{agent}.{model}.{version}`. Results print to stdout as JSON.
+`https://decbench.ai/install.sh` is the stable installer URL served by the Vercel-hosted app.
+
+```bash title="Build, run, inspect, and audit"
+dec-bench build --scenario foo-bar-csv-ingest
+dec-bench run --scenario foo-bar-csv-ingest
+dec-bench results --latest --scenario foo-bar-csv-ingest
+dec-bench audit open \
+  --scenario foo-bar-csv-ingest \
+  --run-id foo-bar-csv-ingest-1770000000
+```
+
+The installer fetches matching release or preview binaries from GitHub releases in `514-labs/agent-evals` and verifies checksums when they are published with the release.
 
 ## v0.1 Scenarios
 
@@ -32,7 +38,7 @@ foo-bar-cross-system-reconciliation.olap-for-swe.claude-code.sonnet-4.v0.1.0
 
 ## API Keys
 
-Each image validates the key it needs at startup. Pass all your keys -- the container uses what it needs and ignores the rest.
+The CLI passes through the keys your agent needs. Export them before you run:
 
 | Provider | Variable | Agents |
 |----------|----------|--------|
@@ -41,11 +47,21 @@ Each image validates the key it needs at startup. Pass all your keys -- the cont
 | OpenAI (Codex override) | `CODEX_API_KEY` | Codex |
 | Cursor | `CURSOR_API_KEY` | Cursor |
 
-## Using the CLI
+## CLI Workflow
 
-The `dec-bench` CLI wraps Docker image building and execution:
+Build a specific scenario image:
 
-```bash title="Run via CLI"
+```bash title="Build a scenario"
+dec-bench build \
+  --scenario foo-bar-csv-ingest \
+  --harness base-rt \
+  --agent claude-code \
+  --model claude-sonnet-4-20250514
+```
+
+Run that scenario:
+
+```bash title="Run an eval"
 dec-bench run \
   --scenario foo-bar-csv-ingest \
   --harness base-rt \
@@ -53,60 +69,57 @@ dec-bench run \
   --model claude-sonnet-4-20250514
 ```
 
-Other supported agent IDs:
-
-- `codex` (for OpenAI Codex CLI)
-- `cursor` (for Cursor Agent CLI)
-
 List available scenarios:
 
 ```bash title="List foo-bar scenarios"
-dec-bench list --domain foo-bar
+dec-bench list
 ```
 
-View results from completed runs:
+Inspect completed runs:
 
-```bash title="View results"
+```bash title="Inspect results"
 dec-bench results --scenario foo-bar-csv-ingest
+dec-bench results --latest --scenario foo-bar-csv-ingest
+dec-bench results --run-id foo-bar-csv-ingest-1770000000
 ```
 
-## Build Matrix
+The detailed view points directly to stdout, stderr, trace, assertion log, session JSONL, and run metadata sidecars when they exist.
 
-Export your keys once, loop over every image:
+Open the audit UI for one run:
+
+```bash title="Open localhost audit UI"
+dec-bench audit open \
+  --scenario foo-bar-csv-ingest \
+  --run-id foo-bar-csv-ingest-1770000000
+```
+
+That command exports the run into audit bundles, starts or reuses the local web app, and opens the exact audit page.
+
+## Matrix Runs
+
+Use the CLI for matrix runs too:
 
 ```bash title="Run the full matrix"
-export ANTHROPIC_API_KEY=sk-ant-...
-
-for scenario in foo-bar-csv-ingest foo-bar-slow-queries foo-bar-table-layout; do
-  for harness in base-rt classic-de olap-for-swe; do
-    docker run \
-      -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-      "ghcr.io/514-labs/dec-bench:${scenario}.${harness}.claude-code.sonnet-4.v0.1.0" \
-      >> results.jsonl
-  done
-done
+dec-bench run --matrix --parallel auto
 ```
 
-Run a Haiku 4.5 variant:
+## Version Policy
 
-```bash title="Run with Haiku 4.5"
-dec-bench run \
-  --scenario foo-bar-csv-ingest \
-  --harness base-rt \
-  --agent claude-code \
-  --model haiku-4.5
-```
+`0.1` uses one version convention:
 
-## Custom Agents
+- crate version: `0.1.0`
+- release tag: `v0.1.0`
+- default image suffix in the CLI: `v0.1.0`
+- preview install: `DEC_BENCH_INSTALL_VERSION=<preview-tag> curl -fsSL https://decbench.ai/install.sh | sh`
 
-Mount your agent and point to it:
+## Advanced Docker Usage
 
-```bash title="Run a custom agent"
+You can still run images directly if you need to:
+
+```bash title="Run an image directly"
 docker run \
-  -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
-  -e CUSTOM_AGENT_CMD="/workspace/my-agent" \
-  -v ./my-agent:/workspace/my-agent \
-  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.custom.v0.1.0
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.claude-code.claude-sonnet-4-20250514.v0.1.0
 ```
 
-Custom agents declare their own key requirements. If running in [restricted network mode](/docs/architecture#network-access), provide an `iptables.sh` to allowlist your provider's API endpoint.
+The image tag still encodes `{scenario}.{harness}.{agent}.{model}.{version}`, but the CLI is now the recommended path.
