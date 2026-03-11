@@ -170,6 +170,34 @@ CI also smoke-tests the installer against a freshly built Linux archive before p
 
 DEC Bench is open source. Contributions are welcome across scenarios, harnesses, evaluation logic, docs, and distribution tooling.
 
+## Agent Skills
+
+Install the `dec-bench-evals` skill from this repository with the `skills` CLI:
+
+```bash
+# Discover available skills in this repo
+npx skills add 514-labs/agent-evals --list
+
+# Cursor
+npx skills add 514-labs/agent-evals --skill dec-bench-evals -a cursor
+
+# Codex
+npx skills add 514-labs/agent-evals --skill dec-bench-evals -a codex
+
+# Claude Code
+npx skills add 514-labs/agent-evals --skill dec-bench-evals -a claude-code
+
+# Install for all three
+npx skills add 514-labs/agent-evals --skill dec-bench-evals -a cursor -a codex -a claude-code
+
+# Install globally instead of at project scope
+npx skills add 514-labs/agent-evals --skill dec-bench-evals -a cursor -g
+```
+
+For Claude Code, `npx skills add` is the recommended install path because Claude's standalone skill loader does not natively discover `.agents/skills/`. If you are working directly in this repository, the Claude plugin wrapper can also expose the same canonical skill directory.
+
+`skills.sh` is the discovery surface for the broader ecosystem, and this GitHub repository is the canonical source for the skill.
+
 ## Sponsors
 
 DEC Bench is brought to you by [FiveOneFour](https://fiveonefour.com). Interested in sponsoring? [Get in touch](https://fiveonefour.com).
