@@ -157,8 +157,6 @@ function inferScenarioId(fileName, result) {
   const base = canonicalResultBase(fileName).replace(/-run\d*$/i, "");
   const baseRtMarker = base.indexOf(".base-rt");
   if (baseRtMarker > 0) return base.slice(0, baseRtMarker);
-  const bareMarker = base.indexOf(".bare");
-  if (bareMarker > 0) return base.slice(0, bareMarker);
   return base;
 }
 

@@ -16,6 +16,7 @@ import {
 
 test("audit loaders index manifests and read log chunks", () => {
   const originalCwd = process.cwd();
+  const originalAuditsDir = process.env.DEC_BENCH_AUDITS_DIR;
   const fixtureRoot = mkdtempSync(join(tmpdir(), "audit-data-"));
 
   try {
@@ -102,6 +103,8 @@ test("audit loaders index manifests and read log chunks", () => {
     );
     writeFileSync(join(fixtureRoot, "scenarios", scenario, "prompts", "naive.md"), "hello prompt", "utf8");
 
+    process.env.DEC_BENCH_AUDITS_DIR = join(fixtureRoot, "data", "audits");
+
     const scenarios = listAuditScenarios();
     assert.deepEqual(scenarios, [scenario]);
 
@@ -128,6 +131,11 @@ test("audit loaders index manifests and read log chunks", () => {
     assert.ok(context);
     assert.equal(context?.prompts[0]?.content, "hello prompt");
   } finally {
+    if (originalAuditsDir === undefined) {
+      delete process.env.DEC_BENCH_AUDITS_DIR;
+    } else {
+      process.env.DEC_BENCH_AUDITS_DIR = originalAuditsDir;
+    }
     process.chdir(originalCwd);
     rmSync(fixtureRoot, { recursive: true, force: true });
   }
@@ -135,6 +143,7 @@ test("audit loaders index manifests and read log chunks", () => {
 
 test("cursor trace normalization extracts readable event content", () => {
   const originalCwd = process.cwd();
+  const originalAuditsDir = process.env.DEC_BENCH_AUDITS_DIR;
   const fixtureRoot = mkdtempSync(join(tmpdir(), "audit-trace-"));
 
   try {
@@ -240,7 +249,7 @@ test("cursor trace normalization extracts readable event content", () => {
           runId,
           scenario,
           timestamp: "2026-03-04T00:00:00.000Z",
-          harness: "bare",
+          harness: "base-rt",
           agent: "cursor",
           model: "composer",
           version: "v0.1.0",
@@ -284,6 +293,8 @@ test("cursor trace normalization extracts readable event content", () => {
       "utf8",
     );
 
+    process.env.DEC_BENCH_AUDITS_DIR = join(fixtureRoot, "data", "audits");
+
     const trace = getAuditRunTrace(scenario, runId);
     assert.ok(trace);
     assert.equal(trace?.events?.[0]?.kind, "system_message");
@@ -302,6 +313,11 @@ test("cursor trace normalization extracts readable event content", () => {
     assert.equal(trace?.events?.[5]?.kind, "assistant_final");
     assert.equal(trace?.events?.[5]?.content, "final answer");
   } finally {
+    if (originalAuditsDir === undefined) {
+      delete process.env.DEC_BENCH_AUDITS_DIR;
+    } else {
+      process.env.DEC_BENCH_AUDITS_DIR = originalAuditsDir;
+    }
     process.chdir(originalCwd);
     rmSync(fixtureRoot, { recursive: true, force: true });
   }

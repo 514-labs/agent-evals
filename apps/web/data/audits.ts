@@ -828,9 +828,23 @@ const CORE_ASSERTION_SOURCE: Record<string, string> = {
   };
 }`,
   idempotent_rerun: `async function idempotent_rerun(): Promise<AssertionResult> {
+  if (idempotentRerunCommand?.trim()) {
+    return runConfiguredIdempotentRerun(idempotentRerunCommand, workspaceRoot);
+  }
+
+  const sessionLog = safeRead(sessionLogPath);
+  const failureMarkers = collectMatchingLines(sessionLog ?? "", isIdempotencyFailureLine);
+  const signalMarkers = collectMatchingLines(sessionLog ?? "", isIdempotencySignalLine);
+
   return {
-    passed: true,
-    message: "Idempotent rerun check is currently a placeholder assertion.",
+    passed: failureMarkers.length === 0,
+    message:
+      failureMarkers.length === 0
+        ? signalMarkers.length > 0
+          ? "No idempotency failure markers found; session log contains rerun-safety signals."
+          : "No idempotency failure markers found in session log."
+        : "Idempotency risk markers found in session log.",
+    details: { failureMarkers, signalMarkers },
   };
 }`,
   uses_env_vars: `async function uses_env_vars(ctx: AssertionContext): Promise<AssertionResult> {
@@ -849,9 +863,18 @@ const CORE_ASSERTION_SOURCE: Record<string, string> = {
   };
 }`,
   no_secrets_in_code: `async function no_secrets_in_code(): Promise<AssertionResult> {
+  const scan = scanWorkspaceForSecrets(workspaceRoot);
   return {
-    passed: true,
-    message: "Secret scanning assertion is currently a placeholder.",
+    passed: scan.findings.length === 0,
+    message:
+      scan.findings.length === 0
+        ? "No hardcoded secrets detected in workspace files."
+        : "Potential hardcoded secrets detected in workspace files.",
+    details: {
+      scannedFiles: scan.scannedFiles,
+      totalFindings: scan.totalFindings,
+      findings: scan.findings,
+    },
   };
 }`,
 };

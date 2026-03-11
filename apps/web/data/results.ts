@@ -117,10 +117,6 @@ function collectResultFiles(dir: string): string[] {
   return files;
 }
 
-function normalizeHarness(harness: string): string {
-  return harness === "bare" ? "base-rt" : harness;
-}
-
 function inferScenarioFromFileBase(baseName: string): string {
   const normalized = baseName
     .replace(/\.stdout$/i, "")
@@ -129,10 +125,6 @@ function inferScenarioFromFileBase(baseName: string): string {
 
   if (normalized.includes(".base-rt")) {
     return normalized.split(".base-rt")[0] ?? normalized;
-  }
-
-  if (normalized.includes(".bare")) {
-    return normalized.split(".bare")[0] ?? normalized;
   }
 
   return normalized;
@@ -199,7 +191,6 @@ function loadResults(): EvalResult[] {
         results.push({
           ...parsed,
           scenario,
-          harness: normalizeHarness(parsed.harness),
           run_id: runId,
           result_file: fileName,
         });
