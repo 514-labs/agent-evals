@@ -228,7 +228,7 @@ fn add_scenario(args: AddArgs) -> Result<()> {
     let harnesses = scenario_json
         .harness
         .map(|h| vec![h])
-        .unwrap_or_else(|| vec!["bare".to_string()]);
+        .unwrap_or_else(|| vec!["base-rt".to_string()]);
 
     let out_dir = match args.out {
         Some(path) => path,

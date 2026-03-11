@@ -149,29 +149,30 @@ const upNextFeatures = [
 
 const harnesses = [
   {
-    id: "bare",
-    title: "BARE",
-    subtitle: "CONTROL GROUP",
+    id: "base-rt",
+    title: "BASE RT",
+    subtitle: "BASE INFRASTRUCTURE",
     description:
-      "No extra tooling. Python, Node.js, database CLIs only. This is the control group.",
+      "No extra tooling. ClickHouse, Redpanda, Postgres with Python, Node.js, and database CLIs. The control group.",
     install: "",
   },
   {
     id: "classic-de",
     title: "CLASSIC DE",
-    subtitle: "TRADITIONAL TOOLKIT",
+    subtitle: "STANDARD TOOLKIT",
     description:
-      "Traditional data engineering toolkit. dbt + polars + great-expectations.",
+      "Standard data engineering toolkit. Airflow + Spark + dbt on top of the base infrastructure.",
     install:
-      "pip3 install dbt-core dbt-postgres dbt-clickhouse polars great-expectations",
+      "apt-get update && apt-get install -y --no-install-recommends openjdk-17-jre-headless && rm -rf /var/lib/apt/lists/* && pip3 install --no-cache-dir --break-system-packages dbt-core==1.10.19 dbt-postgres==1.10.0 dbt-clickhouse==1.10.0 apache-airflow==2.10.5 pyspark==3.5.5",
   },
   {
     id: "olap-for-swe",
     title: "OLAP FOR SWE",
     subtitle: "CODE-FIRST FRAMEWORK",
     description:
-      "Unified code-first framework. MooseStack with typed schemas, automated migrations, built-in MCP.",
-    install: "npm install -g @514labs/moose-cli && npm install @514labs/moose-lib",
+      "SWE-first data engineering. MooseStack with typed schemas, automated migrations, built-in MCP.",
+    install:
+      "npm install -g @514labs/moose-cli@0.6.424 && mkdir -p /opt/dec-bench/moose && cd /opt/dec-bench/moose && npm init -y && npm install @514labs/moose-lib@0.6.424",
   },
 ];
 

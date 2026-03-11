@@ -39,7 +39,7 @@ pub struct RunArgs {
     pub scenario: Option<String>,
 
     /// Evaluation harness to use
-    #[arg(long, default_value = "bare")]
+    #[arg(long, default_value = "base-rt")]
     pub harness: String,
 
     /// Agent persona
@@ -565,7 +565,7 @@ mod tests {
     #[test]
     fn extract_result_json_uses_last_valid_json_line() {
         let output = "some log\n{\"scenario\":\"wrong\"}\n{\"scenario\":\"ok\",\"highest_gate\":4}";
-        let parsed = extract_result_json(output, "fallback", "bare", 0);
+        let parsed = extract_result_json(output, "fallback", "base-rt", 0);
         assert_eq!(parsed["scenario"], "ok");
         assert_eq!(parsed["highest_gate"], 4);
     }

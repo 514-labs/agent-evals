@@ -30,6 +30,14 @@ RUN curl -fsSL https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key |
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends clickhouse-server clickhouse-client \
     && rm -rf /var/lib/apt/lists/*
 
+RUN curl -1sLf 'https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.deb.sh' | bash \
+    && apt-get install -y --no-install-recommends redpanda \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /var/lib/redpanda/data /etc/redpanda
+COPY docker/base/redpanda.yaml /etc/redpanda/redpanda.yaml
+ENV PATH="/opt/redpanda/bin:${PATH}"
+
 RUN mkdir -p /var/lib/postgresql/data && chown -R postgres:postgres /var/lib/postgresql \
     && su - postgres -c "/usr/lib/postgresql/16/bin/initdb -D /var/lib/postgresql/data"
 

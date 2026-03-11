@@ -19,10 +19,10 @@ Scenario-level run index used for static route generation.
   "scenario": "foo-bar-csv-ingest",
   "runs": [
     {
-      "runId": "2026-03-02T010203Z-bare-naive",
+      "runId": "2026-03-02T010203Z-base-rt-naive",
       "scenario": "foo-bar-csv-ingest",
       "timestamp": "2026-03-02T01:02:03.000Z",
-      "harness": "bare",
+      "harness": "base-rt",
       "agent": "claude-code",
       "model": "claude-sonnet-4-20250514",
       "version": "v1.0.0",
@@ -41,10 +41,10 @@ Run-level metadata and file references.
 ```json
 {
   "schemaVersion": "1",
-  "runId": "2026-03-02T010203Z-bare-naive",
+  "runId": "2026-03-02T010203Z-base-rt-naive",
   "scenario": "foo-bar-csv-ingest",
   "timestamp": "2026-03-02T01:02:03.000Z",
-  "harness": "bare",
+  "harness": "base-rt",
   "agent": "claude-code",
   "model": "claude-sonnet-4-20250514",
   "version": "v1.0.0",

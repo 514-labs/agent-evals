@@ -55,7 +55,7 @@ dec-bench create \
 | `--name` / `-n` | yes | — | Scenario ID, used as directory name and JSON id |
 | `--domain` / `-d` | yes | — | Business domain (`foo-bar` for v0.1) |
 | `--tier` / `-t` | no | `tier-1` | Difficulty tier (`tier-1`, `tier-2`, `tier-3`) |
-| `--harness` | no | `bare` | Evaluation harness profile |
+| `--harness` | no | `base-rt` | Evaluation harness profile |
 | `--dir` | no | `scenarios` | Root directory for scenario output |
 
 ### What gets generated
@@ -253,8 +253,8 @@ Use an existing harness profile when possible. v0.1 ships with three:
 
 | Harness | What it installs |
 |---------|-----------------|
-| `bare` | Nothing -- Python, Node.js, database CLIs only |
-| `classic-de` | dbt-core, dbt-postgres, dbt-clickhouse, polars, great-expectations |
+| `base-rt` | Nothing -- base infrastructure (ClickHouse, Redpanda, Postgres) with Python, Node.js, database CLIs |
+| `classic-de` | dbt-core, dbt-postgres, dbt-clickhouse, apache-airflow, pyspark |
 | `olap-for-swe` | MooseStack (moose-cli, moose-lib) |
 
 Create a custom harness only if tool requirements are truly new:
@@ -274,7 +274,7 @@ Create scenario metadata that maps cleanly to DEC Bench scenario types:
   "description": "Load five messy CSV files into clean ClickHouse tables.",
   "tier": "tier-1",
   "domain": "foo-bar",
-  "harness": "bare",
+  "harness": "base-rt",
   "tasks": [
     {
       "id": "ingest-csvs",
@@ -309,7 +309,7 @@ Run:
 ```bash title="Run one eval"
 dec-bench run \
   --scenario foo-bar-csv-ingest \
-  --harness bare \
+  --harness base-rt \
   --persona naive \
   --mode no-plan
 ```

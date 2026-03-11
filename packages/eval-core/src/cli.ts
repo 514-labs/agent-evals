@@ -67,7 +67,7 @@ async function main(): Promise<void> {
       sessionLogPath: process.env.EVAL_SESSION_LOG_PATH,
       scenario: process.env.EVAL_SCENARIO ?? "unknown",
       version: process.env.EVAL_VERSION ?? "0.0.0",
-      harness: process.env.EVAL_HARNESS ?? "bare",
+      harness: process.env.EVAL_HARNESS ?? "base-rt",
       agent: process.env.EVAL_AGENT ?? "claude-code",
       model: process.env.MODEL ?? "unknown",
       runMetadata,

@@ -58,10 +58,71 @@ export type LeaderboardEntry = EvalResult & {
 };
 
 function resolveResultsDir(): string {
+  const explicitDir = process.env.DEC_BENCH_RESULTS_DIR;
+  if (explicitDir && existsSync(explicitDir)) return explicitDir;
+
+  const runtimeDir = join(process.cwd(), "..", "..", "results");
+  if (existsSync(runtimeDir)) return runtimeDir;
+
+  const useSampleData = process.env.DEC_BENCH_USE_SAMPLE_DATA === "1";
+  if (!useSampleData) return runtimeDir;
+
   const localDir = join(process.cwd(), "data", "results");
   if (existsSync(localDir)) return localDir;
 
   return join(process.cwd(), "apps", "web", "data", "results");
+}
+
+function normalizeHarness(harness: string): string {
+  return harness === "bare" ? "base-rt" : harness;
+}
+
+function inferScenarioFromFileBase(baseName: string): string {
+  const normalized = baseName
+    .replace(/\.stdout$/i, "")
+    .replace(/\.stderr$/i, "")
+    .replace(/-run\d*$/i, "");
+
+  if (normalized.includes(".base-rt")) {
+    return normalized.split(".base-rt")[0] ?? normalized;
+  }
+
+  if (normalized.includes(".bare")) {
+    return normalized.split(".bare")[0] ?? normalized;
+  }
+
+  return normalized;
+}
+
+function extractEvalResult(raw: string): EvalResult | null {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed) as EvalResult;
+    if (typeof parsed.highest_gate === "number") return parsed;
+  } catch {
+    // Fall through to line-based extraction.
+  }
+
+  const lines = trimmed.split("\n");
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i]?.trim() ?? "";
+    if (!line.endsWith("}")) continue;
+
+    const jsonStart = line.indexOf("{");
+    if (jsonStart < 0) continue;
+
+    const candidate = line.slice(jsonStart);
+    try {
+      const parsed = JSON.parse(candidate) as EvalResult;
+      if (typeof parsed.highest_gate === "number") return parsed;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 function loadResults(): EvalResult[] {
@@ -69,7 +130,13 @@ function loadResults(): EvalResult[] {
   if (!existsSync(dir)) return [];
 
   const files = readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .filter(
+      (entry) =>
+        entry.isFile() &&
+        (entry.name.endsWith(".json") ||
+          entry.name.endsWith(".stdout.log") ||
+          /-run\d*\.log$/i.test(entry.name)),
+    )
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
 
@@ -78,11 +145,11 @@ function loadResults(): EvalResult[] {
   for (const fileName of files) {
     try {
       const raw = readFileSync(join(dir, fileName), "utf8");
-      const parsed = JSON.parse(raw) as EvalResult;
-      const baseName = fileName.replace(/\.json$/, "");
-      const scenarioFromFile = baseName.includes(".bare")
-        ? baseName.split(".bare")[0] ?? baseName
-        : baseName;
+      const parsed = extractEvalResult(raw);
+      if (!parsed) continue;
+
+      const baseName = fileName.replace(/\.json$/i, "").replace(/\.log$/i, "");
+      const scenarioFromFile = inferScenarioFromFileBase(baseName);
       const scenario =
         typeof parsed.scenario === "string" && parsed.scenario !== "unknown"
           ? parsed.scenario
@@ -96,6 +163,7 @@ function loadResults(): EvalResult[] {
         results.push({
           ...parsed,
           scenario,
+          harness: normalizeHarness(parsed.harness),
           run_id: runId,
           result_file: fileName,
         });
@@ -105,7 +173,13 @@ function loadResults(): EvalResult[] {
     }
   }
 
-  return results;
+  const deduped = new Map<string, EvalResult>();
+  for (const result of results) {
+    const key = `${result.scenario}:${result.run_id ?? result.result_file ?? "unknown"}`;
+    if (!deduped.has(key)) deduped.set(key, result);
+  }
+
+  return [...deduped.values()];
 }
 
 export function getLeaderboardEntries(): LeaderboardEntry[] {

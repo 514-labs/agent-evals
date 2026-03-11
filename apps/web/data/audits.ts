@@ -156,6 +156,19 @@ export interface AuditScenarioContext {
 }
 
 function resolveAuditsDir(): string {
+  const explicitDir = process.env.DEC_BENCH_AUDITS_DIR;
+  if (explicitDir && existsSync(explicitDir)) return explicitDir;
+
+  const runtimeResultsDir = join(process.cwd(), "..", "..", "results");
+  if (existsSync(runtimeResultsDir)) {
+    return join(runtimeResultsDir, "audits");
+  }
+
+  const useSampleData = process.env.DEC_BENCH_USE_SAMPLE_DATA === "1";
+  if (!useSampleData) {
+    return join(runtimeResultsDir, "audits");
+  }
+
   const localDir = join(process.cwd(), "data", "audits");
   if (existsSync(localDir)) return localDir;
 

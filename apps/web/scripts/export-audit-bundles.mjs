@@ -20,8 +20,8 @@ function isSidecarFile(name) {
 
 function parseArgs(argv) {
   const args = {
-    resultsDir: "data/results",
-    auditsDir: "data/audits",
+    resultsDir: "",
+    auditsDir: "",
     logsDir: "",
     overwrite: false,
   };
@@ -37,6 +37,45 @@ function parseArgs(argv) {
   return args;
 }
 
+function canonicalResultBase(fileName) {
+  return basename(fileName, extname(fileName))
+    .replace(/\.stdout$/i, "")
+    .replace(/\.stderr$/i, "");
+}
+
+function extractEvalResult(raw) {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === "object" && typeof parsed.highest_gate === "number") {
+      return parsed;
+    }
+  } catch {
+    // Fall through to line-based extraction.
+  }
+
+  const lines = trimmed.split("\n");
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i]?.trim() ?? "";
+    if (!line.endsWith("}")) continue;
+    const start = line.indexOf("{");
+    if (start < 0) continue;
+    const candidate = line.slice(start);
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object" && typeof parsed.highest_gate === "number") {
+        return parsed;
+      }
+    } catch {
+      // Keep scanning up.
+    }
+  }
+
+  return null;
+}
+
 function safeTimestampFromName(name) {
   const match = name.match(/(\d{10,})$/);
   if (!match) return new Date(0).toISOString();
@@ -48,31 +87,39 @@ function safeTimestampFromName(name) {
 function loadResults(resultsDir) {
   if (!existsSync(resultsDir)) return [];
   return readdirSync(resultsDir)
-    .filter((name) => name.endsWith(".json") && !isSidecarFile(name))
+    .filter(
+      (name) =>
+        (name.endsWith(".json") || name.endsWith(".stdout.log") || /-run\d*\.log$/i.test(name)) &&
+        !isSidecarFile(name),
+    )
     .map((fileName) => {
       const fullPath = join(resultsDir, fileName);
       const raw = readFileSync(fullPath, "utf8");
-      const parsed = JSON.parse(raw);
+      const parsed = fileName.endsWith(".json") ? JSON.parse(raw) : extractEvalResult(raw);
+      if (!parsed) return null;
       return { fileName, parsed };
-    });
+    })
+    .filter(Boolean);
 }
 
 function detectRunId(fileName, result) {
   if (typeof result.run_id === "string" && result.run_id.trim()) return result.run_id.trim();
-  return basename(fileName, extname(fileName));
+  return canonicalResultBase(fileName);
 }
 
 function sidecarPath(resultsDir, resultFileName, extension) {
-  const base = basename(resultFileName, extname(resultFileName));
+  const base = canonicalResultBase(resultFileName);
   return join(resultsDir, `${base}.${extension}`);
 }
 
 function inferScenarioId(fileName, result) {
   const raw = typeof result.scenario === "string" ? result.scenario.trim() : "";
   if (raw && raw !== "unknown") return raw;
-  const base = basename(fileName, extname(fileName));
-  const marker = base.indexOf(".bare");
-  if (marker > 0) return base.slice(0, marker);
+  const base = canonicalResultBase(fileName).replace(/-run\d*$/i, "");
+  const baseRtMarker = base.indexOf(".base-rt");
+  if (baseRtMarker > 0) return base.slice(0, baseRtMarker);
+  const bareMarker = base.indexOf(".bare");
+  if (bareMarker > 0) return base.slice(0, bareMarker);
   return base;
 }
 
@@ -161,12 +208,15 @@ function collectExtraLogs(logsDir, runId) {
 
 function main() {
   const args = parseArgs(process.argv);
-  const resultsDir = existsSync(resolve(args.resultsDir))
-    ? resolve(args.resultsDir)
-    : resolve("apps/web/data/results");
-  const auditsDir = existsSync(resolve(args.auditsDir))
-    ? resolve(args.auditsDir)
-    : resolve("apps/web/data/audits");
+
+  const runtimeResultsDir = resolve("..", "..", "results");
+  const defaultResultsDir = existsSync(runtimeResultsDir) ? runtimeResultsDir : resolve("data/results");
+  const defaultAuditsDir = existsSync(runtimeResultsDir)
+    ? resolve(runtimeResultsDir, "audits")
+    : resolve("data/audits");
+
+  const resultsDir = args.resultsDir ? resolve(args.resultsDir) : defaultResultsDir;
+  const auditsDir = args.auditsDir ? resolve(args.auditsDir) : defaultAuditsDir;
   const logsDir = args.logsDir ? resolve(args.logsDir) : "";
 
   mkdirSync(auditsDir, { recursive: true });

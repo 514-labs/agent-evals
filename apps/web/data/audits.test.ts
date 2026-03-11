@@ -34,7 +34,7 @@ test("audit loaders index manifests and read log chunks", () => {
           runId,
           scenario,
           timestamp: "2026-03-02T01:02:03.000Z",
-          harness: "bare",
+          harness: "base-rt",
           agent: "claude-code",
           model: "claude-sonnet-4-20250514",
           version: "v1.0.0",
@@ -88,7 +88,7 @@ test("audit loaders index manifests and read log chunks", () => {
           description: "Fixture scenario",
           tier: "tier-1",
           domain: "foo",
-          harness: "bare",
+          harness: "base-rt",
           tasks: [{ id: "task-1", description: "Do thing", category: "ingestion" }],
           personaPrompts: {
             naive: "prompts/naive.md",

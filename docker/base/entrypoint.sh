@@ -86,6 +86,22 @@ wait_for_clickhouse() {
   return 1
 }
 
+wait_for_redpanda() {
+  if [[ -z "${REDPANDA_BROKER:-}" ]]; then
+    return 0
+  fi
+  echo "Waiting for Redpanda..."
+  for _ in $(seq 1 30); do
+    if rpk cluster info >/dev/null 2>&1; then
+      echo "Redpanda is ready."
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Redpanda did not become ready." >&2
+  return 1
+}
+
 run_init_scripts() {
   if [[ ! -d /scenario/init ]]; then
     return 0
@@ -115,6 +131,7 @@ run_init_scripts() {
 
 wait_for_postgres
 wait_for_clickhouse
+wait_for_redpanda
 run_init_scripts
 
 start_epoch="$(date +%s)"
