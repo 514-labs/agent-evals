@@ -1,0 +1,10 @@
+Codex model unavailable, trying fallback: spark
+Codex model unavailable, trying fallback: gpt-5.3-codex-spark-preview
+**Events Load**
+- Normalized the incoming CSVs via `/tmp/clean_events.py`: it strips duplicate headers, pads/trims rows, coerces `DD/MM/YYYY` and ISO timestamps to `YYYY-MM-DD HH:MM:SS`, and rewrites missing/null `value`s as ClickHouse-friendly `\N`, producing `/tmp/clean_events.csv`.
+- Started `clickhouse-server` in the background (logs to `/tmp/clickhouse.log`), created the `events` MergeTree table (`event_id String, event_ts DateTime, user_id String, event_type String, value Nullable(Float64)`), and loaded the cleaned CSV via `INSERT … FORMAT CSVWithNames`.
+- Verified the load with `SELECT count(*) FROM events` (returns 15) and spot-checked rows ordered by `event_id`.
+
+Next steps:
+1. Automate running `/tmp/clean_events.py` whenever new CSVs land so the clean file is current.
+2. Consider adding a ClickHouse Materialized View or periodically truncating/reloading if the source CSVs change.

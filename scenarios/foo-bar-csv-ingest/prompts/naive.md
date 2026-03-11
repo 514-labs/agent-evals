@@ -1,0 +1,1 @@
+I have five CSV files with event data in /data/csv/. They need to go into ClickHouse but I think some of the files have problems — weird dates, missing values, maybe duplicate headers. Can you get all the data into a clean table?

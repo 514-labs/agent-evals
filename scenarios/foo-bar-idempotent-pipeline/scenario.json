@@ -1,0 +1,34 @@
+{
+  "id": "foo-bar-idempotent-pipeline",
+  "title": "Foo Bar Idempotent Pipeline",
+  "description": "Build a pipeline from Postgres to ClickHouse that produces identical results whether run once or three times. Handle updates to existing rows by primary key.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "classic-de",
+  "tasks": [
+    {
+      "id": "build-idempotent-pipeline",
+      "description": "Build a replay-safe pipeline from Postgres to ClickHouse",
+      "category": "ingestion"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "infrastructure": {
+    "services": ["postgres-16", "clickhouse"],
+    "description": "Postgres seeded with 100 orders (status, amount, updated_at). ClickHouse running but empty."
+  },
+  "tags": ["idempotency", "deduplication", "upsert", "replay-safe"],
+  "baselineMetrics": {
+    "queryLatencyMs": 1000,
+    "storageBytes": 600000000,
+    "costPerQueryUsd": 0.015
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 100,
+    "storageBytes": 300000000,
+    "costPerQueryUsd": 0.004
+  }
+}

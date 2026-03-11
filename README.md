@@ -15,6 +15,7 @@ The image tag encodes exactly what is being evaluated: **scenario × harness × 
 docker run \
   -e ANTHROPIC_API_KEY=sk-ant-... \
   -e OPENAI_API_KEY=sk-... \
+  -e CURSOR_API_KEY=cur-... \
   ghcr.io/514-labs/dec-bench:ecommerce-pipeline.classic-de.claude-code.sonnet-4.v1.0.0
 ```
 
@@ -96,6 +97,12 @@ The web app (docs + leaderboard) runs at `http://localhost:3000`.
 
 The CLI now supports scenario scaffolding, running eval containers, listing scenarios, and reading stored results.
 
+Built-in agent runner IDs:
+
+- `claude-code`
+- `codex`
+- `cursor`
+
 ### Build CLI
 
 ```bash
@@ -153,6 +160,18 @@ dec-bench run \
 - Streams container logs
 - Extracts structured JSON result
 - Writes output to `results/<scenario>-<timestamp>.json`
+
+Run the full matrix with CLI-managed parallelism:
+
+```bash
+dec-bench run --matrix --parallel 9
+# or let the CLI choose based on host parallelism
+dec-bench run --matrix --parallel auto
+```
+
+- `--parallel 1` runs sequentially (default)
+- `--parallel auto` uses host available parallelism
+- higher values run multiple scenario/persona/mode jobs concurrently
 
 ### View Results
 

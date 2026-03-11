@@ -1,0 +1,23 @@
+{
+  "id": "foo-bar-dlq-setup",
+  "title": "Foo Bar DLQ Setup",
+  "description": "Configure a dead-letter queue (DLQ) for a Kafka consumer that fails on malformed messages. The consumer currently drops failed messages; add a DLQ topic and wire the consumer to route failures there.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harness": "base-rt",
+  "tasks": [
+    {
+      "id": "setup-dlq",
+      "description": "Create the DLQ topic, configure the consumer to send failed messages to it, and add a DLQ consumer that writes to analytics.dlq_events.",
+      "category": "ingestion"
+    }
+  ],
+  "personaPrompts": { "naive": "prompts/naive.md", "savvy": "prompts/savvy.md" },
+  "infrastructure": {
+    "services": ["redpanda", "clickhouse"],
+    "description": "Redpanda with events topic (some malformed messages). ClickHouse with analytics.events. Consumer script exists but has no DLQ; failed messages are lost."
+  },
+  "tags": ["dlq", "kafka", "reliability", "fault-tolerance"],
+  "baselineMetrics": { "queryLatencyMs": 0, "storageBytes": 0, "costPerQueryUsd": 0 },
+  "referenceMetrics": { "queryLatencyMs": 50, "storageBytes": 100000, "costPerQueryUsd": 0 }
+}

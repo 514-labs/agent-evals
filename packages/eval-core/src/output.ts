@@ -9,11 +9,13 @@ export interface EvalOutputInput {
   gates: Record<GateName, GateResult>;
   highestGate: number;
   normalizedScore: number;
+  compositeScore?: EvalOutput["composite_score"];
   efficiency: EvalOutput["efficiency"];
+  runMetadata?: EvalOutput["run_metadata"];
 }
 
 export function createEvalOutput(input: EvalOutputInput): EvalOutput {
-  return {
+  const output: EvalOutput = {
     scenario: input.scenario,
     version: input.version,
     harness: input.harness,
@@ -24,4 +26,14 @@ export function createEvalOutput(input: EvalOutputInput): EvalOutput {
     gates: input.gates,
     efficiency: input.efficiency,
   };
+
+  if (input.runMetadata) {
+    output.run_metadata = input.runMetadata;
+  }
+
+  if (input.compositeScore) {
+    output.composite_score = input.compositeScore;
+  }
+
+  return output;
 }

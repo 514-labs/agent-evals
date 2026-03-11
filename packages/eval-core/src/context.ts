@@ -5,6 +5,12 @@ export interface PgClient {
   query: (text: string, params?: unknown[]) => Promise<QueryResult>;
 }
 
+const NOOP_PG: PgClient = {
+  query: async () => {
+    throw new Error("Postgres is not available in this scenario");
+  },
+};
+
 export interface AssertionContext {
   pg: PgClient;
   clickhouse: ClickHouseClient;
@@ -22,26 +28,22 @@ export function createAssertionContext(
   const postgresUrl = env.POSTGRES_URL;
   const clickhouseUrl = env.CLICKHOUSE_URL;
 
-  if (!postgresUrl) {
-    throw new Error("POSTGRES_URL is required for assertion execution.");
-  }
-  if (!clickhouseUrl) {
-    throw new Error("CLICKHOUSE_URL is required for assertion execution.");
-  }
+  const pgPool = postgresUrl ? new Pool({ connectionString: postgresUrl }) : null;
 
-  const pgPool = new Pool({ connectionString: postgresUrl });
-  const clickhouse = createClient({ url: clickhouseUrl });
+  const clickhouse = clickhouseUrl
+    ? createClient({ url: clickhouseUrl })
+    : createClient({ url: "http://localhost:8123" });
 
   return {
     context: {
-      pg: {
-        query: (text: string, params?: unknown[]) => pgPool.query(text, params),
-      },
+      pg: pgPool
+        ? { query: (text: string, params?: unknown[]) => pgPool.query(text, params) }
+        : NOOP_PG,
       clickhouse,
       env: (key: string) => env[key],
     },
     close: async () => {
-      await pgPool.end();
+      if (pgPool) await pgPool.end();
       await clickhouse.close();
     },
   };

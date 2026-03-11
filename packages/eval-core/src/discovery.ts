@@ -3,9 +3,9 @@ import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 
 import type { AssertionContext } from "./context.js";
-import type { GateName } from "./types.js";
+import type { AssertionResult, GateName } from "./types.js";
 
-export type AssertionFn = (ctx: AssertionContext) => Promise<boolean>;
+export type AssertionFn = (ctx: AssertionContext) => Promise<AssertionResult>;
 
 export const GATE_FILES: Record<GateName, string> = {
   functional: "functional.ts",

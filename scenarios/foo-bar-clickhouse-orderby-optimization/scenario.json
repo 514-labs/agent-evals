@@ -1,0 +1,23 @@
+{
+  "id": "foo-bar-clickhouse-orderby-optimization",
+  "title": "Foo Bar ClickHouse ORDER BY Optimization",
+  "description": "A ClickHouse table has a suboptimal ORDER BY that causes full scans for common query patterns. Redesign the ORDER BY key to match filter columns (region, event_ts) and improve query latency.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harness": "base-rt",
+  "tasks": [
+    {
+      "id": "optimize-order-by",
+      "description": "Recreate or alter analytics.events so ORDER BY matches the common filters (region, event_ts). Queries filtering by region and date range should run under 100ms.",
+      "category": "query-optimization"
+    }
+  ],
+  "personaPrompts": { "naive": "prompts/naive.md", "savvy": "prompts/savvy.md" },
+  "infrastructure": {
+    "services": ["clickhouse"],
+    "description": "ClickHouse with analytics.events (2M rows). ORDER BY tuple() causes full scans. Queries filter by region and event_ts."
+  },
+  "tags": ["clickhouse", "order-by", "query-optimization", "performance"],
+  "baselineMetrics": { "queryLatencyMs": 800, "storageBytes": 100000000, "costPerQueryUsd": 0.01 },
+  "referenceMetrics": { "queryLatencyMs": 100, "storageBytes": 100000000, "costPerQueryUsd": 0.002 }
+}

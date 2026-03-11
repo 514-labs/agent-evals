@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::{self, IsTerminal, Write};
 use std::path::{Path, PathBuf};
+#[cfg(feature = "up-next")]
 use std::process::Command;
 
 use anyhow::{bail, Context, Result};
@@ -43,6 +44,7 @@ pub struct RegistryArgs {
 pub enum RegistryCommand {
     /// Add a scenario or harness entry to the docs registry
     Add(AddArgs),
+    #[cfg(feature = "up-next")]
     /// Publish a registry entry by opening a GitHub PR
     Publish(PublishArgs),
 }
@@ -123,6 +125,7 @@ pub struct AddArgs {
     pub allowlisted_endpoints: Option<String>,
 }
 
+#[cfg(feature = "up-next")]
 #[derive(Args)]
 pub struct PublishArgs {
     /// Registry entry ID to publish
@@ -158,6 +161,7 @@ struct ScenarioTask {
 pub async fn execute(args: RegistryArgs) -> Result<()> {
     match args.command {
         RegistryCommand::Add(add_args) => execute_add(add_args),
+        #[cfg(feature = "up-next")]
         RegistryCommand::Publish(publish_args) => execute_publish(publish_args),
     }
 }
@@ -224,7 +228,7 @@ fn add_scenario(args: AddArgs) -> Result<()> {
     let harnesses = scenario_json
         .harness
         .map(|h| vec![h])
-        .unwrap_or_else(|| vec!["bare".to_string()]);
+        .unwrap_or_else(|| vec!["base-rt".to_string()]);
 
     let out_dir = match args.out {
         Some(path) => path,
@@ -324,6 +328,7 @@ fn add_harness(args: AddArgs) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "up-next")]
 fn execute_publish(args: PublishArgs) -> Result<()> {
     run_checked("gh", &["--version"])?;
     run_checked("gh", &["auth", "status"])?;
@@ -489,6 +494,7 @@ fn prompt(label: &str) -> Result<String> {
     Ok(value)
 }
 
+#[cfg(feature = "up-next")]
 fn run_checked(command: &str, args: &[&str]) -> Result<()> {
     let status = Command::new(command)
         .args(args)
@@ -501,6 +507,7 @@ fn run_checked(command: &str, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "up-next")]
 fn run_checked_capture(command: &str, args: &[&str]) -> Result<String> {
     let output = Command::new(command)
         .args(args)

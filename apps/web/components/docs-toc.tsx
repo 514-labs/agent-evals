@@ -21,7 +21,7 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
 
   return (
     <nav>
-      <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">
+      <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">
         ON THIS PAGE
       </span>
       <div ref={scrollRef} className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-160px)]">
@@ -31,7 +31,7 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
               <li key={item.url} className="relative">
                 <TOCItem
                   href={item.url}
-                  className="toc-link group/toc relative block py-1.5 text-[11px] tracking-wide"
+                  className="toc-link group/toc relative block py-1.5 text-sm tracking-wide"
                   style={{ paddingLeft: `${(item.depth - 2) * 0.5 + 1}rem` }}
                 >
                   <span className="toc-indicator" />

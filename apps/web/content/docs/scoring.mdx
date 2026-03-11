@@ -39,9 +39,9 @@ Two values drive the leaderboard:
 
 ```json title="Eval result (stdout)"
 {
-  "scenario": "ecommerce-pipeline",
-  "version": "1.0.0",
-  "harness": "classic-de",
+  "scenario": "foo-bar-csv-ingest",
+  "version": "0.1.0",
+  "harness": "base-rt",
   "agent": "claude-code",
   "model": "claude-sonnet-4-20250514",
 
@@ -53,31 +53,31 @@ Two values drive the leaderboard:
       "passed": true,
       "score": 1.00,
       "core": { "process_exits_clean": true, "no_unhandled_errors": true },
-      "scenario": { "target_tables_exist": true, "no_empty_tables": true }
+      "scenario": { "target_table_exists": true, "table_has_rows": true }
     },
     "correct": {
       "passed": true,
       "score": 0.92,
       "core": {},
-      "scenario": { "row_counts_match": true, "checksum_match": true, "schema_types_correct": false }
+      "scenario": { "all_fifteen_events_loaded": true, "no_null_event_ids": true, "dates_are_valid": false }
     },
     "robust": {
       "passed": true,
       "score": 0.86,
       "core": { "idempotent_rerun": true },
-      "scenario": { "handles_nulls": true, "handles_dupes": true, "handles_late_arriving": false }
+      "scenario": { "no_duplicate_header_rows": true, "null_values_handled": true }
     },
     "performant": {
       "passed": false,
       "score": 0.43,
       "core": {},
-      "scenario": { "query_under_200ms": false, "pipeline_under_30s": true }
+      "scenario": { "scan_query_under_100ms": false }
     },
     "production": {
       "passed": false,
       "score": 0.50,
       "core": { "uses_env_vars": true, "no_secrets_in_code": true },
-      "scenario": { "incremental_capable": false, "has_data_tests": true }
+      "scenario": { "connection_env_vars_available": true, "no_temporary_tables": false }
     }
   },
 
@@ -91,3 +91,40 @@ Two values drive the leaderboard:
 ```
 
 This agent cleared gates 1--3, failed gate 4 on performance, so `highest_gate` is 3. The `normalized_score` of 0.74 reflects the weighted scenario assertions across all gates.
+
+## Assertion Log Sidecar
+
+Rich per-assertion runtime logs are stored in a separate sidecar file, not in the main result JSON. This keeps scoring output lean while preserving audit evidence.
+
+- Sidecar file name: `.assertion-log.json` (copied into audit bundles as `logs/assertion-log.json`)
+- Manifest log entry id: `assertion_log`
+- Shape: gate -> `{ core, scenario }` -> assertion name -> `{ passed, durationMs, message?, error?, details? }`
+
+```json title="assertion-log.json"
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": { "exitCode": 0 }
+      }
+    },
+    "scenario": {
+      "target_table_exists": {
+        "passed": true,
+        "durationMs": 45,
+        "message": "Target table exists.",
+        "details": { "expected": 1, "actual": 1 }
+      }
+    }
+  },
+  "correct": { "core": {}, "scenario": {} },
+  "robust": { "core": {}, "scenario": {} },
+  "performant": { "core": {}, "scenario": {} },
+  "production": { "core": {}, "scenario": {} }
+}
+```
+
+The audit rubric panel uses this sidecar to show assertion-specific evidence (duration, message, thrown error, details JSON) for each assertion row.

@@ -20,7 +20,7 @@ pub struct CreateArgs {
     pub tier: Tier,
 
     /// Evaluation harness
-    #[arg(long, default_value = "bare")]
+    #[arg(long, default_value = "base-rt")]
     pub harness: String,
 
     /// Scenarios root directory
@@ -229,7 +229,7 @@ mod tests {
             name: "sample-scenario".to_string(),
             domain: Domain::Ugc,
             tier: Tier::Tier1,
-            harness: "bare".to_string(),
+            harness: "base-rt".to_string(),
             dir: temp.path().to_path_buf(),
         };
 

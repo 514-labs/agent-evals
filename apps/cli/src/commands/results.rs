@@ -185,7 +185,7 @@ mod tests {
         .expect("write result file");
         fs::write(
             temp.path().join("a.json"),
-            r#"{"scenario":"s1","harness":"bare","highest_gate":4,"normalized_score":0.9}"#,
+            r#"{"scenario":"s1","harness":"base-rt","highest_gate":4,"normalized_score":0.9}"#,
         )
         .expect("write result file");
 

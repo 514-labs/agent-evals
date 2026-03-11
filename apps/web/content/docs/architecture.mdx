@@ -18,7 +18,8 @@ Built on `debian:bookworm-slim` (Alpine's musl breaks too many tools).
 
 Includes:
 - **Runtimes**: Python 3, pip, venv, Node.js 22
-- **CLIs**: bash, curl, git, jq, psql, mysql-client, clickhouse-client
+- **CLIs**: bash, curl, git, jq, psql, mysql-client, clickhouse-client, rpk
+- **Data infrastructure**: Postgres 16, ClickHouse, Redpanda (streaming)
 - **Python packages**: psycopg2-binary, clickhouse-connect, kafka-python, sqlalchemy, pandas
 - **Infrastructure**: supervisord for running services inside the container
 - **Scoring**: gate assertion framework, session recording, efficiency metrics
@@ -33,15 +34,16 @@ Services run locally via supervisord -- Postgres, ClickHouse, Redpanda, all insi
 
 A shell script that installs tools. That's the whole abstraction.
 
-```bash title="harnesses/classic-de.sh"
-pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0 dbt-clickhouse==1.10.0 polars==1.38.1 great-expectations==1.13.0
+```bash title="harnesses/classic-de.json installScript"
+apt-get update && apt-get install -y --no-install-recommends openjdk-17-jre-headless && rm -rf /var/lib/apt/lists/*
+pip3 install --no-cache-dir --break-system-packages dbt-core==1.10.19 dbt-postgres==1.10.0 dbt-clickhouse==1.10.0 apache-airflow==2.10.5 pyspark==3.5.5
 ```
 
 The Dockerfile runs it at build time. Contributing a harness = writing a shell script.
 
 ## Agent + Model
 
-A runner script baked into the image:
+Agent-specific runner scripts are baked into the image (`claude-code`, `codex`, and `cursor`):
 
 ```bash title="agents/claude-code/run.sh"
 PROMPT_FILE="/scenario/prompts/${PERSONA:-naive}.md"
@@ -64,10 +66,19 @@ iptables -A OUTPUT -o lo -j ACCEPT
 iptables -P OUTPUT DROP
 ```
 
-Each agent adds its LLM provider:
+Each agent adds its LLM provider endpoints:
 
 ```bash title="agents/claude-code/iptables.sh"
 iptables -I OUTPUT -d api.anthropic.com -j ACCEPT
+```
+
+```bash title="agents/codex/iptables.sh"
+iptables -I OUTPUT -d api.openai.com -j ACCEPT
+```
+
+```bash title="agents/cursor/iptables.sh"
+iptables -I OUTPUT -d api.cursor.sh -j ACCEPT
+iptables -I OUTPUT -d api2.cursor.sh -j ACCEPT
 ```
 
 Each harness may add endpoints for its tools when running in restricted mode.

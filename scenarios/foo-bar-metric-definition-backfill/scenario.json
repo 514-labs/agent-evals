@@ -1,0 +1,34 @@
+{
+  "id": "foo-bar-metric-definition-backfill",
+  "title": "Foo Bar Metric Definition Backfill",
+  "description": "Fix a failed backfill of a new metric definition. The backfill job partially ran, left orphaned data, and the metric table has gaps or duplicates. Recover and complete the backfill idempotently.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "classic-de",
+  "tasks": [
+    {
+      "id": "fix-metric-backfill",
+      "description": "Repair the metric backfill: remove partial/duplicate data, ensure idempotency, and backfill all historical dates correctly.",
+      "category": "ingestion"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "infrastructure": {
+    "services": ["postgres-16", "clickhouse"],
+    "description": "Postgres has source events. ClickHouse has analytics.metric_daily with partial/duplicate backfill data. Fix and complete the backfill."
+  },
+  "tags": ["backfill", "idempotency", "reliability", "metrics"],
+  "baselineMetrics": {
+    "queryLatencyMs": 800,
+    "storageBytes": 300000000,
+    "costPerQueryUsd": 0.01
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 150,
+    "storageBytes": 250000000,
+    "costPerQueryUsd": 0.004
+  }
+}

@@ -1,0 +1,1 @@
+Our analytics queries are way too slow. We have a big ClickHouse table and five queries that our dashboard uses. They all take seconds to run. Can you make them faster? The queries are saved in /workspace/queries/ as SQL files.

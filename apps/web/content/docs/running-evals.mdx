@@ -8,11 +8,27 @@ description: "Pass your keys, pick an image, read the JSON."
 ```bash title="Run a single eval"
 docker run \
   -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.claude-code.sonnet-4.v0.1.0
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
-  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.classic-de.claude-code.sonnet-4.v1.0.0
+  -e CURSOR_API_KEY=$CURSOR_API_KEY \
+  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.claude-code.sonnet-4.v0.1.0
 ```
 
 The image tag tells you exactly what runs: `{scenario}.{harness}.{agent}.{model}.{version}`. Results print to stdout as JSON.
+
+## v0.1 Scenarios
+
+Thirty-six scenarios are available on the Foo Bar synthetic domain (13 tier-1, 18 tier-2, 5 tier-3). See [Foo Bar Domain](/docs/evals/domains/foo-bar) for the full list.
+
+Example image tags:
+
+```text
+foo-bar-csv-ingest.base-rt.claude-code.sonnet-4.v0.1.0
+foo-bar-csv-ingest.base-rt.codex.gpt-5-codex.v0.1.0
+foo-bar-csv-ingest.base-rt.cursor.auto.v0.1.0
+foo-bar-time-grain-rollups.classic-de.claude-code.sonnet-4.v0.1.0
+foo-bar-cross-system-reconciliation.olap-for-swe.claude-code.sonnet-4.v0.1.0
+```
 
 ## API Keys
 
@@ -20,10 +36,39 @@ Each image validates the key it needs at startup. Pass all your keys -- the cont
 
 | Provider | Variable | Agents |
 |----------|----------|--------|
-| Anthropic | `ANTHROPIC_API_KEY` | Claude Code, Aider (Anthropic models) |
-| OpenAI | `OPENAI_API_KEY` | Codex, Aider (OpenAI models) |
+| Anthropic | `ANTHROPIC_API_KEY` | Claude Code |
+| OpenAI | `OPENAI_API_KEY` | Codex |
+| OpenAI (Codex override) | `CODEX_API_KEY` | Codex |
+| Cursor | `CURSOR_API_KEY` | Cursor |
 
-This keeps the `docker run` interface identical across the entire build matrix. No per-image flag changes.
+## Using the CLI
+
+The `dec-bench` CLI wraps Docker image building and execution:
+
+```bash title="Run via CLI"
+dec-bench run \
+  --scenario foo-bar-csv-ingest \
+  --harness base-rt \
+  --agent claude-code \
+  --model claude-sonnet-4-20250514
+```
+
+Other supported agent IDs:
+
+- `codex` (for OpenAI Codex CLI)
+- `cursor` (for Cursor Agent CLI)
+
+List available scenarios:
+
+```bash title="List foo-bar scenarios"
+dec-bench list --domain foo-bar
+```
+
+View results from completed runs:
+
+```bash title="View results"
+dec-bench results --scenario foo-bar-csv-ingest
+```
 
 ## Build Matrix
 
@@ -31,14 +76,25 @@ Export your keys once, loop over every image:
 
 ```bash title="Run the full matrix"
 export ANTHROPIC_API_KEY=sk-ant-...
-export OPENAI_API_KEY=sk-...
 
-for image in "${IMAGES[@]}"; do
-  docker run \
-    -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
-    -e OPENAI_API_KEY=$OPENAI_API_KEY \
-    "$image" >> results.jsonl
+for scenario in foo-bar-csv-ingest foo-bar-slow-queries foo-bar-table-layout; do
+  for harness in base-rt classic-de olap-for-swe; do
+    docker run \
+      -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+      "ghcr.io/514-labs/dec-bench:${scenario}.${harness}.claude-code.sonnet-4.v0.1.0" \
+      >> results.jsonl
+  done
 done
+```
+
+Run a Haiku 4.5 variant:
+
+```bash title="Run with Haiku 4.5"
+dec-bench run \
+  --scenario foo-bar-csv-ingest \
+  --harness base-rt \
+  --agent claude-code \
+  --model haiku-4.5
 ```
 
 ## Custom Agents
@@ -50,7 +106,7 @@ docker run \
   -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
   -e CUSTOM_AGENT_CMD="/workspace/my-agent" \
   -v ./my-agent:/workspace/my-agent \
-  ghcr.io/514-labs/dec-bench:ecommerce-pipeline.bare.custom.v1.0.0
+  ghcr.io/514-labs/dec-bench:foo-bar-csv-ingest.base-rt.custom.v0.1.0
 ```
 
-Custom agents declare their own key requirements. If running in [restricted network mode](/docs/architecture#restricted-mode), provide an `iptables.sh` to allowlist your provider's API endpoint.
+Custom agents declare their own key requirements. If running in [restricted network mode](/docs/architecture#network-access), provide an `iptables.sh` to allowlist your provider's API endpoint.

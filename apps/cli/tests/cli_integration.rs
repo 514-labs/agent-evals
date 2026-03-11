@@ -41,7 +41,7 @@ fn create_then_registry_add_scenario_generates_registry_entry() {
       "description": "Integration flow test scenario",
       "tier": "tier-2",
       "domain": "ugc",
-      "harness": "bare",
+      "harness": "base-rt",
       "tasks": [
         {"id": "task-a", "description": "task", "category": "ingestion"}
       ],
@@ -84,7 +84,7 @@ fn create_then_registry_add_scenario_generates_registry_entry() {
     let value: serde_json::Value = serde_json::from_str(&raw).expect("valid json");
     assert_eq!(value["id"], "integration-scenario");
     assert_eq!(value["taskCount"], 1);
-    assert_eq!(value["harnesses"][0], "bare");
+    assert_eq!(value["harnesses"][0], "base-rt");
 }
 
 #[test]

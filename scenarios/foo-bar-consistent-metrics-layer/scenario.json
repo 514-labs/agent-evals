@@ -1,0 +1,34 @@
+{
+  "id": "foo-bar-consistent-metrics-layer",
+  "title": "Foo Bar Consistent Metrics Layer",
+  "description": "Fix inconsistent metric definitions across ClickHouse and Postgres. The same metric (e.g. daily_active_users) is computed differently in each store, causing reporting mismatches.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "classic-de",
+  "tasks": [
+    {
+      "id": "fix-consistent-metrics",
+      "description": "Align metric definitions so daily_active_users and revenue are computed identically in both stores, or consolidate to a single source of truth.",
+      "category": "materialized-views"
+    }
+  ],
+  "personaPrompts": {
+    "naive": "prompts/naive.md",
+    "savvy": "prompts/savvy.md"
+  },
+  "infrastructure": {
+    "services": ["postgres-16", "clickhouse"],
+    "description": "Postgres and ClickHouse both have events. Metric definitions differ: Postgres counts distinct user_id per day, ClickHouse uses a different formula. Fix the inconsistency."
+  },
+  "tags": ["metrics", "consistency", "semantic-layer", "transformation"],
+  "baselineMetrics": {
+    "queryLatencyMs": 600,
+    "storageBytes": 400000000,
+    "costPerQueryUsd": 0.012
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 120,
+    "storageBytes": 350000000,
+    "costPerQueryUsd": 0.005
+  }
+}

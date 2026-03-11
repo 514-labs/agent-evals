@@ -20,23 +20,20 @@ const mdxComponents = useMDXComponents({
   ScenarioRegistry: ScenarioRegistryBlock,
 })
 
-export const dynamic = "force-static"
-export const dynamicParams = false
-
 export function generateStaticParams() {
-  const seen = new Set<string>()
-  const params: Array<{ slug: string[] }> = [{ slug: [] }]
+  const seen = new Set<string>();
+  const params: Array<{ slug: string[] }> = [{ slug: [] }];
 
   for (const entry of docsSource.generateParams("slug")) {
-    const key = entry.slug.join("/")
+    const key = entry.slug.join("/");
 
     if (!seen.has(key)) {
-      seen.add(key)
-      params.push({ slug: entry.slug })
+      seen.add(key);
+      params.push({ slug: entry.slug });
     }
   }
 
-  return params
+  return params;
 }
 
 export default async function DocsPage({
@@ -65,12 +62,12 @@ export default async function DocsPage({
         <article className="min-w-0 w-full container mx-auto px-8 lg:px-14 py-10">
           <div className="max-w-prose mx-auto">
             <div className="pb-6 mb-8 border-b-[3px] border-black">
-              <span className="text-[9px] font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">DOCUMENTATION</span>
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">DOCUMENTATION</span>
               <h1 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl tracking-tight uppercase leading-[0.9]">
                 {page.data.title}
               </h1>
               {page.data.description ? (
-                <p className="mt-3 text-[13px] text-black/50 leading-relaxed max-w-xl">
+                <p className="mt-3 text-sm text-black/50 leading-relaxed max-w-xl">
                   {page.data.description}
                 </p>
               ) : null}

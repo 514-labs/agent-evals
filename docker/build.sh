@@ -107,6 +107,11 @@ docker build \
   --build-arg HARNESS_IMAGE="${HARNESS_TAG}" \
   --build-arg AGENT_RUN_SCRIPT="${AGENT_RUN_SCRIPT}" \
   --build-arg AGENT_IPTABLES_SCRIPT="${AGENT_IPTABLES_SCRIPT}" \
+  --build-arg META_SCENARIO="${SCENARIO}" \
+  --build-arg META_HARNESS="${HARNESS}" \
+  --build-arg META_AGENT="${AGENT}" \
+  --build-arg META_MODEL="${MODEL}" \
+  --build-arg META_VERSION="${VERSION}" \
   -t "${FINAL_TAG}" \
   .
 
