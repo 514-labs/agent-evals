@@ -32,13 +32,14 @@ resolve_target() {
 }
 
 python_read_release_asset() {
-  python3 - "$1" "$2" <<'PY'
+  python3 - "$1" "$2" "$3" <<'PY'
 import json
+import pathlib
 import sys
 
 target = sys.argv[1]
 want_checksum = sys.argv[2] == "checksum"
-release = json.load(sys.stdin)
+release = json.loads(pathlib.Path(sys.argv[3]).read_text())
 
 for asset in release.get("assets", []):
     name = asset.get("name", "")
@@ -101,11 +102,11 @@ if [ -z "$asset_url" ]; then
   release_json="$tmp_dir/release.json"
   curl -fsSL "$release_url" -o "$release_json"
 
-  asset_url="$(python_read_release_asset "$target" asset < "$release_json")" || {
+  asset_url="$(python_read_release_asset "$target" asset "$release_json")" || {
     echo "Could not find a dec-bench archive for target $target in release $VERSION" >&2
     exit 1
   }
-  checksum_url="$(python_read_release_asset "$target" checksum < "$release_json" || true)"
+  checksum_url="$(python_read_release_asset "$target" checksum "$release_json" || true)"
 fi
 
 asset_name="$(basename "$asset_url")"
