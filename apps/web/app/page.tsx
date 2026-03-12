@@ -632,9 +632,8 @@ export default async function HomePage() {
             YOUR EVAL
           </h2>
           <p className="mt-6 text-sm text-black/50 max-w-md mx-auto">
-            Run 9 data engineering scenarios against your agents locally. Every
-            eval is a single <code className="text-black/70">docker run</code>{" "}
-            command.
+            Install the CLI, run any of 36 Foo Bar scenarios locally, and open
+            the audit UI for a specific run.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
