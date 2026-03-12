@@ -1,8 +1,10 @@
 # DEC Bench
 
-**Data Engineering Competency Bench** is an open-source benchmark for evaluating AI agents on real data engineering work.
+**Data Engineering Competency Bench** is an open-source research preview for evaluating AI agents on real data engineering work.
 
-The `0.1` workflow is CLI-first:
+DEC Bench `0.1` is a research preview. The fastest way to help is to install `dec-bench`, run one Foo Bar scenario locally, and note anything confusing, broken, or missing. If you want to collaborate directly, scaffold a new eval or extend an existing harness.
+
+In this research preview, the `0.1` workflow is CLI-first:
 
 - install `dec-bench`
 - scaffold and validate a scenario

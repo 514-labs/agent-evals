@@ -203,7 +203,7 @@ export default async function HomePage() {
               </h1>
               <div className="pb-2 lg:pb-4 max-w-[20.5rem] brutal-fade-in">
                 <p className="text-sm uppercase leading-snug tracking-wider">
-                  An open-source{" "}
+                  An open-source research preview for real-world{" "}
                   <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">
                     d
                   </span>
@@ -215,8 +215,7 @@ export default async function HomePage() {
                   <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">
                     c
                   </span>
-                  ompetency benchmark for evaluating an AI agent&#39;s ability
-                  to tackle real-world data problems.
+                  ompetency benchmarks.
                 </p>
               </div>
             </div>
@@ -233,9 +232,13 @@ export default async function HomePage() {
               href="/docs/running-evals"
               className="brutal-btn bg-black text-white border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
-              RUN AN EVAL →
+              RUN THE PREVIEW →
             </Link>
           </div>
+          <p className="mt-4 max-w-2xl text-xs uppercase tracking-[0.18em] text-black/50 brutal-fade-in">
+            v0.1 is a research preview. Run Foo Bar locally, share what feels
+            rough, and help shape the next release with new evals and harnesses.
+          </p>
         </div>
       </section>
 
@@ -627,26 +630,27 @@ export default async function HomePage() {
       <section className="relative z-10">
         <div className="max-w-6xl mx-auto px-6 lg:px-12 py-24 text-center">
           <h2 className="font-[family-name:var(--font-display)] text-5xl md:text-[8rem] tracking-tight uppercase leading-[0.85]">
-            START
+            TRY
             <br />
-            YOUR EVAL
+            THE PREVIEW
           </h2>
           <p className="mt-6 text-sm text-black/50 max-w-md mx-auto">
-            Install the CLI, run any of 36 Foo Bar scenarios locally, and open
-            the audit UI for a specific run.
+            DEC Bench 0.1 is a research preview. Install the CLI, run Foo Bar
+            locally, and help shape what comes next with feedback, new evals,
+            and harness contributions.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
-              href="/leaderboard"
+              href="/docs/running-evals"
               className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
-              LEADERBOARD →
+              RUN THE PREVIEW →
             </Link>
             <Link
-              href="/docs/running-evals"
+              href="/docs/add-eval/getting-started"
               className="brutal-btn bg-black text-white border-[3px] border-black px-7 py-2.5 text-xs font-bold uppercase tracking-[0.15em]"
             >
-              RUN AN EVAL →
+              ADD AN EVAL →
             </Link>
             <a
               href="https://github.com/514-labs/agent-evals"

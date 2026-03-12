@@ -1,11 +1,11 @@
-# DEC Bench 0.1 Internal Launch Kit
+# DEC Bench 0.1 Research Preview Launch Kit
 
 ## Slack Copy
 
 ### Short Post
 
 ```text
-DEC Bench 0.1 is ready for internal use.
+DEC Bench 0.1 is live as a research preview.
 
 It gives us a CLI-first way to run real data engineering evals locally, inspect results, and open the audit UI for any run.
 
@@ -13,13 +13,13 @@ Start here:
 curl -fsSL https://decbench.ai/install.sh | sh
 dec-bench list
 
-If you work on agents, harnesses, or evals, please run one scenario this week and reply here with anything confusing, broken, or missing.
+If you work on agents, harnesses, or evals, please run one scenario this week and reply here with anything confusing, broken, or missing. If you want to collaborate more directly, contribute a new eval or harness on GitHub.
 ```
 
 ### One-Liner
 
 ```text
-DEC Bench 0.1 is live for internal use: install with curl -fsSL https://decbench.ai/install.sh | sh, run dec-bench list, and try one Foo Bar eval locally.
+DEC Bench 0.1 is live as a research preview: install with curl -fsSL https://decbench.ai/install.sh | sh, run dec-bench list, and try one Foo Bar eval locally.
 ```
 
 ### Follow-Up Reply
@@ -38,7 +38,7 @@ dec-bench list
 
 ## Positioning
 
-DEC Bench is the fastest way for us to see how coding agents perform on real data engineering work. It is not a toy demo and it is not just a Docker image catalog. The product surface in `0.1` is the CLI:
+DEC Bench is a research preview for seeing how coding agents perform on real data engineering work. It is not a toy demo and it is not just a Docker image catalog. The product surface in `0.1` is the CLI:
 
 - install
 - list scenarios
@@ -64,12 +64,12 @@ DEC Bench is the fastest way for us to see how coding agents perform on real dat
 
 ## The Ask
 
-Ask internal developers to do one concrete thing:
+Ask collaborators to do one concrete thing:
 
 1. Install `dec-bench`.
 2. Run `dec-bench list`.
 3. Pick one Foo Bar scenario and run it locally.
-4. Reply in the launch thread with friction, bugs, or missing docs.
+4. Reply in the launch thread with friction, bugs, or missing docs, or contribute directly on GitHub if you want to help expand the benchmark.
 
 ## Suggested Starter Path
 
@@ -93,7 +93,7 @@ Yes. The CLI is the main workflow, but Docker is still the runtime underneath it
 
 ### Is this public?
 
-`v0.1.0` is released, but the launch motion right now is internal adoption and feedback.
+`v0.1.0` is public, but the launch motion right now is research-preview usage, feedback, and early collaboration.
 
 ### What should people try first?
 

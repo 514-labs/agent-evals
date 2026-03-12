@@ -10,7 +10,6 @@ import {
 import {
   getLeaderboardEntries,
   getUniqueScenarios,
-  type LeaderboardEntry,
 } from "../../data/results";
 import { getScenarioAuditRunIds } from "../../data/audits";
 
@@ -54,14 +53,21 @@ function EmptyState() {
         BOARD
       </h1>
       <p className="mt-8 text-sm uppercase tracking-wider text-black/50 max-w-md mx-auto">
-        No eval results found. Run your first eval to see results here.
+        No eval results found yet. Run the research preview or help expand it
+        with a new eval.
       </p>
-      <div className="mt-8">
+      <div className="mt-8 flex flex-wrap justify-center gap-4">
         <Link
           href="/docs/running-evals"
           className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
         >
-          RUN AN EVAL →
+          RUN THE PREVIEW →
+        </Link>
+        <Link
+          href="/docs/add-eval/getting-started"
+          className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
+        >
+          ADD AN EVAL →
         </Link>
       </div>
     </div>
@@ -311,7 +317,7 @@ export default async function LeaderboardPage({
       <div className="mt-12 flex flex-wrap items-center justify-between gap-6">
         <div>
           <p className="text-xs uppercase tracking-wider text-black/50">
-            Want to see your harness or agent here?
+            Want to benchmark your agent or collaborate on the preview?
           </p>
         </div>
         <div className="flex gap-4">
@@ -319,13 +325,13 @@ export default async function LeaderboardPage({
             href="/docs/running-evals"
             className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
           >
-            RUN AN EVAL →
+            RUN THE PREVIEW →
           </Link>
           <Link
-            href="/docs"
+            href="/docs/add-eval/getting-started"
             className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
           >
-            GET STARTED →
+            ADD AN EVAL →
           </Link>
         </div>
       </div>
