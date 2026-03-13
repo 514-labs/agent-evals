@@ -1,0 +1,17 @@
+All three rollup tables are now correct. Here's what was wrong and what I fixed:
+
+**Problems found:**
+1. `rollup_daily` — populated with `0` for `event_count` instead of real counts. SummingMergeTree summed those zeros and the rows were dropped during merges, leaving the table empty.
+2. `rollup_hourly` — never populated at all.
+3. `rollup_monthly` — never populated at all.
+
+**Fix applied:** Inserted correct aggregated counts into each table from `raw_events`:
+
+| Table | Grain | Data |
+|---|---|---|
+| `rollup_daily` | `toDate(event_ts)` | Jan 15→3, Jan 16→2, Feb 1→1 |
+| `rollup_hourly` | `toStartOfHour(event_ts)` | 4 hour buckets, totaling 6 |
+| `rollup_monthly` | `toStartOfMonth(event_ts)` | Jan→5, Feb→1 |
+
+All three rollups now sum to **6**, matching the 6 raw events in `analytics.raw_events`.
+Found session JSONL at /root/.claude/projects/-/dd123b54-9996-4f85-bb9d-098f53c72ca8.jsonl

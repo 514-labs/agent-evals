@@ -1,0 +1,19 @@
+Built a small idempotent ingestion pipeline and loaded the seeded Redpanda metrics into ClickHouse.
+
+Files added:
+- [stream_metrics_to_clickhouse.py](/app/stream_metrics_to_clickhouse.py)
+- [setup_clickhouse.sql](/app/setup_clickhouse.sql)
+- [run_pipeline.sh](/app/run_pipeline.sh)
+
+The consumer reads from Redpanda topic `metrics`, maps both `ts` and `timestamp`, creates `analytics.metrics` if needed, and inserts into ClickHouse with schema:
+`host_id String, metric_name LowCardinality(String), value Nullable(Float64), ts DateTime64(3, 'UTC')`.
+It uses a fixed Kafka consumer group so reruns are idempotent.
+
+Verification:
+- `run_pipeline.sh` inserted `10` rows on first run
+- second run inserted `0` rows
+- `SELECT count() FROM analytics.metrics` returned `10`
+- `SELECT sum(value) FROM analytics.metrics` returned `648.8`
+- aggregation query by `host_id, metric_name` returned expected results under ClickHouse normally
+
+If you want, I can also add a supervised/background job so the consumer keeps tailing new topic data continuously instead of running as a one-shot loader.

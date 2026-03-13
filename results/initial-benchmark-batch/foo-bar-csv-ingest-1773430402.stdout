@@ -1,0 +1,113 @@
+
+
+
+
+
+
+
+
+
+Creating a Python script to clean the CSVs and load them into ClickHouse:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Updating the load script to use `analytics.events` and convert null/missing values to 0:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+All event data is loaded into ClickHouse. Summary:
+
+## Summary
+
+**Table:** `analytics.events`  
+**Rows:** 15 events from all 5 CSV files
+
+### Data issues handled
+
+| File | Issue | Handling |
+|------|--------|----------|
+| **events_01.csv** | Clean baseline | Loaded as-is |
+| **events_02.csv** | Dates in `DD/MM/YYYY` | Converted to `YYYY-MM-DD HH:MM:SS` |
+| **events_03.csv** | N/A, null, empty values | Replaced with `0` |
+| **events_04.csv** | Duplicate header row | Header rows skipped |
+| **events_05.csv** | Trailing commas | Commas stripped |
+
+### Schema
+
+```
+event_id: String
+event_ts: DateTime
+user_id: String
+event_type: String
+value: Float64
+```
+
+### Load script
+
+`/data/load_events.py`:
+
+1. Creates the `analytics` database
+2. Creates the `events` table
+3. Reads all 5 CSVs, normalizes dates, maps nulls to 0, skips header rows, strips trailing commas
+4. Deduplicates by `event_id`
+5. Inserts into `analytics.events` via CSV format
+
+Run it with:
+
+```bash
+python3 /data/load_events.py
+```
+
+All benchmark assertions pass: 15 events loaded, no null event IDs, valid dates, no header rows, nulls handled, and the scan query runs in under 100ms.

@@ -1,0 +1,68 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Updating the init script and applying fixes to the database.
+
+Applying fixes to the current ClickHouse database: truncating rollup tables and repopulating them.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Summary of changes:
+
+## Fixes applied
+
+### 1. **Init script** (`/scenario/init/clickhouse-setup.sql`)
+
+- **rollup_daily**: Replaced `0 AS event_count` with `count() AS event_count` and added `GROUP BY day`.
+- **rollup_hourly**: Added an `INSERT` that aggregates by `toStartOfHour(event_ts)` with `count()`.
+- **rollup_monthly**: Added an `INSERT` that aggregates by `toStartOfMonth(event_ts)` with `count()`.
+
+### 2. **Current database**
+
+Truncated the rollup tables and repopulated them with correct aggregates from `raw_events`.
+
+## Verification
+
+All assertion-style checks pass:
+
+| Assertion | Result |
+|-----------|--------|
+| **daily_total_matches_source** | Source 6 = rollup 6 ✓ |
+| **rollup_tables_exist** | 3 tables present ✓ |
+| **rollups_have_rows** | rollup_daily has 3 rows ✓ |
+| **hourly_or_monthly_exists** | hourly: 4 rows, monthly: 2 rows ✓ |
+| **daily_rollup_query_under_100ms** | Query ~31ms ✓ |
+
+## Current rollup data
+
+- **Hourly**: 4 buckets (e.g. Jan 15 10:00 → 2, Jan 15 11:00 → 1, Jan 16 09:00 → 2, Feb 1 08:00 → 1)
+- **Daily**: Jan 15 → 3, Jan 16 → 2, Feb 1 → 1
+- **Monthly**: Jan 2026 → 5, Feb 2026 → 1
+
+Each rollup sums to 6 events, matching `raw_events`.

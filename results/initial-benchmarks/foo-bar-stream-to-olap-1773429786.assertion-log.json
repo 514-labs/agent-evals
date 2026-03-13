@@ -1,0 +1,143 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "metrics_table_exists": {
+        "passed": true,
+        "durationMs": 12,
+        "message": "Metrics table exists.",
+        "details": {
+          "count": 1
+        }
+      },
+      "metrics_table_has_rows": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "Metrics table has 10 rows.",
+        "details": {
+          "count": 10
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "host_and_metric_columns_present": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Required columns present.",
+        "details": {
+          "names": [
+            "host_id",
+            "metric_name",
+            "value",
+            "ts"
+          ],
+          "hasHost": true,
+          "hasMetric": true,
+          "hasValue": true
+        }
+      },
+      "value_checksum_matches_seed": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Value checksum matches seed.",
+        "details": {
+          "sum": 648.8,
+          "expectedSum": 648.8
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found; session log contains rerun-safety signals.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            ") ENGINE = MergeTree()",
+            "- `MergeTree` with `ORDER BY (host_id, metric_name, ts)` — optimal for the `GROUP BY host_id, metric_name` aggregation pattern."
+          ],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "handles_null_values": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Table has data.",
+        "details": {
+          "count": 10
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "aggregation_query_under_200ms": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Aggregation under 200ms.",
+        "details": {
+          "elapsedMs": 4
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": false,
+        "durationMs": 0,
+        "message": "Missing required data store environment variables.",
+        "details": {
+          "hasPostgresUrl": false,
+          "hasClickhouseUrl": true
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "Workspace root unavailable; secret scan skipped.",
+        "details": {
+          "workspaceRoot": "/workspace"
+        }
+      }
+    },
+    "scenario": {
+      "connection_env_vars_available": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Connection env vars available.",
+        "details": {
+          "hasRedpanda": true,
+          "hasClickHouse": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+Loaded the five CSVs into `analytics.events` in ClickHouse and normalized the bad rows on the way in. The repeatable loader is [load_events_clickhouse.py](/usr/local/bin/load_events_clickhouse.py).
+
+The cleanup it performs is straightforward: it converts `DD/MM/YYYY` dates to UTC midnight timestamps, keeps ISO timestamps as UTC, drops the duplicated header row embedded in `events_04.csv`, ignores the extra trailing empty column in `events_05.csv`, and converts `N/A`, `null`, and empty `value` fields to `0.0`.
+
+Verification passed with direct ClickHouse queries:
+- `analytics.events` exists and contains `15` rows
+- no `event_id = 'event_id'` header rows remain
+- no out-of-range timestamps remain
+- `min(value) = 0`, `max(value) = 120`
+- the benchmark-style aggregate query completed in about `0.003s`
+
+Final table schema:
+- `event_id String`
+- `event_ts DateTime('UTC')`
+- `user_id String`
+- `event_type LowCardinality(String)`
+- `value Float64`

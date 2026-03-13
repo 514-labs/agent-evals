@@ -1,0 +1,10 @@
+All three rollup tables are now fixed:
+
+- **Hourly** (`rollup_hourly`): Groups by `toStartOfHour(event_ts)` — 4 rows (e.g., 2026-01-15 10:00 → 2, 11:00 → 1, etc.)
+- **Daily** (`rollup_daily`): Groups by `toDate(event_ts)` — 3 rows (Jan 15 → 3, Jan 16 → 2, Feb 1 → 1)
+- **Monthly** (`rollup_monthly`): Groups by `toStartOfMonth(event_ts)` — 2 rows (Jan → 5, Feb → 1)
+
+All three totals sum to **6**, matching the source `raw_events` count. The issues were:
+1. Daily was inserting `0` as the count instead of using `count()`
+2. Hourly and monthly had no INSERT statements at all
+Found session JSONL at /root/.claude/projects/-/4c376044-b055-4fef-b71e-d1b638d59cf6.jsonl

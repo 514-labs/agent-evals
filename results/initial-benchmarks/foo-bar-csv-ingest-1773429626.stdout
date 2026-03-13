@@ -1,0 +1,24 @@
+Loaded the five CSVs into `default.events_clean` in ClickHouse and normalized the bad rows during import.
+
+What was cleaned:
+- `events_02.csv`: converted `DD/MM/YYYY` dates to UTC `DateTime`
+- `events_03.csv`: converted `N/A`, `null`, and empty `value` fields to SQL `NULL`
+- `events_04.csv`: dropped the duplicated header row in the middle of the file
+- `events_05.csv`: ignored the extra trailing empty column
+
+Verification:
+- Rows loaded: `15`
+- Distinct `event_id`: `15`
+- `NULL` values in `value`: `3`
+- Timestamp range: `2026-01-15 00:00:00` to `2026-01-20 16:00:00`
+
+Schema:
+- `event_id String`
+- `event_ts DateTime('UTC')`
+- `user_id String`
+- `event_type LowCardinality(String)`
+- `value Nullable(Float64)`
+
+Loader script used: [load_events.sh](/tmp/load_events.sh)
+
+If you want, I can also leave behind a repeatable SQL-only ingest pipeline or add a deduplication rule keyed on `event_id`.

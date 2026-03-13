@@ -164,8 +164,17 @@ fn load_results(dir: &Path) -> Result<Vec<ResultEntry>> {
 
             let raw = fs::read_to_string(&path)
                 .with_context(|| format!("Failed to read {}", path.display()))?;
-            let raw_value = extract_result_json(&raw)
-                .with_context(|| format!("Invalid result JSON in {}", path.display()))?;
+            let raw_value = match extract_result_json(&raw) {
+                Ok(value) => value,
+                Err(err) => {
+                    eprintln!(
+                        "Warning: skipping invalid result file {}: {}",
+                        path.display(),
+                        err
+                    );
+                    continue;
+                }
+            };
             let payload: ResultPayload =
                 serde_json::from_value(raw_value.clone()).unwrap_or_default();
             let run_id = payload
@@ -495,11 +504,18 @@ mod tests {
     }
 
     #[test]
-    fn load_results_errors_on_invalid_json() {
+    fn load_results_skips_invalid_json_and_keeps_valid_entries() {
         let temp = tempfile::tempdir().expect("temp dir");
         fs::write(temp.path().join("bad.json"), "{not-json").expect("write file");
+        fs::write(
+            temp.path().join("good-1710000000.json"),
+            r#"{"run_id":"good-1710000000","scenario":"good","harness":"base-rt","highest_gate":4,"normalized_score":0.9}"#,
+        )
+        .expect("write valid result");
 
-        let err = load_results(temp.path()).expect_err("expected parse failure");
-        assert!(err.to_string().contains("Invalid result JSON"));
+        let entries = load_results(temp.path()).expect("load results");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].run_id, "good-1710000000");
+        assert_eq!(entries[0].result.scenario.as_deref(), Some("good"));
     }
 }

@@ -1,0 +1,29 @@
+Everything is working. Here's what was built and what was found:
+
+---
+
+**Drift discovered (before the job ran):**
+
+| System | Rows | Amount Sum |
+|---|---|---|
+| Postgres (source) | 10 | 363.42 |
+| Redpanda (stream) | **0** | — |
+| ClickHouse (sink) | **0** | 0.00 |
+
+Both Redpanda and ClickHouse were empty — the pipeline had never run.
+
+---
+
+**`/output/reconcile.py` — what it does:**
+
+1. **Reads** all rows from `app.transactions` in Postgres (source of truth).
+2. **Publishes** each row as a JSON message to the Redpanda `transactions` topic (`acks=all` for durability).
+3. **Consumes** the entire topic from the beginning, deduplicates by `id`, and bulk-inserts into `analytics.transactions` in ClickHouse.
+4. **Queries** all three systems for row counts and amount sums simultaneously.
+5. **Reports drift** with three checks:
+   - Postgres ↔ Redpanda message count
+   - Postgres ↔ ClickHouse row count
+   - Amount checksum (within $0.01 tolerance for floating-point)
+
+Run it any time with `python3 /output/reconcile.py` — it's idempotent (deduplicates by `id` before inserting) and exits with code `1` if any drift is detected, making it easy to wire into a cron job or alerting pipeline.
+Found session JSONL at /root/.claude/projects/-/5c2c0d58-f2a1-4bd6-bac8-d74e5f8317fa.jsonl

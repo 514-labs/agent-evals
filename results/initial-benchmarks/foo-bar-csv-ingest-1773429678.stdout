@@ -1,0 +1,41 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+All 5 CSV files are loaded into ClickHouse. Summary of what was fixed:
+
+**Issues found and handled:**
+
+1. **events_02.csv** – Dates in `DD/MM/YYYY` (e.g. `15/01/2026`) were converted to ISO-style datetimes.
+2. **events_03.csv** – Non-numeric values (`N/A`, `null`, empty) in `value` were stored as NULL.
+3. **events_04.csv** – Duplicate header row on line 3 was skipped.
+4. **events_05.csv** – Trailing commas in header and rows were handled by taking only the first 5 columns.
+
+**Result:**
+
+- **Table:** `events` with columns: `event_id`, `event_ts`, `user_id`, `event_type`, `value` (Nullable Float64)
+- **Rows:** 15 events (evt_001–evt_015)
+- **Engine:** MergeTree, ordered by `event_id`
+
+The loader script is at `/data/load_events.py`. To inspect the data:
+
+```bash
+clickhouse-client --query "SELECT * FROM events ORDER BY event_id"
+```

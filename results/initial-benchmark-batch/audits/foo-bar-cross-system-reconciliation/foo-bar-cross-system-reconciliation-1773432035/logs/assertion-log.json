@@ -1,0 +1,137 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "transactions_table_exists": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "Transactions table exists.",
+        "details": {
+          "count": 1
+        }
+      },
+      "transactions_table_has_rows": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Transactions table has 10 rows.",
+        "details": {
+          "count": 10
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "amount_checksum_matches": {
+        "passed": true,
+        "durationMs": 11,
+        "message": "Amount checksum matches.",
+        "details": {
+          "pgSum": 363.42,
+          "chSum": 363.41999999999996
+        }
+      },
+      "row_counts_reconciled": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Counts reconciled: pg=10, ch=10.",
+        "details": {
+          "pgCount": 10,
+          "chCount": 10
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found; session log contains rerun-safety signals.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            "3. **Consumes** the entire topic from the beginning, deduplicates by `id`, and bulk-inserts into `analytics.transactions` in ClickHouse.",
+            "Run it any time with `python3 /output/reconcile.py` — it's idempotent (deduplicates by `id` before inserting) and exits with code `1` if any drift is detecte..."
+          ],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "reconciliation_handles_empty": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Source has data.",
+        "details": {
+          "pgCount": 10
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "reconciliation_query_under_500ms": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Reconciliation queries under 500ms.",
+        "details": {
+          "elapsedMs": 4
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Required data store environment variables are available.",
+        "details": {
+          "hasPostgresUrl": true,
+          "hasClickhouseUrl": true
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace root unavailable; secret scan skipped.",
+        "details": {
+          "workspaceRoot": "/workspace"
+        }
+      }
+    },
+    "scenario": {
+      "connection_env_vars_available": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Connection env vars available.",
+        "details": {
+          "hasPostgres": true,
+          "hasRedpanda": true,
+          "hasClickHouse": true
+        }
+      }
+    }
+  }
+}

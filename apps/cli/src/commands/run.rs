@@ -31,6 +31,12 @@ const EVAL_RESULT_START: &str = "__DEC_BENCH_EVAL_RESULT_JSON_START__";
 const EVAL_RESULT_END: &str = "__DEC_BENCH_EVAL_RESULT_JSON_END__";
 const ASSERTION_LOG_START: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_START__";
 const ASSERTION_LOG_END: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_END__";
+const SENSITIVE_ENV_KEYS: [&str; 4] = [
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "CODEX_API_KEY",
+    "CURSOR_API_KEY",
+];
 
 #[derive(Args, Clone)]
 pub struct RunArgs {
@@ -346,28 +352,40 @@ async fn run_single(
 
     if let Some(content) = run_meta_json.filter(|value| !value.trim().is_empty()) {
         let run_meta_path = output_path.with_extension("run-meta.json");
-        fs::write(&run_meta_path, ensure_trailing_newline(&content))
+        fs::write(
+            &run_meta_path,
+            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+        )
             .with_context(|| format!("Failed to write {}", run_meta_path.display()))?;
         println!("Wrote run metadata: {}", run_meta_path.display());
     }
 
     if let Some(content) = agent_raw_json.filter(|value| !value.trim().is_empty()) {
         let raw_path = output_path.with_extension("agent-raw.json");
-        fs::write(&raw_path, ensure_trailing_newline(&content))
+        fs::write(
+            &raw_path,
+            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+        )
             .with_context(|| format!("Failed to write {}", raw_path.display()))?;
         println!("Wrote agent raw: {}", raw_path.display());
     }
 
     if let Some(content) = agent_trace_json.filter(|value| !value.trim().is_empty()) {
         let trace_path = output_path.with_extension("trace.json");
-        fs::write(&trace_path, ensure_trailing_newline(&content))
+        fs::write(
+            &trace_path,
+            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+        )
             .with_context(|| format!("Failed to write {}", trace_path.display()))?;
         println!("Wrote trace: {}", trace_path.display());
     }
 
     if let Some(content) = session_jsonl.filter(|value| !value.trim().is_empty()) {
         let session_path = output_path.with_extension("session.jsonl");
-        fs::write(&session_path, ensure_trailing_newline(&content))
+        fs::write(
+            &session_path,
+            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+        )
             .with_context(|| format!("Failed to write {}", session_path.display()))?;
         println!("Wrote session JSONL: {}", session_path.display());
     }
@@ -509,6 +527,18 @@ fn ensure_trailing_newline(content: &str) -> String {
     } else {
         format!("{content}\n")
     }
+}
+
+fn sanitize_sensitive_content(content: &str) -> String {
+    let mut sanitized = content.to_string();
+    for key in SENSITIVE_ENV_KEYS {
+        if let Ok(secret) = std::env::var(key) {
+            if !secret.trim().is_empty() {
+                sanitized = sanitized.replace(&secret, "[redacted]");
+            }
+        }
+    }
+    sanitized
 }
 
 fn write_result_file(
@@ -740,5 +770,23 @@ mod tests {
             "__DEC_BENCH_RUN_META_JSON_END__",
         );
         assert_eq!(stripped, "a\nb\nc");
+    }
+
+    #[test]
+    fn sanitize_sensitive_content_redacts_known_env_values() {
+        let temp_key = "test-anthropic-secret";
+        let temp_openai = "test-openai-secret";
+        std::env::set_var("ANTHROPIC_API_KEY", temp_key);
+        std::env::set_var("OPENAI_API_KEY", temp_openai);
+
+        let sample = format!(
+            "ANTHROPIC_API_KEY={temp_key}\nCODEX_API_KEY={temp_openai}\nplain text"
+        );
+        let sanitized = sanitize_sensitive_content(&sample);
+
+        assert!(sanitized.contains("ANTHROPIC_API_KEY=[redacted]"));
+        assert!(sanitized.contains("CODEX_API_KEY=[redacted]"));
+        assert!(!sanitized.contains(temp_key));
+        assert!(!sanitized.contains(temp_openai));
     }
 }
