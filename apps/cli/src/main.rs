@@ -6,7 +6,7 @@ mod commands;
 
 #[derive(Parser)]
 #[command(name = "dec-bench")]
-#[command(about = "DEC Bench — Data Engineering Competency Agent Evals")]
+#[command(about = "DEC Bench — Research preview for data engineering agent evals")]
 #[command(version)]
 struct Cli {
     #[command(subcommand)]

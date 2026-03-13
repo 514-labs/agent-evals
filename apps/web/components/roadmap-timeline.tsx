@@ -23,7 +23,7 @@ function StatusBadge({ status }: { status: "active" | "next" | "future" }) {
 
 export function RoadmapTimeline({
   currentTitle = "v0.1",
-  currentDescription = "We're actively working on the first release.",
+  currentDescription = "We're actively iterating on the current research preview.",
   nextTitle = "v0.2",
   nextItems = [],
   futureItems = [],
