@@ -203,7 +203,7 @@ export default async function HomePage() {
               </h1>
               <div className="pb-2 lg:pb-4 max-w-[20.5rem] brutal-fade-in">
                 <p className="text-sm uppercase leading-snug tracking-wider">
-                  An open-source research preview for real-world{" "}
+                  An open-source{" "}
                   <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">
                     d
                   </span>
@@ -215,7 +215,8 @@ export default async function HomePage() {
                   <span className="underline decoration-[#FF10F0] decoration-2 underline-offset-2">
                     c
                   </span>
-                  ompetency benchmarks.
+                  ompetency benchmark for evaluating an AI agent&#39;s ability
+                  to tackle real-world data problems.
                 </p>
               </div>
             </div>
