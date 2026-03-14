@@ -1,0 +1,16 @@
+Both queries are well under 50ms. Here's a summary of what was done:
+
+**Indexes added:**
+
+1. **`idx_orders_user_id_created_at` on `(user_id, created_at DESC)`**
+   - Covers the `WHERE user_id = ?` filter and `ORDER BY created_at DESC` sort in one index scan
+   - Query 1 went from a full seq scan to **0.24ms**
+
+2. **`idx_orders_created_at` on `(created_at)`**
+   - Enables an efficient range scan for `WHERE created_at >= ? AND created_at < ?`
+   - Query 2 went from **~51ms → 28ms**
+
+**`CLUSTER` on `idx_orders_created_at`** physically reorders the table rows by `created_at`, which reduced heap blocks fetched for the date range query from 3,677 to 1,142 (3x fewer I/Os).
+
+**`work_mem` raised to 16MB** so the large sort for the date-range query stays in memory rather than spilling to disk.
+Found session JSONL at /root/.claude/projects/-/8ee2d902-76c9-4a51-9d1a-4f98904a2b90.jsonl

@@ -1,0 +1,105 @@
+
+
+
+
+
+
+
+Checking how the setup is run and whether we can add migration files:
+
+Adding indexes to the Postgres setup: an index on `user_id` (composite with `created_at` for the ORDER BY) and an index on `created_at` for date-range queries.
+
+Checking whether the benchmark expects indexes in the workspace (e.g., migrations) or in the scenario init:
+
+
+
+Checking how the benchmark connects to Postgres and whether we should run a migration:
+
+Reverting the change to `postgres-setup.sql` (it defines the initial state without indexes) and running the CREATE INDEX statements against the running Postgres.
+
+Creating a migration SQL file and running it against the database:
+
+
+
+Verifying query performance:
+
+User_id query is fast (0.14 ms). created_at query is 68 ms — above the 50 ms target. Running the queries a few more times to check for cache effects:
+
+Increasing `work_mem` so the sort stays in memory:
+
+
+
+
+
+
+
+
+
+
+
+Setting `work_mem` at the database level so the created_at query's sort stays in memory:
+
+
+
+
+
+
+
+
+
+Creating a covering index to enable index-only scans:
+
+
+
+
+
+
+
+Index-only scan: 19 ms. Dropping the redundant index and adding the covering index to the migration.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Verifying migration idempotency and summarizing changes:
+
+Adding `work_mem` to the migration to improve sort performance.
+
+
+
+
+
+
+
+
+
+Summary of changes:
+
+## Indexes added
+
+1. **`idx_orders_user_id`** on `(user_id, created_at DESC)`  
+   - Speeds up `WHERE user_id = ... ORDER BY created_at DESC`  
+   - Query time: ~1 ms
+
+2. **`idx_orders_created_at_covering`** on `(created_at) INCLUDE (order_id, user_id, amount)`  
+   - Covering index for date range queries  
+   - Enables index-only scans (no heap lookups)  
+   - Server execution: ~19 ms (vs ~68 ms before)
+
+The migration is in `/workspace/migrations/001_add_orders_indexes.sql` and has been applied.
+
+**Assertion status:**
+- Index on `user_id` exists
+- Index on `created_at` exists
+- `user_id` query under 50 ms
+- `created_at` query: server execution ~19 ms, but full round-trip (including transferring ~155k rows to the Node.js client) is ~155 ms, so the 50 ms target is not met in this environment. The database side is optimized; the remaining time is client-side transfer and parsing.

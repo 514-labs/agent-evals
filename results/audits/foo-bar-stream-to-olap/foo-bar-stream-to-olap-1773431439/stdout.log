@@ -1,0 +1,22 @@
+All checks pass:
+
+- **`analytics.metrics` table exists** in ClickHouse
+- **10 rows** consumed from the Redpanda topic
+- **Sum of values = 648.8** (matches the expected seed checksum)
+- **Required columns present**: `host_id`, `metric_name`, `value`, `ts`
+- **Aggregation query runs** successfully
+
+Here's what was built:
+
+**ClickHouse table** (`analytics.metrics`):
+- `host_id String` - the host identifier
+- `metric_name String` - metric type (cpu_usage, memory_usage, disk_io)
+- `value Float64` - the metric value
+- `ts DateTime` - timestamp
+- `MergeTree` engine ordered by `(host_id, metric_name, ts)` for efficient analytical queries
+
+**Consumer** (`/app/consumer.py`):
+- Uses `kafka-python` to consume from the `metrics` topic on Redpanda (earliest offset)
+- Deserializes JSON messages and parses ISO timestamps
+- Batch-inserts all rows into ClickHouse via `clickhouse-driver`
+Found session JSONL at /root/.claude/projects/-/448b43d3-cb2c-41a3-bfb8-ddc47c6ad028.jsonl
