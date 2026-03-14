@@ -15,7 +15,9 @@ const SIDECAR_SUFFIXES = [
   ".session.jsonl",
 ];
 const TRACKED_PATTERNS = [
+  "results/*.json",
   "results/**/*.json",
+  "apps/web/data/results/*.json",
   "apps/web/data/results/**/*.json",
   "results/audits/**/*.json",
   "apps/web/data/audits/**/*.json",
