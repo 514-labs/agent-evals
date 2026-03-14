@@ -12,7 +12,11 @@ import { upNext } from "@/flags";
 
 import { ScenarioRegistry } from "@/components/scenario-registry";
 
-export async function ScenarioRegistryBlock() {
+export async function ScenarioRegistryBlock({
+  view,
+}: {
+  view?: "all" | "scenarios" | "harnesses"
+} = {}) {
   const showUpNext = await upNext();
 
   const filteredScenarios = showUpNext
@@ -26,6 +30,7 @@ export async function ScenarioRegistryBlock() {
   return (
     <div className="not-prose">
       <ScenarioRegistry
+        view={view}
         scenarios={filteredScenarios}
         harnesses={harnesses}
         domains={filteredDomains}

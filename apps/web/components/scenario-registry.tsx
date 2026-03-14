@@ -57,6 +57,7 @@ type ScenarioRegistryProps = {
   taskCategories: TaxonomyOption[]
   tiers: TaxonomyOption[]
   startingStates: TaxonomyOption[]
+  view?: "all" | "scenarios" | "harnesses"
 }
 
 const SCRIPT_PREVIEW_LINE_LIMIT = 6
@@ -170,13 +171,16 @@ function scriptPreviewSuffix(truncated: boolean): string {
   return truncated ? "# ...\n" : ""
 }
 
-export function ScenarioRegistry(props: ScenarioRegistryProps) {
+export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryProps) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()
 
+  const showTabs = view === "all"
   const [tab, setTab] = useState<"scenarios" | "harnesses">(
-    searchParams.get("tab") === "harnesses" ? "harnesses" : "scenarios"
+    view !== "all"
+      ? view
+      : searchParams.get("tab") === "harnesses" ? "harnesses" : "scenarios"
   )
   const [query, setQuery] = useState(searchParams.get("q") ?? "")
   const [selectedDomains, setSelectedDomains] = useState<string[]>(
@@ -211,7 +215,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
   useEffect(() => {
     const params = new URLSearchParams()
 
-    if (tab !== "scenarios") params.set("tab", tab)
+    if (showTabs && tab !== "scenarios") params.set("tab", tab)
     if (query) params.set("q", query)
 
     const setList = (key: string, values: string[]) => {
@@ -237,6 +241,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
     selectedStartingStates,
     selectedTaskCategories,
     selectedTiers,
+    showTabs,
     tab,
   ])
 
@@ -335,31 +340,59 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
   return (
     <div className="space-y-6">
       <div className="border-[3px] border-black p-4 lg:p-5">
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setTab("scenarios")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
-              tab === "scenarios" ? "bg-black text-white border-black" : "bg-white border-black text-black"
-            )}
-          >
-            Scenarios
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("harnesses")}
-            className={cn(
-              "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
-              tab === "harnesses" ? "bg-black text-white border-black" : "bg-white border-black text-black"
-            )}
-          >
-            Harnesses
-          </button>
-          <div className="ml-auto text-xs uppercase tracking-[0.2em] text-black/50">
-            {tab === "scenarios" ? `${filteredScenarios.length} scenarios` : `${filteredHarnesses.length} harnesses`}
+        {showTabs ? (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setTab("scenarios")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
+                tab === "scenarios" ? "bg-black text-white border-black" : "bg-white border-black text-black"
+              )}
+            >
+              Scenarios
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("harnesses")}
+              className={cn(
+                "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
+                tab === "harnesses" ? "bg-black text-white border-black" : "bg-white border-black text-black"
+              )}
+            >
+              Harnesses
+            </button>
+            <div className="ml-auto text-xs uppercase tracking-[0.2em] text-black/50">
+              {tab === "scenarios" ? `${filteredScenarios.length} scenarios` : `${filteredHarnesses.length} harnesses`}
+            </div>
           </div>
-        </div>
+        ) : tab === "scenarios" ? (
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="text-xs font-bold uppercase tracking-[0.2em]">
+                {filteredScenarios.length} scenarios
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40">
+                {props.scenarios.filter((s) => s.tier === "tier-1").length} Tier 1
+                {" / "}
+                {props.scenarios.filter((s) => s.tier === "tier-2").length} Tier 2
+                {" / "}
+                {props.scenarios.filter((s) => s.tier === "tier-3").length} Tier 3
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40">
+                {props.scenarios.filter((s) => s.startingState === "greenfield").length} Greenfield
+                {" / "}
+                {props.scenarios.filter((s) => s.startingState === "broken").length} Broken
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center mb-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-black/50">
+              {`${filteredHarnesses.length} harnesses`}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Input
@@ -377,19 +410,19 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                   type="button"
                   className={cn(
                     "h-9 shrink-0 px-3 text-xs font-bold uppercase tracking-[0.2em] border-[2px] transition-colors",
-                    activeFilterCount > 0
+                    (selectedDomains.length + selectedCompetencies.length + selectedFeatures.length + selectedTaskCategories.length) > 0
                       ? "bg-[#FF10F0] border-black text-black"
                       : "bg-white border-black text-black hover:bg-black hover:text-white"
                   )}
                 >
-                  Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                  More{(selectedDomains.length + selectedCompetencies.length + selectedFeatures.length + selectedTaskCategories.length) > 0 ? ` (${selectedDomains.length + selectedCompetencies.length + selectedFeatures.length + selectedTaskCategories.length})` : ""}
                 </button>
               </SheetTrigger>
               <SheetContent side="right" className="overflow-y-auto">
                 <SheetHeader>
                   <div className="flex items-center justify-between pr-8">
                     <SheetTitle className="text-sm font-bold uppercase tracking-[0.2em]">
-                      Filters
+                      More Filters
                     </SheetTitle>
                     <button
                       type="button"
@@ -437,30 +470,6 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                     ))}
                   </FilterSection>
 
-                  <FilterSection label="Tier">
-                    {props.tiers.map((option) => (
-                      <FilterChip
-                        key={option.slug}
-                        label={option.label}
-                        active={selectedTiers.includes(option.slug)}
-                        onClick={() => toggle(selectedTiers, option.slug, setSelectedTiers)}
-                      />
-                    ))}
-                  </FilterSection>
-
-                  <FilterSection label="Starting State">
-                    {props.startingStates.map((option) => (
-                      <FilterChip
-                        key={option.slug}
-                        label={option.label}
-                        active={selectedStartingStates.includes(option.slug)}
-                        onClick={() =>
-                          toggle(selectedStartingStates, option.slug, setSelectedStartingStates)
-                        }
-                      />
-                    ))}
-                  </FilterSection>
-
                   <FilterSection label="Task Category">
                     {props.taskCategories.map((option) => (
                       <FilterChip
@@ -478,96 +487,120 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
             </Sheet>
           )}
         </div>
+
+        {tab === "scenarios" && (
+          <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40 mr-1">Tier</span>
+              {props.tiers.map((option) => (
+                <FilterChip
+                  key={option.slug}
+                  label={option.label}
+                  active={selectedTiers.includes(option.slug)}
+                  onClick={() => toggle(selectedTiers, option.slug, setSelectedTiers)}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40 mr-1">State</span>
+              {props.startingStates.map((option) => (
+                <FilterChip
+                  key={option.slug}
+                  label={option.label}
+                  active={selectedStartingStates.includes(option.slug)}
+                  onClick={() =>
+                    toggle(selectedStartingStates, option.slug, setSelectedStartingStates)
+                  }
+                />
+              ))}
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={clearScenarioFilters}
+                className="text-[10px] uppercase tracking-[0.15em] text-black/40 hover:text-black ml-auto"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {tab === "scenarios" && (
-        <div className="space-y-4">
-          <div className="grid gap-3">
-            {filteredScenarios.map((scenario) => {
-              const key = `scenario:${scenario.id}`
-              const expanded = expandedId === key
-              return (
-                <Card key={scenario.id} className="border-[2px] border-black/20 rounded-none shadow-none">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <CardTitle className="font-[family-name:var(--font-display)] uppercase tracking-tight text-2xl">
-                          <Link href={`/audit/${scenario.id}`} className="hover:underline">
-                            {scenario.title}
+        <div className="grid gap-3">
+          {filteredScenarios.map((scenario) => {
+            const key = `scenario:${scenario.id}`
+            const expanded = expandedId === key
+            return (
+              <div
+                key={scenario.id}
+                className="border-t border-black/10 first:border-t-0 py-4"
+              >
+                <Link
+                  href={`/audit/${scenario.id}`}
+                  className="text-sm font-bold uppercase tracking-[0.05em] hover:underline"
+                >
+                  {scenario.title}
+                </Link>
+                <p className="mt-1 text-sm leading-relaxed text-black/50">
+                  {scenario.description}
+                </p>
+                <p className="mt-1.5 text-xs text-black/35">
+                  {optionLabel(props.tiers, scenario.tier)}
+                  {" · "}
+                  {scenario.startingState === "broken" ? "Starts broken" : "Starts clean"}
+                  {" · "}
+                  {scenario.taskCount} {scenario.taskCount === 1 ? "task" : "tasks"}
+                  {" · "}
+                  {scenario.services.join(", ")}
+                  {" · "}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : key)}
+                    className="underline decoration-black/20 hover:decoration-black hover:text-black transition-colors"
+                  >
+                    {expanded ? "hide details" : "details"}
+                  </button>
+                </p>
+
+                {expanded && (
+                  <div className="mt-3 pl-0 space-y-2 text-xs text-black/45">
+                    <p>
+                      <span className="text-black/30">Competencies: </span>
+                      {scenario.competencies.map((slug, i) => (
+                        <span key={slug}>
+                          {i > 0 && ", "}
+                          <Link
+                            href={`/docs/evals/competencies/${slug}`}
+                            className="underline decoration-black/15 hover:decoration-black hover:text-black transition-colors"
+                          >
+                            {optionLabel(props.competencies, slug)}
                           </Link>
-                        </CardTitle>
-                        <CardDescription className="mt-1 text-sm leading-relaxed text-black/60 max-w-2xl">
-                          {scenario.description}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/audit/${scenario.id}`}
-                          className="text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-[#FF10F0]"
-                        >
-                          Audit
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedId(expanded ? null : key)}
-                          className="text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-2 py-1 hover:bg-black hover:text-white"
-                        >
-                          {expanded ? "Close" : "Details"}
-                        </button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline">{optionLabel(props.domains, scenario.domain)}</Badge>
-                      <Badge variant="outline">{optionLabel(props.tiers, scenario.tier)}</Badge>
-                      <Badge variant="outline">
-                        {optionLabel(props.startingStates, scenario.startingState)}
-                      </Badge>
-                      <Badge variant="outline">{scenario.taskCount} tasks</Badge>
-                    </div>
-
-                    <div className="text-sm text-black/65">Harnesses: {scenario.harnesses.join(", ")}</div>
-
-                    {expanded && (
-                      <div className="pt-2 border-t border-black/10 space-y-2">
-                        <p className="text-xs uppercase tracking-[0.16em] text-black/45">
-                          Competencies
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {scenario.competencies.map((slug) => (
+                        </span>
+                      ))}
+                    </p>
+                    {scenario.features.length > 0 && (
+                      <p>
+                        <span className="text-black/30">Features: </span>
+                        {scenario.features.map((slug, i) => (
+                          <span key={slug}>
+                            {i > 0 && ", "}
                             <Link
-                              key={slug}
-                              href={`/docs/evals/competencies/${slug}`}
-                              className="text-xs uppercase tracking-[0.14em] border-[2px] border-black/20 px-2 py-1 hover:border-black"
-                            >
-                              {optionLabel(props.competencies, slug)}
-                            </Link>
-                          ))}
-                        </div>
-
-                        <p className="text-xs uppercase tracking-[0.16em] text-black/45">Features</p>
-                        <div className="flex flex-wrap gap-2">
-                          {scenario.features.map((slug) => (
-                            <Link
-                              key={slug}
                               href={`/docs/evals/features/${slug}`}
-                              className="text-xs uppercase tracking-[0.14em] border-[2px] border-black/20 px-2 py-1 hover:border-black"
+                              className="underline decoration-black/15 hover:decoration-black hover:text-black transition-colors"
                             >
                               {optionLabel(props.features, slug)}
                             </Link>
-                          ))}
-                        </div>
-
-                        <p className="text-xs uppercase tracking-[0.16em] text-black/45">Services</p>
-                        <div className="text-sm text-black/65">{scenario.services.join(", ")}</div>
-                      </div>
+                          </span>
+                        ))}
+                      </p>
                     )}
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -581,7 +614,7 @@ export function ScenarioRegistry(props: ScenarioRegistryProps) {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <CardTitle className="font-[family-name:var(--font-display)] uppercase tracking-tight text-2xl">
+                      <CardTitle className="text-sm font-bold uppercase tracking-[0.05em]">
                         {harness.title}
                       </CardTitle>
                       <CardDescription className="mt-1 text-sm leading-relaxed text-black/60 max-w-2xl">
