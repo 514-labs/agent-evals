@@ -44,6 +44,15 @@ function formatScenarioName(id: string): string {
     .toUpperCase();
 }
 
+function getLeaderboardEntryKey(entry: {
+  scenario: string;
+  run_id?: string;
+  result_file?: string;
+  rank: number;
+}): string {
+  return `${entry.scenario}-${entry.run_id ?? entry.result_file ?? entry.rank}`;
+}
+
 function EmptyState() {
   return (
     <div className="py-24 text-center">
@@ -158,7 +167,7 @@ export default async function LeaderboardPage({
 
             return (
               <div
-                key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
+                key={getLeaderboardEntryKey(entry)}
                 className={`border-[3px] border-black p-6 ${
                   i === 0
                     ? "bg-[#FF10F0] md:row-start-1"
@@ -258,7 +267,7 @@ export default async function LeaderboardPage({
 
                 return (
               <TableRow
-                key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
+                key={getLeaderboardEntryKey(entry)}
                 className={`border-b border-black/10 hover:bg-[#FF10F0]/5 transition-colors ${
                   entry.rank === 1 ? "bg-[#FF10F0]/[0.03]" : ""
                 }`}
