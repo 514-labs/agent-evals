@@ -3,6 +3,8 @@ import "server-only";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
+import { isCanonicalResultFile } from "./result-files";
+
 export type GateResult = {
   passed: boolean;
   score: number;
@@ -57,27 +59,12 @@ export type LeaderboardEntry = EvalResult & {
   rank: number;
 };
 
-const SIDECAR_SUFFIXES = [
-  ".agent-raw.json",
-  ".trace.json",
-  ".assertion-log.json",
-  ".run-meta.json",
-  ".session.jsonl",
-  ".infra.stdout",
-  ".stdout",
-  ".stderr",
-];
-
 const DEFAULT_EFFICIENCY: EvalResult["efficiency"] = {
   wallClockSeconds: 0,
   agentSteps: 0,
   tokensUsed: 0,
   llmApiCostUsd: 0,
 };
-
-function isSidecarFile(name: string): boolean {
-  return SIDECAR_SUFFIXES.some((suffix) => name.endsWith(suffix));
-}
 
 function resolveResultsDir(): string | null {
   const explicitDir = process.env.DEC_BENCH_RESULTS_DIR?.trim();
@@ -110,14 +97,7 @@ function collectResultFiles(dir: string): string[] {
       continue;
     }
     if (!entry.isFile()) continue;
-    if (
-      !entry.name.endsWith(".json") &&
-      !entry.name.endsWith(".stdout.log") &&
-      !/-run\d*\.log$/i.test(entry.name)
-    ) {
-      continue;
-    }
-    if (isSidecarFile(entry.name)) continue;
+    if (!isCanonicalResultFile(entry.name)) continue;
     files.push(absolutePath);
   }
 
