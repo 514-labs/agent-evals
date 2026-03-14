@@ -27,7 +27,7 @@ Scenario-level run index used for static route generation.
       "model": "claude-sonnet-4-20250514",
       "version": "v1.0.0",
       "highestGate": 4,
-      "normalizedScore": 1,
+      "normalizedScore": 0.95,
       "availableLogs": 2
     }
   ]
@@ -49,7 +49,7 @@ Run-level metadata and file references.
   "model": "claude-sonnet-4-20250514",
   "version": "v1.0.0",
   "highestGate": 4,
-  "normalizedScore": 1,
+  "normalizedScore": 0.95,
   "efficiency": {
     "wallClockSeconds": 150,
     "agentSteps": 0,

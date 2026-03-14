@@ -491,12 +491,18 @@ export default async function ScenarioAuditRunPage({
                 Run Metrics
               </span>
               <span className="text-xs uppercase tracking-[0.14em] text-white/70">
-                {scorePercent}% score
+                {scorePercent}% gated score
               </span>
             </div>
             <RunMetricsGrid
               metrics={[
-                { label: "Score", value: `${scorePercent}%`, accent: scorePercent >= 80, description: "Weighted score across all gate assertions. 100% means every assertion in every gate passed." },
+                {
+                  label: "Gated Score",
+                  value: `${scorePercent}%`,
+                  accent: scorePercent >= 80,
+                  description:
+                    "Gate-banded score. Each cleared gate contributes its full band, and a failed gate lands within its own band based on passed core and scenario assertions. 100% means every gate passed.",
+                },
                 { label: "Gate", value: String(manifest.highestGate), accent: manifest.highestGate >= 4, description: "Highest quality gate passed (1 = Functional, 2 = Correct, 3 = Robust, 4 = Performant, 5 = Production). Gates are sequential — a higher gate means all lower gates also passed." },
                 { label: "Assertions", value: `${passedAssertions}/${totalAssertions}`, accent: passedAssertions === totalAssertions, description: "Number of individual test assertions that passed out of the total. Each gate contains multiple assertions that verify specific behaviors.", dividerAfter: true },
                 { label: "Runtime", value: formatDuration(manifest.efficiency.wallClockSeconds), accent: false, description: "Total wall-clock time from when the agent started to when it finished, including all tool execution and waiting." },

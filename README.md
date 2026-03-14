@@ -138,7 +138,7 @@ DEC Bench uses a gated assertion model with five sequential gates:
 4. Performant
 5. Production
 
-A run only reaches the next gate after it clears the previous one. Efficiency metrics such as wall-clock time, agent steps, tokens, and API cost act as tiebreakers. They do not inflate the gate score.
+A run only reaches the next gate after it clears the previous one. `highest_gate` is the primary rank signal. `normalized_score` is a gate-banded score: each cleared gate contributes its full band, and a failed gate lands within its own band based on how many core plus scenario assertions passed in that gate. Efficiency metrics such as wall-clock time, agent steps, tokens, and API cost act as tiebreakers. They do not inflate the gate score.
 
 ## Data Stack
 

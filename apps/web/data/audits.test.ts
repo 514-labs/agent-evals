@@ -41,7 +41,7 @@ test("audit loaders index manifests and read log chunks", () => {
           model: "claude-sonnet-4-20250514",
           version: "v1.0.0",
           highestGate: 4,
-          normalizedScore: 1,
+          normalizedScore: 0.95,
           efficiency: {
             wallClockSeconds: 12,
             agentSteps: 34,
@@ -53,7 +53,12 @@ test("audit loaders index manifests and read log chunks", () => {
             correct: { passed: true, score: 1, core: {}, scenario: {} },
             robust: { passed: true, score: 1, core: {}, scenario: {} },
             performant: { passed: true, score: 1, core: {}, scenario: {} },
-            production: { passed: false, score: 0.5, core: {}, scenario: {} },
+            production: {
+              passed: false,
+              score: 1,
+              core: { uses_env_vars: false, no_secrets_in_code: true },
+              scenario: { connection_env_vars_available: true, no_temporary_tables: true },
+            },
           },
           logs: [
             {
@@ -112,10 +117,12 @@ test("audit loaders index manifests and read log chunks", () => {
     assert.ok(index);
     assert.equal(index?.runs.length, 1);
     assert.equal(index?.runs[0]?.runId, runId);
+    assert.equal(index?.runs[0]?.normalizedScore, 0.95);
 
     const manifest = getAuditRunManifest(scenario, runId);
     assert.ok(manifest);
     assert.equal(manifest?.logs.length, 2);
+    assert.equal(manifest?.normalizedScore, 0.95);
 
     const resolved = resolveAuditLogPath(scenario, runId, "stdout");
     assert.ok(resolved);

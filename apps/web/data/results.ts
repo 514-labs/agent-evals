@@ -68,6 +68,13 @@ const SIDECAR_SUFFIXES = [
   ".stderr",
 ];
 
+const DEFAULT_EFFICIENCY: EvalResult["efficiency"] = {
+  wallClockSeconds: 0,
+  agentSteps: 0,
+  tokensUsed: 0,
+  llmApiCostUsd: 0,
+};
+
 function isSidecarFile(name: string): boolean {
   return SIDECAR_SUFFIXES.some((suffix) => name.endsWith(suffix));
 }
@@ -193,6 +200,7 @@ function loadResults(): EvalResult[] {
           scenario,
           run_id: runId,
           result_file: fileName,
+          efficiency: parsed.efficiency ?? DEFAULT_EFFICIENCY,
         });
       }
     } catch {

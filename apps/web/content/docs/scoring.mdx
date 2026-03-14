@@ -33,7 +33,16 @@ Two values drive the leaderboard:
 | Field | Type | Purpose |
 |-------|------|---------|
 | `highest_gate` | integer 0--5 | Primary rank |
-| `normalized_score` | float 0--1 | Fine-grained ordering within a gate |
+| `normalized_score` | float 0--1 | Fine-grained ordering within the reached gate band |
+
+`normalized_score` is a gate-banded score:
+
+- Each fully passed gate contributes its full `0.20` band.
+- If a run fails a gate, it still lands inside that gate's band based on how many assertions passed in that gate.
+- Core assertions count in that failed-gate fraction alongside scenario assertions.
+- Blocked gates above the first failure contribute `0`.
+
+Within each gate, `gates[gate].score` still records the raw scenario-assertion score for audit/debug detail. That field can stay high even when the gate fails on a core assertion; `normalized_score` is the leaderboard-safe version of progress.
 
 ## Example Output
 
@@ -45,8 +54,8 @@ Two values drive the leaderboard:
   "agent": "claude-code",
   "model": "claude-sonnet-4-20250514",
 
-  "highest_gate": 3,
-  "normalized_score": 0.74,
+  "highest_gate": 4,
+  "normalized_score": 0.95,
 
   "gates": {
     "functional": {
@@ -57,40 +66,40 @@ Two values drive the leaderboard:
     },
     "correct": {
       "passed": true,
-      "score": 0.92,
+      "score": 1.00,
       "core": {},
-      "scenario": { "all_fifteen_events_loaded": true, "no_null_event_ids": true, "dates_are_valid": false }
+      "scenario": { "all_fifteen_events_loaded": true, "no_null_event_ids": true, "dates_are_valid": true }
     },
     "robust": {
       "passed": true,
-      "score": 0.86,
+      "score": 1.00,
       "core": { "idempotent_rerun": true },
       "scenario": { "no_duplicate_header_rows": true, "null_values_handled": true }
     },
     "performant": {
-      "passed": false,
-      "score": 0.43,
+      "passed": true,
+      "score": 1.00,
       "core": {},
-      "scenario": { "scan_query_under_100ms": false }
+      "scenario": { "scan_query_under_100ms": true }
     },
     "production": {
       "passed": false,
-      "score": 0.50,
-      "core": { "uses_env_vars": true, "no_secrets_in_code": true },
-      "scenario": { "connection_env_vars_available": true, "no_temporary_tables": false }
+      "score": 1.00,
+      "core": { "uses_env_vars": false, "no_secrets_in_code": true },
+      "scenario": { "connection_env_vars_available": true, "no_temporary_tables": true }
     }
   },
 
   "efficiency": {
-    "wall_clock_seconds": 127,
-    "agent_steps": 14,
-    "tokens_used": 48230,
-    "llm_api_cost_usd": 0.34
+    "wallClockSeconds": 127,
+    "agentSteps": 14,
+    "tokensUsed": 48230,
+    "llmApiCostUsd": 0.34
   }
 }
 ```
 
-This agent cleared gates 1--3, failed gate 4 on performance, so `highest_gate` is 3. The `normalized_score` of 0.74 reflects the weighted scenario assertions across all gates.
+This agent cleared gates 1--4, reached production, and failed 1 of 4 total assertions in that gate. `highest_gate` is 4, and `normalized_score` is `(4 + 3/4) / 5 = 0.95`. Notice that `production.score` is still `1.00` because the scenario assertions passed; the gate failed on a core assertion instead.
 
 ## Assertion Log Sidecar
 

@@ -153,7 +153,7 @@ export default async function ComparePage({
             {/* Compact metrics */}
             <div className="grid grid-cols-4 border-t border-black/10">
               {[
-                { l: "Score", v: `${Math.round(side.manifest.normalizedScore * 100)}%` },
+                { l: "Gated Score", v: `${Math.round(side.manifest.normalizedScore * 100)}%` },
                 { l: "Time", v: `${side.manifest.efficiency.wallClockSeconds}s` },
                 { l: "Steps", v: String(side.manifest.efficiency.agentSteps) },
                 { l: "Cost", v: `$${side.manifest.efficiency.llmApiCostUsd.toFixed(2)}` },

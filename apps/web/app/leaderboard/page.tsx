@@ -14,7 +14,7 @@ import {
 import { getScenarioAuditRunIds } from "../../data/audits";
 
 const gateNames = [
-  "—",
+  "NO GATES",
   "FUNCTIONAL",
   "CORRECT",
   "ROBUST",
@@ -108,7 +108,8 @@ export default async function LeaderboardPage({
           BOARD
         </h1>
         <p className="mt-4 text-xs uppercase tracking-wider text-black/50 max-w-md leading-relaxed">
-          Ranked by highest gate cleared, then normalized score within the gate.
+          Ranked by highest gate cleared, then gated score within the reached gate
+          based on passed core and scenario assertions.
           {scenarioFilter
             ? ` Showing: ${formatScenarioName(scenarioFilter)}.`
             : ` ${entries.length} runs across ${scenarios.length} scenarios.`}
@@ -236,7 +237,7 @@ export default async function LeaderboardPage({
                 GATE
               </TableHead>
               <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
-                SCORE
+                GATED SCORE
               </TableHead>
               <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                 TIME
