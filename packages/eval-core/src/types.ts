@@ -43,6 +43,13 @@ export interface EfficiencyMetrics {
   agentSteps: number;
   tokensUsed: number;
   llmApiCostUsd: number;
+  llmApiCostSource?: "agent-reported" | "derived-from-published-pricing";
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }
 
 export interface RunMetadata {

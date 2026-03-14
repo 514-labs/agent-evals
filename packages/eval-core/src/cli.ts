@@ -34,6 +34,11 @@ async function main(): Promise<void> {
   const agentSteps = parseNumber(process.env.EVAL_AGENT_STEPS, 0);
   const tokensUsed = parseNumber(process.env.EVAL_TOKENS_USED, 0);
   const llmApiCostUsd = parseNumber(process.env.EVAL_LLM_API_COST_USD, 0);
+  const llmApiCostSource =
+    process.env.EVAL_LLM_API_COST_SOURCE === "agent-reported" ||
+    process.env.EVAL_LLM_API_COST_SOURCE === "derived-from-published-pricing"
+      ? process.env.EVAL_LLM_API_COST_SOURCE
+      : undefined;
   const assertionLogPath = process.env.ASSERTION_LOG_PATH ?? "/output/assertion-log.json";
   const runMetadata = parseJsonEnv<{
     persona: string;
@@ -79,6 +84,13 @@ async function main(): Promise<void> {
         agentSteps,
         tokensUsed,
         llmApiCostUsd,
+        llmApiCostSource,
+        inputTokens: parseNumber(process.env.EVAL_INPUT_TOKENS, 0),
+        outputTokens: parseNumber(process.env.EVAL_OUTPUT_TOKENS, 0),
+        cachedInputTokens: parseNumber(process.env.EVAL_CACHED_INPUT_TOKENS, 0),
+        cacheCreationTokens: parseNumber(process.env.EVAL_CACHE_CREATION_TOKENS, 0),
+        cacheReadTokens: parseNumber(process.env.EVAL_CACHE_READ_TOKENS, 0),
+        cacheWriteTokens: parseNumber(process.env.EVAL_CACHE_WRITE_TOKENS, 0),
       },
       baselineMetrics,
       referenceMetrics,

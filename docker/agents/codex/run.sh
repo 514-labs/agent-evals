@@ -122,8 +122,10 @@ meta.usedModelFallback = meta.requestedModel !== meta.selectedModel;
 fs.writeFileSync(runMetaPath, `${JSON.stringify(meta, null, 2)}\n`, "utf8");
 '
 
-printf '%s' "${CODEX_OUTPUT}" | node -e '
-const fs = require("node:fs");
+printf '%s' "${CODEX_OUTPUT}" | SELECTED_CODEX_MODEL="${selected_codex_model}" node --input-type=module -e '
+import fs from "node:fs";
+
+import { deriveLlmMetrics } from "/opt/dec-bench/scripts/llm-pricing.mjs";
 
 const raw = fs.readFileSync(0, "utf8");
 const rawPath = process.env.AGENT_RAW_PATH;
@@ -181,7 +183,9 @@ for (const evt of parsedEvents) {
     inputTokens += toNumber(usage.input_tokens ?? usage.inputTokens);
     outputTokens += toNumber(usage.output_tokens ?? usage.outputTokens);
     cachedInputTokens += toNumber(usage.cached_input_tokens ?? usage.cachedInputTokens);
-    totalCostUsd += toNumber(usage.total_cost_usd ?? usage.totalCostUsd ?? usage.cost_usd);
+    totalCostUsd += toNumber(
+      usage.total_cost_usd ?? usage.totalCostUsd ?? usage.cost_usd ?? usage.costUsd,
+    );
   }
 
   const item = evt?.item;
@@ -206,12 +210,37 @@ if (finalText) {
   }
 }
 
-const metrics = {
-  agentSteps: turnCompleted,
-  tokensUsed: inputTokens + outputTokens + cachedInputTokens,
-  llmApiCostUsd: totalCostUsd,
+const usage = {
+  inputTokens,
+  outputTokens,
+  cachedInputTokens,
+  totalCostUsd,
 };
-fs.writeFileSync(metricsPath, `${JSON.stringify(metrics, null, 2)}\n`, "utf8");
+const metrics = deriveLlmMetrics({
+  model: process.env.SELECTED_CODEX_MODEL ?? process.env.MODEL ?? "gpt-5-codex",
+  usage,
+});
+
+fs.writeFileSync(
+  metricsPath,
+  `${JSON.stringify(
+    {
+      agentSteps: turnCompleted,
+      tokensUsed: metrics.tokensUsed,
+      llmApiCostUsd: metrics.llmApiCostUsd,
+      llmApiCostSource: metrics.llmApiCostSource,
+      inputTokens: metrics.usage.inputTokens,
+      outputTokens: metrics.usage.outputTokens,
+      cachedInputTokens: metrics.usage.cachedInputTokens,
+      cacheCreationTokens: metrics.usage.cacheCreationTokens,
+      cacheReadTokens: metrics.usage.cacheReadTokens,
+      cacheWriteTokens: metrics.usage.cacheWriteTokens,
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
 
 const trace = {
   schemaVersion: "2",
@@ -222,12 +251,7 @@ const trace = {
     turnCompletedCount: turnCompleted,
     assistantMessageCount: assistantMessages.length,
   },
-  usage: {
-    inputTokens,
-    outputTokens,
-    cachedInputTokens,
-    totalCostUsd,
-  },
+  usage: metrics.usage,
   events: traceEvents,
 };
 

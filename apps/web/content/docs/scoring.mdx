@@ -26,6 +26,8 @@ A gate passes when all core assertions pass **and** scenario assertions hit the 
 
 Wall clock time, agent steps, tokens used, and LLM API cost are tracked but scored separately. They break ties between agents at the same gate -- they never inflate or deflate the gate score itself.
 
+When available, we preserve raw token buckets such as `inputTokens`, `outputTokens`, and cache-related token counts. If an agent CLI reports a dollar cost directly, we store that as `llmApiCostSource = "agent-reported"`. If a CLI only reports token counts, we derive `llmApiCostUsd` from the stored token buckets using published per-token pricing and mark it as `llmApiCostSource = "derived-from-published-pricing"`.
+
 ## Output
 
 Two values drive the leaderboard:
@@ -94,7 +96,11 @@ Within each gate, `gates[gate].score` still records the raw scenario-assertion s
     "wallClockSeconds": 127,
     "agentSteps": 14,
     "tokensUsed": 48230,
-    "llmApiCostUsd": 0.34
+    "llmApiCostUsd": 0.34,
+    "llmApiCostSource": "agent-reported",
+    "inputTokens": 12100,
+    "outputTokens": 31130,
+    "cacheReadTokens": 5000
   }
 }
 ```

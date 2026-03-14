@@ -40,9 +40,12 @@ export interface AuditTracePayload {
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
+    cachedInputTokens?: number;
     cacheCreationTokens?: number;
     cacheReadTokens?: number;
+    cacheWriteTokens?: number;
     totalCostUsd?: number;
+    pricingSource?: "agent-reported" | "derived-from-published-pricing";
   };
   events?: AuditTraceEvent[];
 }
@@ -180,6 +183,208 @@ function normalizeCursorToolResult(
   }
 
   return { content, isError };
+}
+
+function formatCodexTodoList(items: unknown): string {
+  if (!Array.isArray(items)) return "";
+  return items
+    .map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const text = typeof (item as { text?: unknown }).text === "string" ? (item as { text: string }).text : "";
+      const completed = Boolean((item as { completed?: unknown }).completed);
+      if (!text) return "";
+      return `${completed ? "[x]" : "[ ]"} ${text}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function formatCodexFileChanges(changes: unknown): string {
+  if (!Array.isArray(changes)) return "";
+  return changes
+    .map((change) => {
+      if (!change || typeof change !== "object") return "";
+      const kind =
+        typeof (change as { kind?: unknown }).kind === "string" ? (change as { kind: string }).kind : "change";
+      const filePath =
+        typeof (change as { path?: unknown }).path === "string" ? (change as { path: string }).path : "";
+      if (!filePath) return "";
+      return `${kind} ${filePath}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function formatCodexTurnUsage(usage: unknown): string {
+  if (!usage || typeof usage !== "object") return "Turn completed.";
+  const usageRecord = usage as Record<string, unknown>;
+  const parts = [
+    typeof usageRecord.input_tokens === "number"
+      ? `input ${usageRecord.input_tokens.toLocaleString()}`
+      : "",
+    typeof usageRecord.cached_input_tokens === "number"
+      ? `cached ${usageRecord.cached_input_tokens.toLocaleString()}`
+      : "",
+    typeof usageRecord.output_tokens === "number"
+      ? `output ${usageRecord.output_tokens.toLocaleString()}`
+      : "",
+  ].filter(Boolean);
+  return parts.length > 0 ? `Turn completed. ${parts.join(" · ")}` : "Turn completed.";
+}
+
+function normalizeCodexTrace(trace: AuditTracePayload): AuditTracePayload {
+  const events = trace.events ?? [];
+  if (events.length === 0) return trace;
+
+  const normalizedEvents = events.flatMap((event) => {
+    const payload = (event as { payload?: Record<string, unknown> }).payload;
+    const payloadType =
+      payload && typeof payload.type === "string" ? payload.type : event.kind;
+    const item =
+      payload && payload.item && typeof payload.item === "object"
+        ? (payload.item as Record<string, unknown>)
+        : null;
+    const itemType = typeof item?.type === "string" ? item.type : "";
+
+    if (payloadType === "thread.started") {
+      return [
+        {
+          ...event,
+          kind: "event",
+          role: "system",
+          content:
+            typeof payload?.thread_id === "string"
+              ? `Thread started: ${payload.thread_id}`
+              : "Thread started.",
+        },
+      ];
+    }
+
+    if (payloadType === "turn.started") {
+      return [
+        {
+          ...event,
+          kind: "event",
+          role: "system",
+          content: "Turn started.",
+        },
+      ];
+    }
+
+    if (payloadType === "turn.completed") {
+      return [
+        {
+          ...event,
+          kind: "assistant_final",
+          role: "assistant",
+          content: formatCodexTurnUsage(payload?.usage),
+        },
+      ];
+    }
+
+    if (!item) {
+      return [
+        {
+          ...event,
+          kind: "event",
+          content: event.content ?? normalizeTraceText(payload ?? ""),
+        },
+      ];
+    }
+
+    if (itemType === "agent_message") {
+      const content = normalizeTraceText(item.text ?? "");
+      if (content.trim().length === 0) return [];
+      return [
+        {
+          ...event,
+          kind: "assistant_text",
+          role: "assistant",
+          content,
+        },
+      ];
+    }
+
+    if (itemType === "command_execution") {
+      const command = normalizeTraceText(item.command ?? "");
+      const output = normalizeTraceText(item.aggregated_output ?? "");
+      const exitCode = typeof item.exit_code === "number" ? item.exit_code : null;
+      const status = typeof item.status === "string" ? item.status : "";
+      if (payloadType === "item.started") {
+        return [
+          {
+            ...event,
+            kind: "tool_use",
+            role: "assistant",
+            name: "shell",
+            toolName: "shell",
+            toolUseId: typeof item.id === "string" ? item.id : undefined,
+            input: command,
+            content: command,
+          },
+        ];
+      }
+      return [
+        {
+          ...event,
+          kind: "tool_result",
+          role: "tool",
+          name: "shell",
+          toolName: "shell",
+          toolUseId: typeof item.id === "string" ? item.id : undefined,
+          isError: status === "failed" || (exitCode !== null && exitCode !== 0),
+          content:
+            output.trim().length > 0
+              ? output
+              : [
+                  command ? `Command: ${command}` : "",
+                  exitCode !== null ? `Exit code: ${exitCode}` : "",
+                ]
+                  .filter(Boolean)
+                  .join("\n"),
+        },
+      ];
+    }
+
+    if (itemType === "todo_list") {
+      const content = formatCodexTodoList(item.items);
+      if (content.trim().length === 0) return [];
+      return [
+        {
+          ...event,
+          kind: "thinking",
+          role: "assistant",
+          content,
+        },
+      ];
+    }
+
+    if (itemType === "file_change") {
+      const content = formatCodexFileChanges(item.changes);
+      if (content.trim().length === 0) return [];
+      return [
+        {
+          ...event,
+          kind: "event",
+          role: "system",
+          content,
+        },
+      ];
+    }
+
+    return [
+      {
+        ...event,
+        kind: "event",
+        content: event.content ?? normalizeTraceText(item),
+      },
+    ];
+  });
+
+  return {
+    ...trace,
+    events: normalizedEvents,
+  };
 }
 
 function normalizeCursorTrace(trace: AuditTracePayload): AuditTracePayload {
@@ -726,6 +931,9 @@ export function getAuditRunTrace(scenario: string, runId: string): AuditTracePay
     if (!parsed || typeof parsed !== "object") return null;
     if (parsed.source === "cursor-stream-json") {
       return normalizeCursorTrace(parsed);
+    }
+    if (parsed.source === "codex-jsonl") {
+      return normalizeCodexTrace(parsed);
     }
     return parsed;
   } catch {

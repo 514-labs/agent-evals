@@ -52,6 +52,13 @@ export type EvalResult = {
     agentSteps: number;
     tokensUsed: number;
     llmApiCostUsd: number;
+    llmApiCostSource?: "agent-reported" | "derived-from-published-pricing";
+    inputTokens?: number;
+    outputTokens?: number;
+    cachedInputTokens?: number;
+    cacheCreationTokens?: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
   };
 };
 

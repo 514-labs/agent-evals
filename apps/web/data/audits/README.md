@@ -53,8 +53,12 @@ Run-level metadata and file references.
   "efficiency": {
     "wallClockSeconds": 150,
     "agentSteps": 0,
-    "tokensUsed": 0,
-    "llmApiCostUsd": 0
+    "tokensUsed": 48230,
+    "llmApiCostUsd": 0.34,
+    "llmApiCostSource": "agent-reported",
+    "inputTokens": 12100,
+    "outputTokens": 31130,
+    "cacheReadTokens": 5000
   },
   "gates": {},
   "logs": [
@@ -76,3 +80,4 @@ Run-level metadata and file references.
 - Keep large raw output in `.log` files, not in JSON.
 - Use `compression: "gzip"` for `*.log.gz` files.
 - Keep `index.json` and `manifest.json` compact and deterministic to minimize noisy diffs.
+- When a CLI reports token buckets but not dollars, `llmApiCostUsd` may be derived from published per-token pricing. Use `llmApiCostSource` to distinguish derived costs from agent-reported costs.

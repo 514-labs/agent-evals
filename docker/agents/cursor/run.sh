@@ -88,8 +88,10 @@ CURSOR_OUTPUT="$(
 cursor_exit_code=$?
 set -e
 
-printf '%s' "${CURSOR_OUTPUT}" | node -e '
-const fs = require("node:fs");
+printf '%s' "${CURSOR_OUTPUT}" | node --input-type=module -e '
+import fs from "node:fs";
+
+import { deriveLlmMetrics } from "/opt/dec-bench/scripts/llm-pricing.mjs";
 
 const raw = fs.readFileSync(0, "utf8");
 const rawPath = process.env.AGENT_RAW_PATH;
@@ -248,6 +250,10 @@ const extractToolResult = (toolCall) => {
 
 let inputTokens = 0;
 let outputTokens = 0;
+let cachedInputTokens = 0;
+let cacheCreationTokens = 0;
+let cacheReadTokens = 0;
+let cacheWriteTokens = 0;
 let totalCostUsd = 0;
 let agentSteps = 0;
 const assistantMessages = [];
@@ -278,6 +284,18 @@ for (const evt of parsedEvents) {
         usageCandidate.outputTokens ??
         usageCandidate.completion_tokens ??
         usageCandidate.completionTokens
+    );
+    cachedInputTokens += toNumber(
+      usageCandidate.cached_input_tokens ?? usageCandidate.cachedInputTokens
+    );
+    cacheCreationTokens += toNumber(
+      usageCandidate.cache_creation_tokens ?? usageCandidate.cacheCreationTokens
+    );
+    cacheReadTokens += toNumber(
+      usageCandidate.cache_read_tokens ?? usageCandidate.cacheReadTokens
+    );
+    cacheWriteTokens += toNumber(
+      usageCandidate.cache_write_tokens ?? usageCandidate.cacheWriteTokens
     );
     totalCostUsd += toNumber(
       usageCandidate.total_cost_usd ??
@@ -422,12 +440,38 @@ if (finalText) {
   }
 }
 
-const metrics = {
-  agentSteps,
-  tokensUsed: inputTokens + outputTokens,
-  llmApiCostUsd: totalCostUsd,
-};
-fs.writeFileSync(metricsPath, `${JSON.stringify(metrics, null, 2)}\n`, "utf8");
+const metrics = deriveLlmMetrics({
+  model: process.env.MODEL ?? "composer-1.5",
+  usage: {
+    inputTokens,
+    outputTokens,
+    cachedInputTokens,
+    cacheCreationTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    totalCostUsd,
+  },
+});
+fs.writeFileSync(
+  metricsPath,
+  `${JSON.stringify(
+    {
+      agentSteps,
+      tokensUsed: metrics.tokensUsed,
+      llmApiCostUsd: metrics.llmApiCostUsd,
+      llmApiCostSource: metrics.llmApiCostSource,
+      inputTokens: metrics.usage.inputTokens,
+      outputTokens: metrics.usage.outputTokens,
+      cachedInputTokens: metrics.usage.cachedInputTokens,
+      cacheCreationTokens: metrics.usage.cacheCreationTokens,
+      cacheReadTokens: metrics.usage.cacheReadTokens,
+      cacheWriteTokens: metrics.usage.cacheWriteTokens,
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
 
 const trace = {
   schemaVersion: "2",
@@ -437,11 +481,7 @@ const trace = {
     agentSteps,
     assistantMessageCount: assistantMessages.length,
   },
-  usage: {
-    inputTokens,
-    outputTokens,
-    totalCostUsd,
-  },
+  usage: metrics.usage,
   events: traceEvents,
 };
 
