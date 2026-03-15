@@ -16,6 +16,8 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tracing::{info, warn};
 
+use super::preflight;
+
 const SCENARIO_REGISTRY_DIR: &str = "apps/web/data/scenarios";
 const AGENT_STDOUT_START: &str = "__DEC_BENCH_AGENT_STDOUT_START__";
 const AGENT_STDOUT_END: &str = "__DEC_BENCH_AGENT_STDOUT_END__";
@@ -100,10 +102,12 @@ pub enum Parallelism {
 }
 
 pub async fn execute(args: RunArgs) -> Result<()> {
+    preflight::check_docker()?;
+
     if args.matrix {
         let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
         info!("Running full eval matrix");
-        let registry_dir = resolve_repo_path(SCENARIO_REGISTRY_DIR)?;
+        let registry_dir = preflight::resolve_repo_path(SCENARIO_REGISTRY_DIR)?;
         let scenarios = load_registry_scenarios(&registry_dir)?;
         if scenarios.is_empty() {
             bail!("No scenarios found in {}", registry_dir.display());
@@ -192,10 +196,14 @@ async fn run_single(
     persona: Persona,
     mode: PlanMode,
 ) -> Result<()> {
+    preflight::check_api_keys(&args.agent)?;
+
     let image = format!(
         "{}.{}.{}.{}.{}",
         scenario_id, args.harness, args.agent, args.model, args.version
     );
+    preflight::check_image_exists(&image)?;
+
     let timestamp = unix_timestamp();
     let container_name = format!("dec-bench-{}-{}", scenario_id, timestamp);
 
@@ -563,17 +571,6 @@ fn write_result_file(
     fs::write(&output_path, format!("{payload}\n"))
         .with_context(|| format!("Failed to write {}", output_path.display()))?;
     Ok((output_path, run_id))
-}
-
-fn resolve_repo_path(rel: &str) -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to determine current directory")?;
-    for ancestor in cwd.ancestors() {
-        let candidate = ancestor.join(rel);
-        if candidate.exists() || ancestor.join(".git").exists() {
-            return Ok(candidate);
-        }
-    }
-    Ok(cwd.join(rel))
 }
 
 #[derive(Debug, Deserialize)]

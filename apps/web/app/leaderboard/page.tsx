@@ -10,6 +10,7 @@ import {
 import {
   getLeaderboardEntries,
   getUniqueScenarios,
+  getUniqueHarnesses,
 } from "../../data/results";
 import { getScenarioAuditRunIds } from "../../data/audits";
 
@@ -44,6 +45,24 @@ function formatScenarioName(id: string): string {
     .toUpperCase();
 }
 
+function formatScore(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return value.toFixed(2);
+}
+
+function formatTime(seconds: number | null | undefined): string {
+  if (seconds == null || seconds === 0) return "—";
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
+
+function formatCost(usd: number | null | undefined): string {
+  if (usd == null || usd === 0) return "—";
+  return `$${usd.toFixed(2)}`;
+}
+
 function getLeaderboardEntryKey(entry: {
   scenario: string;
   run_id?: string;
@@ -51,6 +70,34 @@ function getLeaderboardEntryKey(entry: {
   rank: number;
 }): string {
   return `${entry.scenario}-${entry.run_id ?? entry.result_file ?? entry.rank}`;
+}
+
+function FilterChip({ href, active, label }: { href: string; active: boolean; label: string }) {
+  return (
+    <Link
+      href={href}
+      className={`text-xs uppercase tracking-[0.15em] px-3 py-1.5 border-[2px] transition-colors ${
+        active
+          ? "border-black bg-black text-white"
+          : "border-black/30 text-black/50 hover:border-black hover:text-black"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+function buildFilterUrl(
+  current: { scenario?: string; agent?: string; harness?: string },
+  override: Partial<{ scenario: string | undefined; agent: string | undefined; harness: string | undefined }>,
+): string {
+  const params = new URLSearchParams();
+  const merged = { ...current, ...override };
+  if (merged.scenario) params.set("scenario", merged.scenario);
+  if (merged.agent) params.set("agent", merged.agent);
+  if (merged.harness) params.set("harness", merged.harness);
+  const qs = params.toString();
+  return qs ? `/leaderboard?${qs}` : "/leaderboard";
 }
 
 function EmptyState() {
@@ -86,19 +133,29 @@ function EmptyState() {
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ scenario?: string }>;
+  searchParams: Promise<{ scenario?: string; agent?: string; harness?: string }>;
 }) {
-  const { scenario: scenarioFilter } = await searchParams;
+  const { scenario: scenarioFilter, agent: agentFilter, harness: harnessFilter } = await searchParams;
   const allEntries = getLeaderboardEntries();
   const scenarios = getUniqueScenarios();
+  const harnesses = getUniqueHarnesses();
+  const agents = [...new Set(allEntries.map((e) => e.agent))].sort();
+
+  const currentFilters = { scenario: scenarioFilter, agent: agentFilter, harness: harnessFilter };
+  const filterUrl = (override: Partial<typeof currentFilters>) => buildFilterUrl(currentFilters, override);
 
   if (allEntries.length === 0) {
     return <EmptyState />;
   }
 
-  const entries = scenarioFilter
+  const hasFilter = scenarioFilter || agentFilter || harnessFilter;
+  const entries = hasFilter
     ? allEntries
-        .filter((e) => e.scenario === scenarioFilter)
+        .filter((e) =>
+          (!scenarioFilter || e.scenario === scenarioFilter) &&
+          (!agentFilter || e.agent === agentFilter) &&
+          (!harnessFilter || e.harness === harnessFilter)
+        )
         .map((e, i) => ({ ...e, rank: i + 1 }))
     : allEntries;
 
@@ -119,40 +176,42 @@ export default async function LeaderboardPage({
         <p className="mt-4 text-xs uppercase tracking-wider text-black/50 max-w-md leading-relaxed">
           Ranked by highest gate cleared, then gated score within the reached gate
           based on passed core and scenario assertions.
-          {scenarioFilter
-            ? ` Showing: ${formatScenarioName(scenarioFilter)}.`
+          {hasFilter
+            ? ` Showing ${entries.length} runs.`
             : ` ${entries.length} runs across ${scenarios.length} scenarios.`}
         </p>
       </div>
 
-      {/* Scenario filter */}
-      {scenarios.length > 1 && (
-        <div className="mb-8 flex flex-wrap gap-2">
-          <Link
-            href="/leaderboard"
-            className={`text-xs uppercase tracking-[0.15em] px-3 py-1.5 border-[2px] transition-colors ${
-              !scenarioFilter
-                ? "border-black bg-black text-white"
-                : "border-black/30 text-black/50 hover:border-black hover:text-black"
-            }`}
-          >
-            ALL
-          </Link>
-          {scenarios.map((s) => (
-            <Link
-              key={s}
-              href={`/leaderboard?scenario=${s}`}
-              className={`text-xs uppercase tracking-[0.15em] px-3 py-1.5 border-[2px] transition-colors ${
-                scenarioFilter === s
-                  ? "border-black bg-black text-white"
-                  : "border-black/30 text-black/50 hover:border-black hover:text-black"
-              }`}
-            >
-              {formatScenarioName(s)}
-            </Link>
-          ))}
-        </div>
-      )}
+      {/* Filters */}
+      <div className="mb-8 space-y-3">
+        {agents.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/40 w-20">Agent</span>
+            <FilterChip href={filterUrl({ agent: undefined })} active={!agentFilter} label="ALL" />
+            {agents.map((a) => (
+              <FilterChip key={a} href={filterUrl({ agent: a })} active={agentFilter === a} label={a} />
+            ))}
+          </div>
+        )}
+        {harnesses.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/40 w-20">Harness</span>
+            <FilterChip href={filterUrl({ harness: undefined })} active={!harnessFilter} label="ALL" />
+            {harnesses.map((h) => (
+              <FilterChip key={h} href={filterUrl({ harness: h })} active={harnessFilter === h} label={h} />
+            ))}
+          </div>
+        )}
+        {scenarios.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/40 w-20">Scenario</span>
+            <FilterChip href={filterUrl({ scenario: undefined })} active={!scenarioFilter} label="ALL" />
+            {scenarios.map((s) => (
+              <FilterChip key={s} href={filterUrl({ scenario: s })} active={scenarioFilter === s} label={formatScenarioName(s)} />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Podium -- Top 3 */}
       {top3.length >= 3 && (
@@ -269,7 +328,7 @@ export default async function LeaderboardPage({
               <TableRow
                 key={getLeaderboardEntryKey(entry)}
                 className={`border-b border-black/10 hover:bg-[#FF10F0]/5 transition-colors ${
-                  entry.rank === 1 ? "bg-[#FF10F0]/[0.03]" : ""
+                  entry.rank === 1 ? "bg-[#FF10F0]/3" : ""
                 }`}
               >
                 <TableCell className="pl-6">
@@ -303,17 +362,17 @@ export default async function LeaderboardPage({
                       entry.rank === 1 ? "text-[#FF10F0]" : ""
                     }`}
                   >
-                    {entry.normalized_score.toFixed(2)}
+                    {formatScore(entry.normalized_score)}
                   </span>
                 </TableCell>
                 <TableCell>
                   <span className="text-xs tabular-nums text-black/50">
-                    {entry.efficiency.wallClockSeconds}s
+                    {formatTime(entry.efficiency?.wallClockSeconds)}
                   </span>
                 </TableCell>
                 <TableCell className="pr-6">
                   <span className="text-xs tabular-nums text-black/50">
-                    ${entry.efficiency.llmApiCostUsd.toFixed(2)}
+                    {formatCost(entry.efficiency?.llmApiCostUsd)}
                   </span>
                 </TableCell>
               </TableRow>

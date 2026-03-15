@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Nav } from "../components/nav";
 import { Footer } from "../components/footer";
+import { AgentComparison } from "../components/agent-comparison";
 import { upNext } from "../flags";
 
 const gates = [
@@ -310,6 +311,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Agent Comparison */}
+      <AgentComparison />
 
       {/* Scenarios */}
       <section className="relative z-10">

@@ -5,6 +5,8 @@ use anyhow::{bail, Context, Result};
 use clap::Args;
 use serde::{Deserialize, Serialize};
 
+use super::preflight;
+
 const COMPETENCY_SLUGS: [&str; 12] = [
     "environment-setup",
     "data-modeling-and-schema-design",
@@ -131,13 +133,22 @@ pub async fn execute(args: ValidateArgs) -> Result<()> {
 
 fn validate(args: &ValidateArgs) -> Result<ValidationReport> {
     let scenario_dir = resolve_scenario_dir(&args.scenario)?;
-    let repo_root = resolve_repo_root()?;
+    let repo_root = preflight::resolve_repo_root()?;
     validate_with_repo_root(&repo_root, &scenario_dir, args)
 }
 
 #[cfg(test)]
 fn validate_at_dir(scenario_dir: &Path, args: &ValidateArgs) -> Result<ValidationReport> {
-    let repo_root = find_repo_root_from_path(scenario_dir)?;
+    let mut path = scenario_dir;
+    let repo_root = loop {
+        if path.join(".git").exists() {
+            break path.to_path_buf();
+        }
+        match path.parent() {
+            Some(parent) => path = parent,
+            None => bail!("Could not locate repository root from {}", scenario_dir.display()),
+        }
+    };
     validate_with_repo_root(&repo_root, scenario_dir, args)
 }
 
@@ -321,7 +332,7 @@ fn resolve_scenario_dir(input: &str) -> Result<PathBuf> {
         return Ok(raw);
     }
 
-    let repo_root = resolve_repo_root()?;
+    let repo_root = preflight::resolve_repo_root()?;
     let candidate = repo_root.join("scenarios").join(input);
     if candidate.is_dir() {
         return Ok(candidate);
@@ -332,20 +343,6 @@ fn resolve_scenario_dir(input: &str) -> Result<PathBuf> {
         raw.display(),
         candidate.display()
     )
-}
-
-fn resolve_repo_root() -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to determine current directory")?;
-    find_repo_root_from_path(&cwd)
-}
-
-fn find_repo_root_from_path(path: &Path) -> Result<PathBuf> {
-    for ancestor in path.ancestors() {
-        if ancestor.join(".git").exists() {
-            return Ok(ancestor.to_path_buf());
-        }
-    }
-    bail!("Could not locate repository root from {}", path.display())
 }
 
 fn validate_prompt(

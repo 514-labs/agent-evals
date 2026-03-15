@@ -8,6 +8,8 @@ use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use serde::Deserialize;
 
+use super::preflight;
+
 const SCENARIO_OUTPUT_DIR: &str = "apps/web/data/scenarios";
 const HARNESS_OUTPUT_DIR: &str = "apps/web/data/harnesses";
 
@@ -232,7 +234,7 @@ fn add_scenario(args: AddArgs) -> Result<()> {
 
     let out_dir = match args.out {
         Some(path) => path,
-        None => resolve_repo_path(SCENARIO_OUTPUT_DIR)?,
+        None => preflight::resolve_repo_path(SCENARIO_OUTPUT_DIR)?,
     };
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("Failed to create {}", out_dir.display()))?;
@@ -295,7 +297,7 @@ fn add_harness(args: AddArgs) -> Result<()> {
 
     let out_dir = match args.out {
         Some(path) => path,
-        None => resolve_repo_path(HARNESS_OUTPUT_DIR)?,
+        None => preflight::resolve_repo_path(HARNESS_OUTPUT_DIR)?,
     };
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("Failed to create {}", out_dir.display()))?;
@@ -333,8 +335,8 @@ fn execute_publish(args: PublishArgs) -> Result<()> {
     run_checked("gh", &["--version"])?;
     run_checked("gh", &["auth", "status"])?;
 
-    let scenario_file = resolve_repo_path(&format!("{SCENARIO_OUTPUT_DIR}/{}.json", args.id))?;
-    let harness_file = resolve_repo_path(&format!("{HARNESS_OUTPUT_DIR}/{}.json", args.id))?;
+    let scenario_file = preflight::resolve_repo_path(&format!("{SCENARIO_OUTPUT_DIR}/{}.json", args.id))?;
+    let harness_file = preflight::resolve_repo_path(&format!("{HARNESS_OUTPUT_DIR}/{}.json", args.id))?;
 
     let mut files_to_stage: Vec<PathBuf> = vec![];
     let mut entry_kind = "entry";
@@ -400,17 +402,6 @@ fn execute_publish(args: PublishArgs) -> Result<()> {
     println!("Opened PR: {}", pr_url);
 
     Ok(())
-}
-
-fn resolve_repo_path(rel: &str) -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to determine current directory")?;
-    for ancestor in cwd.ancestors() {
-        let candidate = ancestor.join(rel);
-        if candidate.exists() || ancestor.join(".git").exists() {
-            return Ok(candidate);
-        }
-    }
-    Ok(cwd.join(rel))
 }
 
 fn validate_scenario_dir(dir: &Path) -> Result<()> {
