@@ -238,8 +238,9 @@ export default async function HomePage() {
             </Link>
           </div>
           <p className="mt-4 max-w-2xl text-xs uppercase tracking-[0.18em] text-black/50 brutal-fade-in">
-            v0.1 is a research preview. Run Foo Bar locally, share what feels
-            rough, and help shape the next release with new evals and harnesses.
+            v0.1 is a research preview. 37 scenarios, 3 agents, 3 harnesses,
+            5-gate scoring. Run it locally, compare agents, and help shape the
+            next release.
           </p>
         </div>
       </section>
@@ -322,9 +323,9 @@ export default async function HomePage() {
             SCENARIOS
           </h2>
           <p className="mt-3 mb-12 text-sm uppercase tracking-wider text-black/50 max-w-lg">
-            Nine real-world data engineering challenges across ingestion,
-            schema design, query optimization, debugging, and end-to-end
-            pipeline construction.
+            37 data engineering scenarios across ingestion, schema design,
+            query optimization, debugging, fault tolerance, and end-to-end
+            pipeline construction. Here are nine from the Foo Bar domain.
           </p>
 
           <div className="border-[3px] border-black">
