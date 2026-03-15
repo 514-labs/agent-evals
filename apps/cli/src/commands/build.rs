@@ -4,6 +4,8 @@ use std::process::{Command, Stdio};
 use anyhow::{bail, Context, Result};
 use clap::Args;
 
+use super::preflight;
+
 #[derive(Args, Clone, Debug)]
 pub struct BuildArgs {
     /// Scenario ID to build
@@ -44,6 +46,7 @@ struct BuildPlan {
 }
 
 pub async fn execute(args: BuildArgs) -> Result<()> {
+    preflight::check_docker()?;
     let plan = build_plan(&args)?;
 
     if args.dry_run {
@@ -88,27 +91,27 @@ pub async fn execute(args: BuildArgs) -> Result<()> {
 }
 
 fn build_plan(args: &BuildArgs) -> Result<BuildPlan> {
-    let repo_root = resolve_repo_root()?;
+    let repo_root = preflight::resolve_repo_root()?;
     build_plan_at_repo_root(&repo_root, args)
 }
 
 fn build_plan_at_repo_root(repo_root: &Path, args: &BuildArgs) -> Result<BuildPlan> {
     let script_path = repo_root.join("docker/build.sh");
-    ensure_exists(&script_path, "Build helper script")?;
+    preflight::ensure_exists(&script_path, "Build helper script")?;
 
     let scenario_dir = repo_root.join("scenarios").join(&args.scenario);
-    ensure_exists(&scenario_dir, "Scenario directory")?;
+    preflight::ensure_exists(&scenario_dir, "Scenario directory")?;
 
     let harness_json = repo_root
         .join("apps/web/data/harnesses")
         .join(format!("{}.json", args.harness));
-    ensure_exists(&harness_json, "Harness JSON")?;
+    preflight::ensure_exists(&harness_json, "Harness JSON")?;
 
     let agent_run_script = repo_root
         .join("docker/agents")
         .join(&args.agent)
         .join("run.sh");
-    ensure_exists(&agent_run_script, "Agent run script")?;
+    preflight::ensure_exists(&agent_run_script, "Agent run script")?;
 
     let image_tag = format!(
         "{}.{}.{}.{}.{}",
@@ -136,23 +139,6 @@ fn build_plan_at_repo_root(repo_root: &Path, args: &BuildArgs) -> Result<BuildPl
         image_tag,
         command_args,
     })
-}
-
-fn ensure_exists(path: &Path, label: &str) -> Result<()> {
-    if !path.exists() {
-        bail!("{label} does not exist: {}", path.display());
-    }
-    Ok(())
-}
-
-fn resolve_repo_root() -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to determine current directory")?;
-    for ancestor in cwd.ancestors() {
-        if ancestor.join(".git").exists() {
-            return Ok(ancestor.to_path_buf());
-        }
-    }
-    bail!("Could not locate repository root from {}", cwd.display())
 }
 
 #[cfg(test)]
@@ -220,6 +206,6 @@ mod tests {
         let err = build_plan_at_repo_root(temp.path(), &args)
             .expect_err("missing harness should fail");
 
-        assert!(err.to_string().contains("Harness JSON does not exist"));
+        assert!(err.to_string().contains("Harness JSON not found"));
     }
 }

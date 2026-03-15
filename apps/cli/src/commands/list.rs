@@ -1,9 +1,11 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::Deserialize;
+
+use super::preflight;
 
 const SCENARIO_REGISTRY_DIR: &str = "apps/web/data/scenarios";
 
@@ -27,7 +29,7 @@ pub struct ListArgs {
 }
 
 pub async fn execute(args: ListArgs) -> Result<()> {
-    let registry_dir = resolve_repo_path(SCENARIO_REGISTRY_DIR)?;
+    let registry_dir = preflight::resolve_repo_path(SCENARIO_REGISTRY_DIR)?;
     let scenarios = load_scenarios(&registry_dir)?;
 
     println!("Available scenarios:");
@@ -114,21 +116,11 @@ fn load_scenarios(dir: &Path) -> Result<Vec<RegistryScenario>> {
     Ok(scenarios)
 }
 
-fn resolve_repo_path(rel: &str) -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to determine current directory")?;
-    for ancestor in cwd.ancestors() {
-        let candidate = ancestor.join(rel);
-        if candidate.exists() || ancestor.join(".git").exists() {
-            return Ok(candidate);
-        }
-    }
-    Ok(cwd.join(rel))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::PathBuf;
 
     #[test]
     fn load_scenarios_ignores_non_json_and_sorts_ids() {

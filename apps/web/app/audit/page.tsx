@@ -68,9 +68,32 @@ export default function AuditIndexPage() {
       </div>
 
       {scenarios.length === 0 ? (
-        <div className="border-[3px] border-black p-8 text-center">
-          <p className="text-sm uppercase tracking-wider text-black/50">
-            No audit bundles found. Export runs to see them here.
+        <div className="border-[3px] border-black p-10">
+          <p className="text-sm font-bold uppercase tracking-[0.15em] mb-4">
+            No auditable benchmark runs yet
+          </p>
+          <p className="text-sm text-black/60 leading-relaxed max-w-xl mb-6">
+            Audit pages appear after you run a benchmark and export the results.
+            Each export creates an audit bundle with the full agent trace,
+            assertion log, and scoring breakdown.
+          </p>
+          <div className="bg-black/3 border border-black/10 p-4 font-mono text-xs leading-relaxed max-w-lg">
+            <p className="text-black/40 mb-1"># Run a benchmark</p>
+            <p>dec-bench run --scenario &lt;ID&gt;</p>
+            <p className="text-black/40 mt-3 mb-1"># Export the audit bundle</p>
+            <p>dec-bench audit export --results-dir results</p>
+            <p className="text-black/40 mt-3 mb-1"># Or run and open in one step</p>
+            <p>dec-bench audit open --scenario &lt;ID&gt; --run-id &lt;RUN_ID&gt;</p>
+          </div>
+          <p className="text-xs text-black/40 mt-4">
+            See the{" "}
+            <Link
+              href="/docs/running-evals"
+              className="underline hover:text-black transition-colors"
+            >
+              running evals guide
+            </Link>{" "}
+            for the full walkthrough.
           </p>
         </div>
       ) : (

@@ -6,6 +6,8 @@ use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand};
 use tokio::time::{sleep, Duration};
 
+use super::preflight;
+
 #[derive(Args, Clone, Debug)]
 pub struct AuditArgs {
     #[command(subcommand)]
@@ -141,10 +143,11 @@ async fn open(args: OpenArgs) -> Result<()> {
 }
 
 fn run_export(args: &ExportArgs) -> Result<ExportPlan> {
-    let repo_root = resolve_repo_root()?;
+    preflight::check_node()?;
+    let repo_root = preflight::resolve_repo_root()?;
     let web_dir = repo_root.join("apps/web");
     let script_path = web_dir.join("scripts/export-audit-bundles.mjs");
-    ensure_exists(&script_path, "Audit export script")?;
+    preflight::ensure_exists(&script_path, "Audit export script")?;
 
     let results_dir = resolve_results_dir(&repo_root, &args.results_dir)?;
     let audits_dir = resolve_audits_dir(&repo_root, &results_dir, args.audits_dir.as_ref());
@@ -214,16 +217,6 @@ fn run_export(args: &ExportArgs) -> Result<ExportPlan> {
     })
 }
 
-fn resolve_repo_root() -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to determine current directory")?;
-    for ancestor in cwd.ancestors() {
-        if ancestor.join(".git").exists() {
-            return Ok(ancestor.to_path_buf());
-        }
-    }
-    bail!("Could not locate repository root from {}", cwd.display())
-}
-
 fn resolve_results_dir(repo_root: &Path, input: &str) -> Result<PathBuf> {
     let raw = PathBuf::from(input);
     let resolved = if raw.is_absolute() { raw } else { repo_root.join(raw) };
@@ -247,13 +240,6 @@ fn resolve_path(repo_root: &Path, path: &Path) -> PathBuf {
     } else {
         repo_root.join(path)
     }
-}
-
-fn ensure_exists(path: &Path, label: &str) -> Result<()> {
-    if !path.exists() {
-        bail!("{label} does not exist: {}", path.display());
-    }
-    Ok(())
 }
 
 fn is_port_open(port: u16) -> bool {
