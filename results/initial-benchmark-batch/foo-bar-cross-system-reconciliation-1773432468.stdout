@@ -1,0 +1,98 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Creating the reconciliation job and checking the workspace structure:
+
+
+
+
+
+
+
+
+
+
+
+
+
+Reconciliation job ran and detected drift. Adding a run script and verifying the full flow:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Summary of what was added:
+
+## Reconciliation job
+
+**`/workspace/reconcile.py`** – Python script that:
+
+1. **Postgres** – Counts rows in `app.transactions` via `POSTGRES_URL`
+2. **Redpanda** – Counts messages in the `transactions` topic via `REDPANDA_BROKER` (Kafka high-watermark offsets)
+3. **ClickHouse** – Counts rows in `analytics.transactions` via `CLICKHOUSE_URL`
+
+It compares the three counts and reports any drift.
+
+**`/workspace/run_reconcile.sh`** – Wrapper script to run the job.
+
+### Usage
+
+```bash
+# With env vars set (POSTGRES_URL, REDPANDA_BROKER, CLICKHOUSE_URL)
+./run_reconcile.sh
+
+# Or directly
+python3 reconcile.py
+```
+
+### Example output
+
+When drift is present:
+
+```
+Reconciliation Report
+==================================================
+  Postgres:   10
+  Redpanda:   0
+  ClickHouse: 0
+
+DRIFT DETECTED:
+  - Postgres (10) != Redpanda (0)
+  - Postgres (10) != ClickHouse (0)
+```
+
+When counts match:
+
+```
+OK: All counts match.
+```
+
+The script exits with code 0 when counts match and code 1 when drift is detected, so it can be used in monitoring or CI.

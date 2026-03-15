@@ -6,18 +6,25 @@ import { File, Folder, Files } from "fumadocs-ui/components/files"
 
 import { DocsToc, TocAnchorProvider } from "@/components/docs-toc"
 import { EmptyState } from "@/components/empty-state"
+import { HarnessShowcaseBlock } from "@/components/harness-showcase-block"
 import { RoadmapTimeline } from "@/components/roadmap-timeline"
 import { ScenarioRegistryBlock } from "@/components/scenario-registry-block"
 import { docsSource } from "@/lib/source"
 import { useMDXComponents } from "@/mdx-components"
+
+function ScenariosRegistryBlock() {
+  return <ScenarioRegistryBlock view="scenarios" />
+}
 
 const mdxComponents = useMDXComponents({
   EmptyState,
   File,
   Files,
   Folder,
+  HarnessShowcase: HarnessShowcaseBlock,
   RoadmapTimeline,
   ScenarioRegistry: ScenarioRegistryBlock,
+  ScenariosRegistry: ScenariosRegistryBlock,
 })
 
 export function generateStaticParams() {

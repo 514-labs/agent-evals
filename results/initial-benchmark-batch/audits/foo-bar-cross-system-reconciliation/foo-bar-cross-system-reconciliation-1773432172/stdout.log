@@ -1,0 +1,17 @@
+Everything is aligned. Here's what was built:
+
+**`/opt/reconciliation/sync_pg_to_redpanda.py`** - Reads all rows from `app.transactions` in Postgres and produces them as JSON messages to the Redpanda `transactions` topic.
+
+**`/opt/reconciliation/sync_redpanda_to_clickhouse.py`** - Consumes messages from the Redpanda `transactions` topic and inserts each row into ClickHouse `analytics.transactions`.
+
+**`/opt/reconciliation/reconcile.py`** - The reconciliation job that:
+- Queries Postgres for row count and amount sum
+- Queries Redpanda for total message count across all partitions (using offset arithmetic, no re-consumption)
+- Queries ClickHouse for row count and amount sum
+- Compares all three systems pairwise for **count drift** (PG vs Redpanda, PG vs CH, Redpanda vs CH)
+- Compares PG vs CH for **checksum drift** (sum of amounts)
+- Outputs a structured JSON report with status `OK` or `DRIFT_DETECTED`
+- Exits non-zero if any drift is found
+
+**Current state:** All three systems have 10 transactions with a matching sum of ~363.42. Reconciliation reports `OK`.
+Found session JSONL at /root/.claude/projects/-/ee8b5bbd-bdc5-4873-922d-c3efb46adf95.jsonl

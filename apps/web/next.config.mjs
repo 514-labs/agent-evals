@@ -6,6 +6,15 @@ const withMDX = createMDX()
 const nextConfig = {
   transpilePackages: ["@workspace/ui"],
   serverExternalPackages: ["typescript", "twoslash"],
+  async redirects() {
+    return [
+      {
+        source: "/docs/registry",
+        destination: "/docs/registry/scenarios",
+        permanent: false,
+      },
+    ]
+  },
 }
 
 export default withMDX(nextConfig)

@@ -27,8 +27,14 @@ async function runCoreEvaluation(options: {
   workspaceRoot: string;
   sessionLogPath?: string;
   idempotentRerunCommand?: string;
+  processExitCode?: number;
+  env?: Record<string, string | undefined>;
+  assertionFiles?: Partial<Record<"functional" | "correct" | "robust" | "performant" | "production", string>>;
 }) {
   const assertionsDir = createFixtureDir("eval-core-assertions-");
+  for (const [gate, source] of Object.entries(options.assertionFiles ?? {})) {
+    writeFileSync(join(assertionsDir, `${gate}.ts`), source, "utf8");
+  }
 
   try {
     return await runGateEvaluation({
@@ -36,8 +42,9 @@ async function runCoreEvaluation(options: {
       context: createTestContext({
         POSTGRES_URL: "postgresql://postgres@localhost:5432/postgres",
         CLICKHOUSE_URL: "http://localhost:8123",
+        ...options.env,
       }),
-      processExitCode: 0,
+      processExitCode: options.processExitCode ?? 0,
       sessionLogPath: options.sessionLogPath,
       workspaceRoot: options.workspaceRoot,
       secretScanRoot: options.workspaceRoot,
@@ -58,6 +65,30 @@ async function runCoreEvaluation(options: {
     rmSync(assertionsDir, { recursive: true, force: true });
   }
 }
+
+const TWO_PASSING_ASSERTIONS = `
+export async function first_assertion() {
+  return { passed: true };
+}
+
+export async function second_assertion() {
+  return { passed: true };
+}
+`;
+
+const TWO_OF_THREE_PASSING_ASSERTIONS = `
+export async function first_assertion() {
+  return { passed: true };
+}
+
+export async function second_assertion() {
+  return { passed: true };
+}
+
+export async function third_assertion() {
+  return { passed: false };
+}
+`;
 
 test("configured idempotent rerun passes when the workspace stabilizes", async (t) => {
   const workspaceRoot = createFixtureDir("eval-core-workspace-");
@@ -112,6 +143,65 @@ test("session-log fallback flags duplicate-key idempotency failures", async (t) 
   assert.equal(output.gates.robust.core.idempotent_rerun, false);
   assert.ok(rerunLog);
   assert.match(rerunLog.message ?? "", /risk markers/i);
+});
+
+test("normalized score uses total assertions in the failed gate band", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+    env: {
+      CLICKHOUSE_URL: undefined,
+    },
+    assertionFiles: {
+      production: TWO_PASSING_ASSERTIONS,
+    },
+  });
+
+  assert.equal(output.highest_gate, 4);
+  assert.equal(output.gates.production.passed, false);
+  assert.equal(output.gates.production.score, 1);
+  assert.equal(output.gates.production.core.uses_env_vars, false);
+  assert.equal(output.gates.production.core.no_secrets_in_code, true);
+  assert.equal(output.normalized_score, 0.95);
+});
+
+test("normalized score counts failed functional core assertions in the first band", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+    processExitCode: 1,
+    assertionFiles: {
+      functional: TWO_PASSING_ASSERTIONS,
+    },
+  });
+
+  assert.equal(output.highest_gate, 0);
+  assert.equal(output.gates.functional.passed, false);
+  assert.equal(output.gates.functional.score, 1);
+  assert.equal(output.gates.functional.core.process_exits_clean, false);
+  assert.equal(output.gates.functional.core.no_unhandled_errors, true);
+  assert.equal(output.normalized_score, 0.15);
+});
+
+test("normalized score uses assertion counts for scenario-threshold failures", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+    assertionFiles: {
+      correct: TWO_OF_THREE_PASSING_ASSERTIONS,
+    },
+  });
+
+  assert.equal(output.highest_gate, 1);
+  assert.equal(output.gates.correct.passed, false);
+  assert.equal(output.gates.correct.score, 2 / 3);
+  assert.equal(output.normalized_score, 1 / 3);
 });
 
 test("secret scan flags hardcoded credentials in workspace files", async (t) => {

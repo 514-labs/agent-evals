@@ -163,6 +163,13 @@ export EVAL_WALL_CLOCK_SECONDS="${wall_clock_seconds}"
 export EVAL_AGENT_STEPS="${EVAL_AGENT_STEPS:-0}"
 export EVAL_TOKENS_USED="${EVAL_TOKENS_USED:-0}"
 export EVAL_LLM_API_COST_USD="${EVAL_LLM_API_COST_USD:-0}"
+export EVAL_LLM_API_COST_SOURCE="${EVAL_LLM_API_COST_SOURCE:-}"
+export EVAL_INPUT_TOKENS="${EVAL_INPUT_TOKENS:-0}"
+export EVAL_OUTPUT_TOKENS="${EVAL_OUTPUT_TOKENS:-0}"
+export EVAL_CACHED_INPUT_TOKENS="${EVAL_CACHED_INPUT_TOKENS:-0}"
+export EVAL_CACHE_CREATION_TOKENS="${EVAL_CACHE_CREATION_TOKENS:-0}"
+export EVAL_CACHE_READ_TOKENS="${EVAL_CACHE_READ_TOKENS:-0}"
+export EVAL_CACHE_WRITE_TOKENS="${EVAL_CACHE_WRITE_TOKENS:-0}"
 export EVAL_SESSION_LOG_PATH="${SESSION_LOG_PATH}"
 export EVAL_RUN_METADATA_JSON="${EVAL_RUN_METADATA_JSON:-{}}"
 export ASSERTION_LOG_PATH="${ASSERTION_LOG_PATH}"
@@ -182,9 +189,17 @@ const safeNum = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
+const safeText = (value) => (typeof value === "string" ? value : "");
 process.stdout.write(`EVAL_AGENT_STEPS=${safeNum(parsed.agentSteps)}\n`);
 process.stdout.write(`EVAL_TOKENS_USED=${safeNum(parsed.tokensUsed)}\n`);
 process.stdout.write(`EVAL_LLM_API_COST_USD=${safeNum(parsed.llmApiCostUsd)}\n`);
+process.stdout.write(`EVAL_LLM_API_COST_SOURCE=${JSON.stringify(safeText(parsed.llmApiCostSource))}\n`);
+process.stdout.write(`EVAL_INPUT_TOKENS=${safeNum(parsed.inputTokens)}\n`);
+process.stdout.write(`EVAL_OUTPUT_TOKENS=${safeNum(parsed.outputTokens)}\n`);
+process.stdout.write(`EVAL_CACHED_INPUT_TOKENS=${safeNum(parsed.cachedInputTokens)}\n`);
+process.stdout.write(`EVAL_CACHE_CREATION_TOKENS=${safeNum(parsed.cacheCreationTokens)}\n`);
+process.stdout.write(`EVAL_CACHE_READ_TOKENS=${safeNum(parsed.cacheReadTokens)}\n`);
+process.stdout.write(`EVAL_CACHE_WRITE_TOKENS=${safeNum(parsed.cacheWriteTokens)}\n`);
 ' "${AGENT_METRICS_PATH}"
   )"
 fi

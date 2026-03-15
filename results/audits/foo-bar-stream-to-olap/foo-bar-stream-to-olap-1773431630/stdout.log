@@ -1,0 +1,111 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Creating the consumer and ClickHouse setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Verifying assertions:
+
+
+
+
+
+
+
+Running the full assertion suite to verify everything passes:
+
+
+
+
+
+Adding a run script and setup SQL for a complete, self-contained solution:
+
+
+
+Summary of what was built:
+
+## ClickHouse table
+
+**Database:** `analytics`  
+**Table:** `metrics`
+
+```sql
+CREATE TABLE analytics.metrics (
+    host_id String,
+    metric_name String,
+    value Float64,
+    ts DateTime64(3)
+) ENGINE = MergeTree()
+ORDER BY (host_id, metric_name, ts);
+```
+
+Schema matches the Redpanda topic (`host_id`, `metric_name`, `value`, `ts`) and uses `MergeTree` for analytics.
+
+## Kafka consumer
+
+**Location:** `/opt/dec-bench/consumer/consumer.py`
+
+The consumer:
+- Reads JSON from the `metrics` topic
+- Parses `host_id`, `metric_name`, `value`, `ts`
+- Inserts rows into `analytics.metrics` via `clickhouse-connect`
+- Uses `REDPANDA_BROKER`, `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`
+
+## Files created
+
+| File | Purpose |
+|------|---------|
+| `/opt/dec-bench/consumer/consumer.py` | Main consumer script |
+| `/opt/dec-bench/consumer/run.sh` | Wrapper to run the consumer |
+| `/opt/dec-bench/consumer/setup_clickhouse.sql` | DDL for the ClickHouse table |
+
+## Verification
+
+- **metrics_table_exists** – table present in `analytics`
+- **metrics_table_has_rows** – 10 rows loaded
+- **value_checksum_matches_seed** – sum = 648.8
+- **host_and_metric_columns_present** – `host_id`, `metric_name`, `value`
+- **aggregation_query_under_200ms** – aggregation runs in ~45 ms
+
+To run the consumer:
+
+```bash
+# Ensure the table exists (run once)
+clickhouse-client --multiquery < /opt/dec-bench/consumer/setup_clickhouse.sql
+
+# Run the consumer
+/opt/dec-bench/consumer/run.sh
+```

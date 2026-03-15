@@ -1,0 +1,8 @@
+Fixed the rollups by rebuilding all three tables and defining materialized views that aggregate `analytics.raw_events` at the correct grain in [clickhouse-setup.sql](/scenario/init/clickhouse-setup.sql#L18). The backfill now inserts grouped counts for hourly, daily, and monthly buckets instead of zero rows, and future inserts into `raw_events` will flow into the rollups automatically via the views in [clickhouse-setup.sql](/scenario/init/clickhouse-setup.sql#L43).
+
+I also applied the same DDL/DML directly to the running ClickHouse instance. Verification shows:
+- hourly: `2026-01-15 10:00:00=2`, `2026-01-15 11:00:00=1`, `2026-01-16 09:00:00=2`, `2026-02-01 08:00:00=1`
+- daily: `2026-01-15=3`, `2026-01-16=2`, `2026-02-01=1`
+- monthly: `2026-01-01=5`, `2026-02-01=1`
+
+I ran the benchmark assertions with `tsx /opt/dec-bench/eval-core/src/cli.ts /scenario/assertions`; the scenario scored `normalized_score: 1`, and the rollup correctness checks passed.

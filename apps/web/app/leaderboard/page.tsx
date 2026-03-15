@@ -14,7 +14,7 @@ import {
 import { getScenarioAuditRunIds } from "../../data/audits";
 
 const gateNames = [
-  "—",
+  "NO GATES",
   "FUNCTIONAL",
   "CORRECT",
   "ROBUST",
@@ -42,6 +42,15 @@ function formatScenarioName(id: string): string {
     .replace(/^foo-bar-/, "")
     .replace(/-/g, " ")
     .toUpperCase();
+}
+
+function getLeaderboardEntryKey(entry: {
+  scenario: string;
+  run_id?: string;
+  result_file?: string;
+  rank: number;
+}): string {
+  return `${entry.scenario}-${entry.run_id ?? entry.result_file ?? entry.rank}`;
 }
 
 function EmptyState() {
@@ -108,7 +117,8 @@ export default async function LeaderboardPage({
           BOARD
         </h1>
         <p className="mt-4 text-xs uppercase tracking-wider text-black/50 max-w-md leading-relaxed">
-          Ranked by highest gate cleared, then normalized score within the gate.
+          Ranked by highest gate cleared, then gated score within the reached gate
+          based on passed core and scenario assertions.
           {scenarioFilter
             ? ` Showing: ${formatScenarioName(scenarioFilter)}.`
             : ` ${entries.length} runs across ${scenarios.length} scenarios.`}
@@ -157,7 +167,7 @@ export default async function LeaderboardPage({
 
             return (
               <div
-                key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
+                key={getLeaderboardEntryKey(entry)}
                 className={`border-[3px] border-black p-6 ${
                   i === 0
                     ? "bg-[#FF10F0] md:row-start-1"
@@ -236,7 +246,7 @@ export default async function LeaderboardPage({
                 GATE
               </TableHead>
               <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
-                SCORE
+                GATED SCORE
               </TableHead>
               <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">
                 TIME
@@ -257,7 +267,7 @@ export default async function LeaderboardPage({
 
                 return (
               <TableRow
-                key={`${entry.scenario}-${entry.harness}-${entry.agent}`}
+                key={getLeaderboardEntryKey(entry)}
                 className={`border-b border-black/10 hover:bg-[#FF10F0]/5 transition-colors ${
                   entry.rank === 1 ? "bg-[#FF10F0]/[0.03]" : ""
                 }`}

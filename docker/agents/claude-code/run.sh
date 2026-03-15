@@ -114,6 +114,13 @@ const metrics = {
   agentSteps,
   tokensUsed: inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens,
   llmApiCostUsd: totalCostUsd,
+  llmApiCostSource: "agent-reported",
+  inputTokens,
+  outputTokens,
+  cachedInputTokens: 0,
+  cacheCreationTokens,
+  cacheReadTokens,
+  cacheWriteTokens: 0,
 };
 fs.writeFileSync(metricsPath, `${JSON.stringify(metrics, null, 2)}\n`, "utf8");
 
@@ -308,9 +315,12 @@ const trace = {
   usage: {
     inputTokens,
     outputTokens,
+    cachedInputTokens: 0,
     cacheCreationTokens,
     cacheReadTokens,
+    cacheWriteTokens: 0,
     totalCostUsd,
+    pricingSource: "agent-reported",
   },
   events,
 };

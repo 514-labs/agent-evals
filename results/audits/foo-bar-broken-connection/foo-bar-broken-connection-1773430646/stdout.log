@@ -1,0 +1,8 @@
+The failure was a hardcoded connection mismatch. The live Postgres instance in this container is `localhost:5432` with `postgres/postgres`, while the loader was trying `localhost:5433` as `admin/secret123`.
+
+I fixed the loader in [load_data.py](/workspace/load_data.py#L7) so it resolves connection settings from `POSTGRES_URL` plus `POSTGRES_HOST`/`POSTGRES_PORT`/`POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`, with working defaults. I also made it self-bootstrap the `app.users` table, clean up an orphaned sequence from earlier failed setup attempts, and reload the same 5 rows deterministically on reruns in [load_data.py](/workspace/load_data.py#L48). The bootstrap SQL in [init.sql](/workspace/init.sql#L1) was also invalid before; it now creates the schema/table correctly and safely handles that orphaned sequence case.
+
+Verification passed:
+- `psql -f /workspace/init.sql` completed cleanly.
+- `python3 /workspace/load_data.py` printed `Data loaded successfully`.
+- Querying `app.users` returned exactly 5 rows: `alice`, `bob`, `charlie`, `diana`, `eve`.

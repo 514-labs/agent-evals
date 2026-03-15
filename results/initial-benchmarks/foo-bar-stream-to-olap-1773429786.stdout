@@ -1,0 +1,24 @@
+Everything checks out. Here's a summary of what was built:
+
+**ClickHouse table** (`analytics.metrics`):
+```sql
+CREATE TABLE analytics.metrics (
+    host_id      String,
+    metric_name  String,
+    value        Float64,
+    ts           DateTime64(3, 'UTC')
+) ENGINE = MergeTree()
+ORDER BY (host_id, metric_name, ts)
+```
+- `MergeTree` with `ORDER BY (host_id, metric_name, ts)` — optimal for the `GROUP BY host_id, metric_name` aggregation pattern.
+
+**Consumer** (`/opt/consumer.py`):
+- Uses `kafka-python` to connect to Redpanda at `$REDPANDA_BROKER`
+- Reads from the `metrics` topic from `earliest` offset (consumer group `metrics-to-clickhouse`)
+- Deserializes JSON messages → batches of 100 → bulk-inserts via `clickhouse-connect`
+- Stops after 5 s of inactivity (`consumer_timeout_ms=5000`)
+
+**Results:**
+- 10 rows ingested, `sum(value) = 648.8` (matches seed exactly)
+- Aggregation query across all 7 `(host, metric)` combinations runs well under 200 ms
+Found session JSONL at /root/.claude/projects/-/f37b5de1-9eeb-45fa-801f-614754e35206.jsonl

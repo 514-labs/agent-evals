@@ -5,7 +5,22 @@ description: "Install the CLI, build and run evals, inspect the latest run, and 
 
 DEC Bench `0.1` is a research preview. The fastest way to help is to install the CLI, run one Foo Bar scenario locally, and note anything confusing, broken, or missing in the workflow.
 
+## Prerequisites
+
+Before your first run, make sure you have:
+
+- Git installed so you can clone the DEC Bench repository
+- Docker installed and running locally
+- an API key for the agent you plan to use
+
+The default first-run flow uses `claude-code`, so export `ANTHROPIC_API_KEY` before you run. If you use Codex instead, export `OPENAI_API_KEY` or `CODEX_API_KEY`. If you use Cursor, export `CURSOR_API_KEY`.
+
 ## Quick Start
+
+```bash title="Clone the repo and enter it"
+git clone https://github.com/514-labs/agent-evals.git
+cd agent-evals
+```
 
 ```bash title="Install the CLI"
 curl -fsSL https://decbench.ai/install.sh | sh
@@ -13,13 +28,24 @@ curl -fsSL https://decbench.ai/install.sh | sh
 
 `https://decbench.ai/install.sh` is the stable installer URL served by the Vercel-hosted app.
 
-```bash title="Build, run, inspect, and audit"
+```bash title="Export the default agent API key"
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+Run the first workflow from the repo root. These commands use the CLI defaults for `base-rt`, `claude-code`, `claude-sonnet-4-20250514`, and `v0.1.0`.
+
+```bash title="Build, run, and inspect"
 dec-bench build --scenario foo-bar-csv-ingest
 dec-bench run --scenario foo-bar-csv-ingest
 dec-bench results --latest --scenario foo-bar-csv-ingest
+```
+
+`dec-bench run` prints the exact `run_id` at the end of the run. `dec-bench results --latest` also prints `Run ID: ...` at the top of the detailed view.
+
+```bash title="Open audit with the real run ID"
 dec-bench audit open \
   --scenario foo-bar-csv-ingest \
-  --run-id foo-bar-csv-ingest-1770000000
+  --run-id <run-id-from-results>
 ```
 
 The installer fetches matching release or preview binaries from GitHub releases in `514-labs/agent-evals` and verifies checksums when they are published with the release.
@@ -31,11 +57,11 @@ Thirty-six scenarios are available on the Foo Bar synthetic domain (13 tier-1, 1
 Example image tags:
 
 ```text
-foo-bar-csv-ingest.base-rt.claude-code.sonnet-4.v0.1.0
+foo-bar-csv-ingest.base-rt.claude-code.claude-sonnet-4-20250514.v0.1.0
 foo-bar-csv-ingest.base-rt.codex.gpt-5-codex.v0.1.0
 foo-bar-csv-ingest.base-rt.cursor.auto.v0.1.0
-foo-bar-time-grain-rollups.classic-de.claude-code.sonnet-4.v0.1.0
-foo-bar-cross-system-reconciliation.olap-for-swe.claude-code.sonnet-4.v0.1.0
+foo-bar-time-grain-rollups.classic-de.claude-code.claude-sonnet-4-20250514.v0.1.0
+foo-bar-cross-system-reconciliation.olap-for-swe.claude-code.claude-sonnet-4-20250514.v0.1.0
 ```
 
 ## API Keys
@@ -82,7 +108,7 @@ Inspect completed runs:
 ```bash title="Inspect results"
 dec-bench results --scenario foo-bar-csv-ingest
 dec-bench results --latest --scenario foo-bar-csv-ingest
-dec-bench results --run-id foo-bar-csv-ingest-1770000000
+dec-bench results --run-id <run-id>
 ```
 
 The detailed view points directly to stdout, stderr, trace, assertion log, session JSONL, and run metadata sidecars when they exist.
@@ -92,7 +118,7 @@ Open the audit UI for one run:
 ```bash title="Open localhost audit UI"
 dec-bench audit open \
   --scenario foo-bar-csv-ingest \
-  --run-id foo-bar-csv-ingest-1770000000
+  --run-id <run-id>
 ```
 
 That command exports the run into audit bundles, starts or reuses the local web app, and opens the exact audit page.

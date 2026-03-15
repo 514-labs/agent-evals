@@ -1,0 +1,8 @@
+Implemented the reconciliation job in [reconcile_transactions.py](/scenario/reconcile_transactions.py#L1). It reads `app.transactions` from Postgres, inspects the `transactions` Redpanda topic, rebuilds `analytics.transactions` in ClickHouse from the source of truth, and writes a JSON drift report to [reconciliation-report.json](/output/reconciliation-report.json#L1). The job is idempotent and supports report-only mode with `--no-apply`.
+
+I ran it and verified the final state directly:
+- Postgres: `count=10`, `sum=363.42`
+- Redpanda: partition high-watermarks `4 + 6 = 10`
+- ClickHouse: `count=10`, `sum=363.41999999999996` which matches the source within the required checksum tolerance
+
+A second dry run with `--no-apply` reported no residual drift and no systems behind.

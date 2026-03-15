@@ -88,7 +88,6 @@ export async function runGateEvaluation(
 
   let blocked = false;
   let highestGate = 0;
-  let scoreSum = 0;
 
   for (const gate of GATES) {
     if (blocked) {
@@ -122,7 +121,6 @@ export async function runGateEvaluation(
       scenario: scenario.logs,
     };
 
-    scoreSum += scenarioScore;
     if (passed) {
       highestGate += 1;
     } else {
@@ -152,7 +150,7 @@ export async function runGateEvaluation(
       model: options.model,
       runMetadata: options.runMetadata,
       highestGate,
-      normalizedScore: clamp(scoreSum / GATES.length),
+      normalizedScore: calcNormalizedScore(gates, highestGate),
       compositeScore,
       gates,
       efficiency: options.efficiency,
@@ -182,6 +180,28 @@ function clamp(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+function calcNormalizedScore(gates: Record<GateName, GateResult>, highestGate: number): number {
+  if (highestGate >= GATES.length) {
+    return 1;
+  }
+
+  const failedGateName = GATES[highestGate];
+  const failedGate = failedGateName ? gates[failedGateName] : undefined;
+  const failedGateFraction = failedGate ? calcAssertionFraction(failedGate) : 0;
+  return clamp((highestGate + failedGateFraction) / GATES.length);
+}
+
+function calcAssertionFraction(gate: GateResult): number {
+  const passedAssertions =
+    countPassedAssertions(gate.core) + countPassedAssertions(gate.scenario);
+  const totalAssertions = countAssertions(gate.core) + countAssertions(gate.scenario);
+  if (totalAssertions === 0) {
+    return 0;
+  }
+
+  return clamp(passedAssertions / totalAssertions);
+}
+
 function calcScore(resultMap: Record<string, boolean>): number {
   const entries = Object.values(resultMap);
   if (entries.length === 0) {
@@ -194,6 +214,14 @@ function calcScore(resultMap: Record<string, boolean>): number {
 
 function allPassed(resultMap: Record<string, boolean>): boolean {
   return Object.values(resultMap).every(Boolean);
+}
+
+function countPassedAssertions(resultMap: Record<string, boolean>): number {
+  return Object.values(resultMap).filter(Boolean).length;
+}
+
+function countAssertions(resultMap: Record<string, boolean>): number {
+  return Object.keys(resultMap).length;
 }
 
 async function runAssertions(

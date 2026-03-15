@@ -21,13 +21,21 @@ export type RegistryScenario = {
   tags: string[]
 }
 
+export type HarnessTool = {
+  name: string
+  version: string
+  category: string
+}
+
 export type RegistryHarness = {
   id: string
   title: string
+  tagline: string
   description: string
   installScript: string
   networkPolicy: "open" | "restricted"
   allowlistedEndpoints?: string[]
+  tools: HarnessTool[]
 }
 
 export type TaxonomyOption = {

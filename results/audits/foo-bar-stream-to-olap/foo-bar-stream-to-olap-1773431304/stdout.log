@@ -1,0 +1,40 @@
+Everything is working. Here's a summary of what was built:
+
+---
+
+## Redpanda → ClickHouse Pipeline
+
+### ClickHouse Table: `analytics.metrics`
+
+```sql
+CREATE TABLE analytics.metrics (
+    host_id      String,
+    metric_name  String,
+    value        Float64,
+    ts           DateTime,
+    ingested_at  DateTime DEFAULT now()
+)
+ENGINE = MergeTree()
+ORDER BY (host_id, metric_name, ts)
+```
+
+- **MergeTree** engine — optimal for time-series analytics with fast aggregations
+- **Ordering key** `(host_id, metric_name, ts)` — accelerates the GROUP BY query pattern
+
+### Consumer: `/output/consumer.py`
+
+- Uses `kafka-python` to consume from the `metrics` topic with `auto_offset_reset="earliest"` to catch all messages
+- Parses ISO-8601 timestamps (including `Z` suffix)
+- Batches inserts (up to 500 rows at a time) via `clickhouse-connect`
+- Skips malformed messages with a warning rather than crashing
+- Respects `REDPANDA_BROKER` and `CLICKHOUSE_URL` / `CLICKHOUSE_HOST` env vars
+
+### Results
+
+| Check | Result |
+|---|---|
+| Row count | 10 rows |
+| `sum(value)` | 648.8 (matches seed checksum exactly) |
+| Columns present | `host_id`, `metric_name`, `value`, `ts` |
+| Aggregation | Fast (<< 200 ms on MergeTree) |
+Found session JSONL at /root/.claude/projects/-/8cba0c75-9e5e-4c55-a369-655c62ca2a0f.jsonl

@@ -6,23 +6,49 @@ DEC Bench `0.1` is a research preview. The fastest way to help is to install `de
 
 In this research preview, the `0.1` workflow is CLI-first:
 
+- clone the repo
 - install `dec-bench`
-- scaffold and validate a scenario
 - build and run evals
 - inspect results from the terminal
 - open the localhost audit UI for a specific run
+- scaffold and validate a scenario once you are ready to author one
 
 Docker is still the runtime, but the CLI is the product surface.
 
+## Prerequisites
+
+Before your first run, make sure you have:
+
+- Git installed so you can clone the DEC Bench repository
+- Docker installed and running locally
+- an API key for the agent you plan to use
+
+The default first-run examples use `claude-code`, so export:
+
+```bash
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+Use `OPENAI_API_KEY` or `CODEX_API_KEY` for Codex, and `CURSOR_API_KEY` for Cursor.
+
 ## Install
 
-The recommended install path is:
+Clone the repo and change into it before your first build or run:
+
+```bash
+git clone https://github.com/514-labs/agent-evals.git
+cd agent-evals
+```
+
+Then install `dec-bench`:
 
 ```bash
 curl -fsSL https://decbench.ai/install.sh | sh
 ```
 
 `https://decbench.ai/install.sh` is the stable public entrypoint served by the Vercel-hosted app. The installer detects OS and architecture, resolves release or preview assets from GitHub releases in `514-labs/agent-evals`, verifies checksums when available, installs `dec-bench`, and prints the next PATH step if needed.
+
+Stay in the repo root for the commands below. The first-run flow uses repo-local scenarios, harness metadata, and Docker build scripts from this checkout.
 
 For local contributor builds:
 
@@ -32,6 +58,36 @@ cargo build
 ```
 
 ## Quick Start
+
+Build the default first-run scenario:
+
+```bash
+dec-bench build --scenario foo-bar-csv-ingest
+```
+
+Run it:
+
+```bash
+dec-bench run --scenario foo-bar-csv-ingest
+```
+
+Inspect the latest run:
+
+```bash
+dec-bench results --latest --scenario foo-bar-csv-ingest
+```
+
+Those commands use the default harness, agent, model, and version: `base-rt`, `claude-code`, `claude-sonnet-4-20250514`, and `v0.1.0`.
+
+`dec-bench run` prints the exact `run_id` at the end of the run, and `dec-bench results --latest` prints `Run ID: ...` at the top of the detailed view.
+
+Open the localhost audit UI for that real run:
+
+```bash
+dec-bench audit open \
+  --scenario foo-bar-csv-ingest \
+  --run-id <run-id-from-results>
+```
 
 List scenarios:
 
@@ -52,41 +108,6 @@ Validate it before you build:
 
 ```bash
 dec-bench validate --scenario my-first-eval
-```
-
-Build the local eval image:
-
-```bash
-dec-bench build \
-  --scenario foo-bar-csv-ingest \
-  --harness base-rt \
-  --agent claude-code \
-  --model claude-sonnet-4-20250514 \
-  --version v0.1.0
-```
-
-Run an eval:
-
-```bash
-dec-bench run \
-  --scenario foo-bar-csv-ingest \
-  --harness base-rt \
-  --persona naive \
-  --mode no-plan
-```
-
-Inspect the latest run:
-
-```bash
-dec-bench results --latest --scenario foo-bar-csv-ingest
-```
-
-Open the localhost audit UI for a run:
-
-```bash
-dec-bench audit open \
-  --scenario foo-bar-csv-ingest \
-  --run-id foo-bar-csv-ingest-1770000000
 ```
 
 ## What The CLI Does
@@ -117,7 +138,7 @@ DEC Bench uses a gated assertion model with five sequential gates:
 4. Performant
 5. Production
 
-A run only reaches the next gate after it clears the previous one. Efficiency metrics such as wall-clock time, agent steps, tokens, and API cost act as tiebreakers. They do not inflate the gate score.
+A run only reaches the next gate after it clears the previous one. `highest_gate` is the primary rank signal. `normalized_score` is a gate-banded score: each cleared gate contributes its full band, and a failed gate lands within its own band based on how many core plus scenario assertions passed in that gate. Efficiency metrics such as wall-clock time, agent steps, tokens, and API cost act as tiebreakers. They do not inflate the gate score.
 
 ## Data Stack
 

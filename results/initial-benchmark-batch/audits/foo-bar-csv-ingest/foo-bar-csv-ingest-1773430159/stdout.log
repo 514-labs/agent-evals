@@ -1,0 +1,25 @@
+All 15 rows are in ClickHouse. Here's a summary of what was done:
+
+**Issues fixed per file:**
+
+| File | Problem | Fix |
+|------|---------|-----|
+| `events_02.csv` | Dates as `DD/MM/YYYY` | Parsed and converted to `YYYY-MM-DD 00:00:00` |
+| `events_03.csv` | `N/A`, `null`, empty string in `value` | Stored as `NULL` (`Nullable(Float64)`) |
+| `events_04.csv` | Duplicate header row on line 3 | Detected and skipped (row values matched column names) |
+| `events_05.csv` | Trailing comma → phantom 6th column | Dropped any column not in the expected set |
+
+**Table created:** `default.events`
+
+```sql
+CREATE TABLE default.events (
+    event_id   String,
+    event_ts   DateTime,
+    user_id    String,
+    event_type String,
+    value      Nullable(Float64)
+) ENGINE = MergeTree() ORDER BY (event_ts, event_id)
+```
+
+15 rows loaded cleanly, `evt_007/008/009` have `NULL` values as expected.
+Found session JSONL at /root/.claude/projects/-/77f5d1dc-6314-4e89-a07d-edfcfe6a7f0f.jsonl
