@@ -31,7 +31,7 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
               <li key={item.url} className="relative">
                 <TOCItem
                   href={item.url}
-                  className="toc-link group/toc relative block py-1.5 text-sm tracking-wide"
+                  className="toc-link group/toc relative block py-1.5 text-xs tracking-wide"
                   style={{ paddingLeft: `${(item.depth - 2) * 0.5 + 1}rem` }}
                 >
                   <span className="toc-indicator" />
