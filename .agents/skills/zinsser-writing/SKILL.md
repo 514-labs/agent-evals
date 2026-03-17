@@ -1,6 +1,6 @@
 ---
 name: zinsser-writing
-description: Apply William Zinsser's "On Writing Well" principles to produce clear, concise, human nonfiction prose. Use when writing or editing articles, essays, reports, documentation, emails, blog posts, or any nonfiction text. Triggers on requests for clear writing, concise prose, editing for clarity, making writing more readable, removing clutter, or improving writing quality.
+description: Apply William Zinsser's "On Writing Well" principles to produce clear, concise, human nonfiction prose. Use when writing or editing articles, essays, reports, documentation, emails, blog posts, or any nonfiction text. Use when asked for clear writing, concise prose, editing for clarity, making writing more readable, removing clutter, or improving writing quality.
 ---
 
 # Zinsser Writing Principles
