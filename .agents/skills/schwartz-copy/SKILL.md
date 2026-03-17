@@ -1,6 +1,6 @@
 ---
 name: schwartz-copy
-description: Apply Eugene Schwartz's "Breakthrough Advertising" framework to write high-converting digital copy. Use for landing pages, Facebook/Google ads, email sequences, sales pages, and conversion funnels. Triggers on requests for persuasive copy, conversion copywriting, sales copy, ad copy, landing page copy, or when optimizing copy for specific audience awareness levels.
+description: Apply Eugene Schwartz's "Breakthrough Advertising" framework to write high-converting digital copy. Use for landing pages, Facebook/Google ads, email sequences, sales pages, and conversion funnels. Use when writing persuasive copy, conversion copywriting, sales copy, ad copy, landing page copy, or when optimizing copy for specific audience awareness levels.
 ---
 
 # Schwartz Digital Copywriting

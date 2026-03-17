@@ -1,8 +1,6 @@
 ---
 name: dec-bench-evals
 description: Author, validate, run, and publish DEC Bench evaluation scenarios. Use when creating new DEC Bench scenarios, writing gate assertions, designing naive and savvy prompts, choosing harnesses, extending existing evals, or publishing scenarios to the DEC Bench registry.
-license: Complete terms in LICENSE.txt
-compatibility: Requires Docker, dec-bench CLI, Node.js 20+, and pnpm 10.4+
 ---
 
 # DEC Bench Evals
