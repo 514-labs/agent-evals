@@ -56,6 +56,16 @@ export interface PersonaPrompts {
   savvy: string;
 }
 
+export interface ScenarioInfrastructure {
+  services: string[];
+  description?: string;
+}
+
+export interface ScenarioProductionChecks {
+  maxExpectedLines?: number;
+  maxFileLines?: number;
+}
+
 // An individual evaluation task within a scenario
 export interface Task {
   id: string;
@@ -79,6 +89,8 @@ export interface Scenario {
   harness: Harness;
   datasetPath?: string;
   schemaPath?: string;
+  infrastructure?: ScenarioInfrastructure;
+  productionChecks?: ScenarioProductionChecks;
   tags: string[];
 }
 

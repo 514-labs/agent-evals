@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function raw_events_query_under_100ms(ctx: AssertionContext): Promise<AssertionResult> {
   try {
     const start = Date.now();
@@ -21,4 +23,8 @@ export async function raw_events_query_under_100ms(ctx: AssertionContext): Promi
       details: { error: e instanceof Error ? e.message : String(e) },
     };
   }
+}
+
+export async function avoids_select_star_queries(): Promise<AssertionResult> {
+  return avoidsSelectStarQueries();
 }

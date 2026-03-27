@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function connection_env_vars_available(ctx: AssertionContext): Promise<AssertionResult> {
   const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
   const passed = hasClickHouse;
@@ -23,4 +25,8 @@ export async function no_temporary_tables(ctx: AssertionContext): Promise<Assert
     message: passed ? "No temporary tables." : `Found ${count} tmp tables.`,
     details: { count },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

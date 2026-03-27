@@ -140,6 +140,23 @@ pub fn check_node() -> Result<()> {
     }
 }
 
+pub fn check_pnpm() -> Result<()> {
+    let status = Command::new("pnpm")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+
+    match status {
+        Ok(s) if s.success() => Ok(()),
+        _ => bail!(
+            "pnpm is not installed or not in your PATH.\n\n\
+             Install pnpm before using `dec-bench audit open`:\n\n\
+             \tnpm install -g pnpm"
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -30,10 +30,14 @@ async function runCoreEvaluation(options: {
   processExitCode?: number;
   env?: Record<string, string | undefined>;
   assertionFiles?: Partial<Record<"functional" | "correct" | "robust" | "performant" | "production", string>>;
+  scenarioJson?: string;
 }) {
   const assertionsDir = createFixtureDir("eval-core-assertions-");
   for (const [gate, source] of Object.entries(options.assertionFiles ?? {})) {
     writeFileSync(join(assertionsDir, `${gate}.ts`), source, "utf8");
+  }
+  if (options.scenarioJson) {
+    writeFileSync(join(assertionsDir, "..", "scenario.json"), options.scenarioJson, "utf8");
   }
 
   try {
@@ -164,7 +168,17 @@ test("normalized score uses total assertions in the failed gate band", async (t)
   assert.equal(output.gates.production.score, 1);
   assert.equal(output.gates.production.core.uses_env_vars, false);
   assert.equal(output.gates.production.core.no_secrets_in_code, true);
-  assert.equal(output.normalized_score, 0.95);
+  assert.equal(output.gates.production.core.output_line_count_reasonable, true);
+  assert.equal(output.gates.production.core.output_line_count_disciplined, true);
+  assert.equal(output.gates.production.core.no_dead_code_markers, true);
+  assert.equal(output.gates.production.core.files_are_reasonably_sized, true);
+  assert.equal(output.gates.production.core.no_debug_artifacts, true);
+  assert.equal(output.gates.production.core.zero_compiler_errors, true);
+  assert.equal(output.gates.production.core.zero_lint_errors, true);
+  assert.equal(output.gates.production.core.has_type_safety, true);
+  assert.equal(output.gates.production.core.functions_are_focused, true);
+  assert.equal(output.gates.production.core.no_deep_nesting, true);
+  assert.equal(output.normalized_score, (4 + 13 / 14) / 5);
 });
 
 test("normalized score counts failed functional core assertions in the first band", async (t) => {
@@ -248,4 +262,97 @@ test("secret scan ignores environment-based secret usage", async (t) => {
   assert.equal(output.gates.production.core.no_secrets_in_code, true);
   assert.ok(secretLog);
   assert.match(secretLog.message ?? "", /no hardcoded secrets/i);
+});
+
+test("production line-count assertion honors scenario overrides", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  writeFileSync(join(workspaceRoot, "main.py"), new Array(32).fill("print('ok')").join("\n"), "utf8");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output, assertionLogs } = await runCoreEvaluation({
+    workspaceRoot,
+    scenarioJson: JSON.stringify({
+      id: "test-scenario",
+      title: "Test Scenario",
+      description: "Test.",
+      tier: "tier-1",
+      domain: "foo-bar",
+      harness: "base-rt",
+      tasks: [{ id: "task-1", description: "Do the thing", category: "ingestion" }],
+      personaPrompts: { naive: "prompts/naive.md", savvy: "prompts/savvy.md" },
+      tags: ["test"],
+      baselineMetrics: { queryLatencyMs: 0, storageBytes: 0, costPerQueryUsd: 0 },
+      referenceMetrics: { queryLatencyMs: 1, storageBytes: 1, costPerQueryUsd: 1 },
+      productionChecks: { maxExpectedLines: 20 },
+    }),
+  });
+
+  assert.equal(output.gates.production.core.output_line_count_reasonable, false);
+  assert.equal(output.gates.production.core.output_line_count_disciplined, false);
+  assert.match(
+    assertionLogs.production.core.output_line_count_disciplined.message ?? "",
+    /target 20-line budget/i,
+  );
+});
+
+test("production file-size assertion flags oversized files", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  writeFileSync(join(workspaceRoot, "app.ts"), new Array(16).fill("const value = 1;").join("\n"), "utf8");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+    scenarioJson: JSON.stringify({
+      id: "test-scenario",
+      title: "Test Scenario",
+      description: "Test.",
+      tier: "tier-1",
+      domain: "foo-bar",
+      harness: "base-rt",
+      tasks: [{ id: "task-1", description: "Do the thing", category: "ingestion" }],
+      personaPrompts: { naive: "prompts/naive.md", savvy: "prompts/savvy.md" },
+      tags: ["test"],
+      baselineMetrics: { queryLatencyMs: 0, storageBytes: 0, costPerQueryUsd: 0 },
+      referenceMetrics: { queryLatencyMs: 1, storageBytes: 1, costPerQueryUsd: 1 },
+      productionChecks: { maxFileLines: 10 },
+    }),
+  });
+
+  assert.equal(output.gates.production.core.files_are_reasonably_sized, false);
+});
+
+test("production dead-code marker assertion flags TODO markers", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  writeFileSync(join(workspaceRoot, "worker.py"), "# TODO: remove scaffold\nprint('ready')\n", "utf8");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+  });
+
+  assert.equal(output.gates.production.core.no_dead_code_markers, false);
+});
+
+test("production debug-artifact assertion flags console logs", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  writeFileSync(join(workspaceRoot, "worker.ts"), "console.log('debug');\n", "utf8");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+  });
+
+  assert.equal(output.gates.production.core.no_debug_artifacts, false);
+});
+
+test("production type-safety assertion flags explicit any usage", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  writeFileSync(join(workspaceRoot, "main.ts"), "const unsafeValue: any = {};\n", "utf8");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+  });
+
+  assert.equal(output.gates.production.core.has_type_safety, false);
 });

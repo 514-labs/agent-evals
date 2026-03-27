@@ -1,6 +1,8 @@
 import { execSync } from "node:child_process";
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function topic_produce_latency_acceptable(ctx: AssertionContext): Promise<AssertionResult> {
   const broker = ctx.env("REDPANDA_BROKER") ?? "localhost:9092";
   const start = Date.now();
@@ -26,4 +28,8 @@ p.close()
     message: passed ? "Produce latency acceptable." : `Produce took ${elapsed}ms.`,
     details: { elapsedMs: elapsed },
   };
+}
+
+export async function avoids_select_star_queries(): Promise<AssertionResult> {
+  return avoidsSelectStarQueries();
 }

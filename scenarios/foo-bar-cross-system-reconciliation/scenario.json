@@ -1,14 +1,24 @@
 {
   "id": "foo-bar-cross-system-reconciliation",
   "title": "Foo Bar Cross-System Reconciliation",
-  "description": "Fix broken reconciliation between Postgres, Redpanda, and ClickHouse. Build a reconciliation job that detects and reports drift (missing rows, count mismatches).",
+  "description": "Fix broken reconciliation between Postgres, Redpanda, and ClickHouse. Build a reusable reconciliation command that detects drift, writes a structured drift report, and fails with meaningful exit codes when systems are unavailable.",
   "tier": "tier-3",
   "domain": "foo-bar",
   "harness": "classic-de",
   "tasks": [
     {
       "id": "build-reconciliation",
-      "description": "Create reconciliation checks between source (Postgres), stream (Redpanda), and sink (ClickHouse)",
+      "description": "Create a reusable reconciliation command between source (Postgres), stream (Redpanda), and sink (ClickHouse)",
+      "category": "debugging"
+    },
+    {
+      "id": "write-structured-report",
+      "description": "Write a structured drift report to artifacts/drift-report.json with counts, discrepancies, behind_systems, tolerance, summary, generated_at, and report_path",
+      "category": "monitoring"
+    },
+    {
+      "id": "operator-contract",
+      "description": "Support --tolerance and --report-path, exit 0 when within tolerance, exit 2 when drift is detected, and exit 1 on dependency or configuration failures",
       "category": "debugging"
     }
   ],
@@ -21,6 +31,10 @@
     "description": "Postgres app.transactions. Redpanda transactions topic. ClickHouse analytics.transactions. Data is drifted; reconciliation job missing."
   },
   "tags": ["reconciliation", "data-quality", "observability", "postgres", "redpanda", "clickhouse"],
+  "productionChecks": {
+    "maxExpectedLines": 450,
+    "maxFileLines": 220
+  },
   "baselineMetrics": {
     "queryLatencyMs": 0,
     "storageBytes": 0,

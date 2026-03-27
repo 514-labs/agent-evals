@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function connection_env_vars_available(ctx: AssertionContext): Promise<AssertionResult> {
   const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
   const passed = hasClickHouse;
@@ -29,4 +31,8 @@ export async function storage_reduced(ctx: AssertionContext): Promise<AssertionR
     message: passed ? "Storage reduced." : `Optimized ${optimizedBytes} >= raw ${rawBytes}.`,
     details: { optimizedBytes, rawBytes },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

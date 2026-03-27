@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
@@ -16,4 +18,8 @@ export async function no_duplicate_days(ctx: AssertionContext): Promise<Assertio
     message: passed ? "No duplicate days." : `Found ${dupRows.length} days with duplicates.`,
     details: { duplicateDayCount: dupRows.length },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

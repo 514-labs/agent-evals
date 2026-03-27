@@ -1,0 +1,13 @@
+All 15 rows loaded cleanly. Here's a summary of what was fixed per file:
+
+| File | Problem | Fix |
+|---|---|---|
+| `events_02.csv` | Dates as `DD/MM/YYYY` | Parsed and converted to `YYYY-MM-DD HH:MM:SS` |
+| `events_03.csv` | `value` = `N/A`, `null`, empty | Mapped to SQL `NULL` (`\N` in TSV) |
+| `events_04.csv` | Duplicate header row mid-file | Skipped any row where `event_id == "event_id"` |
+| `events_05.csv` | Trailing comma → phantom 6th column | Filtered out any column not in the expected set |
+
+**Table:** `events_db.events` in ClickHouse  
+**Schema:** `event_id String`, `event_ts DateTime`, `user_id String`, `event_type String`, `value Nullable(Float64)`  
+**Engine:** `MergeTree`, ordered by `(event_ts, event_id)`
+Found session JSONL at /root/.claude/projects/-/d7be589b-1261-4ca4-925e-8b31ec092d40.jsonl

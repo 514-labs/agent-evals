@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
@@ -33,4 +35,8 @@ export async function conversion_rate_in_valid_range(ctx: AssertionContext): Pro
       details: { error: e instanceof Error ? e.message : String(e) },
     };
   }
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

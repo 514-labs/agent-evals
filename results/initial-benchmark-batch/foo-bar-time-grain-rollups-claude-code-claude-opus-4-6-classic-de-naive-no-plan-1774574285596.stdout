@@ -1,0 +1,22 @@
+Everything is correct now. Here's a summary of what was done:
+
+## Problem
+All three rollup tables (`rollup_hourly`, `rollup_daily`, `rollup_monthly`) were **empty** — no data was being aggregated from `raw_events`, and no materialized views existed to keep them in sync.
+
+## Fix Applied
+
+1. **Backfilled rollup tables** from the 6 existing raw events:
+
+   | Table | Rows | Example |
+   |-------|------|---------|
+   | `rollup_hourly` | 4 | `2026-01-15 10:00` → 2 events |
+   | `rollup_daily` | 3 | `2026-01-15` → 3 events |
+   | `rollup_monthly` | 2 | `2026-01` → 5 events |
+
+2. **Created materialized views** so future inserts into `raw_events` automatically flow into the rollups:
+   - `mv_rollup_hourly` → groups by `toStartOfHour(event_ts)`
+   - `mv_rollup_daily` → groups by `toDate(event_ts)`
+   - `mv_rollup_monthly` → groups by `toStartOfMonth(event_ts)`
+
+Since the target tables use `SummingMergeTree`, queries should use `SELECT ..., sum(event_count) ... GROUP BY ...` to get correct counts (or `OPTIMIZE TABLE ... FINAL` can be run to force merges).
+Found session JSONL at /root/.claude/projects/-/697bbba3-92d3-42ab-8566-a5ca2b8259d0.jsonl

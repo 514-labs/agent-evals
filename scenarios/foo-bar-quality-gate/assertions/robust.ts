@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function no_false_positives_on_clean_data(ctx: AssertionContext): Promise<AssertionResult> {
   const cleanCheck = await ctx.pg.query(`
     SELECT count(DISTINCT event_id) AS n FROM raw.events
@@ -15,4 +17,8 @@ export async function no_false_positives_on_clean_data(ctx: AssertionContext): P
     message: passed ? "No false positives on clean data." : `Expected 50 clean events, got ${cleanCount}.`,
     details: { cleanCount },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

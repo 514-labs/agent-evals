@@ -78,18 +78,21 @@ function resolveResultsDir(): string | null {
   const explicitDir = process.env.DEC_BENCH_RESULTS_DIR?.trim();
   if (explicitDir && existsSync(explicitDir)) return explicitDir;
 
+  const sampleCandidates = [
+    join(process.cwd(), "data", "results"),
+    join(process.cwd(), "apps", "web", "data", "results"),
+  ];
+  const sampleDir = sampleCandidates.find((candidate) => existsSync(candidate)) ?? null;
+  const preferSampleData =
+    process.env.DEC_BENCH_USE_SAMPLE_DATA === "1" || process.env.NODE_ENV === "production";
+  if (preferSampleData && sampleDir) return sampleDir;
+
   const runtimeCandidates = [join(process.cwd(), "..", "..", "results"), join(process.cwd(), "results")];
   for (const candidate of runtimeCandidates) {
     if (existsSync(candidate)) return candidate;
   }
 
-  const useSampleData = process.env.DEC_BENCH_USE_SAMPLE_DATA === "1";
-  if (!useSampleData) return runtimeCandidates[0] ?? null;
-
-  const sampleCandidates = [join(process.cwd(), "data", "results"), join(process.cwd(), "apps", "web", "data", "results")];
-  for (const candidate of sampleCandidates) {
-    if (existsSync(candidate)) return candidate;
-  }
+  if (sampleDir) return sampleDir;
 
   return runtimeCandidates[0] ?? null;
 }

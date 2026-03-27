@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function no_data_loss(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await ctx.clickhouse.query({
     query: "SELECT uniq(event_id) AS n FROM analytics.events_log",
@@ -13,4 +15,8 @@ export async function no_data_loss(ctx: AssertionContext): Promise<AssertionResu
     message: passed ? "No data loss." : `Expected >=9900000 unique events, got ${count}.`,
     details: { count },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

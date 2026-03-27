@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
@@ -375,7 +376,10 @@ fn print_table(entries: &[ResultEntry]) {
 }
 
 fn print_detail_table(entry: &ResultEntry) {
-    println!("Run ID: {}", entry.run_id);
+    let use_ansi = stdout_supports_ansi();
+    println!("{}", "-".repeat(72));
+    println!("{}", format_block_heading("Selected run", use_ansi));
+    println!("Run ID: {}", format_emphasized_value(&entry.run_id, use_ansi));
     println!("Scenario: {}", entry.result.scenario.as_deref().unwrap_or("-"));
     println!("Harness: {}", entry.result.harness.as_deref().unwrap_or("-"));
     println!("Agent: {}", entry.result.agent.as_deref().unwrap_or("-"));
@@ -405,6 +409,26 @@ fn print_detail_table(entry: &ResultEntry) {
     print_artifact("session jsonl", entry.artifacts.session_jsonl.as_deref());
     print_artifact("run metadata", entry.artifacts.run_meta.as_deref());
     print_artifact("agent raw", entry.artifacts.agent_raw.as_deref());
+}
+
+fn stdout_supports_ansi() -> bool {
+    io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none()
+}
+
+fn format_block_heading(label: &str, use_ansi: bool) -> String {
+    if use_ansi {
+        format!("\x1b[1;36m{label}\x1b[0m")
+    } else {
+        label.to_string()
+    }
+}
+
+fn format_emphasized_value(value: &str, use_ansi: bool) -> String {
+    if use_ansi {
+        format!("\x1b[1m{value}\x1b[0m")
+    } else {
+        value.to_string()
+    }
 }
 
 fn print_artifact(label: &str, value: Option<&str>) {

@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 async function fetchJson(url: string): Promise<any> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -19,4 +21,8 @@ export async function handles_concurrent_requests(ctx: AssertionContext): Promis
     message: passed ? "Handles concurrent requests." : `${fulfilled}/${concurrency} concurrent requests succeeded.`,
     details: { fulfilled, total: concurrency },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

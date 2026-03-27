@@ -6,4 +6,5 @@ ARG SCENARIO_DIR
 RUN test -n "${SCENARIO_DIR}"
 
 COPY ${SCENARIO_DIR}/ /scenario/
+COPY scenarios/_shared/ /_shared/
 COPY ${SCENARIO_DIR}/supervisord.conf /etc/supervisord.conf

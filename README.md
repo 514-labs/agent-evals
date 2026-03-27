@@ -64,7 +64,7 @@ dec-bench run --scenario foo-bar-csv-ingest --harness classic-de
 
 ## Scenarios
 
-37 scenarios across ingestion, schema design, query optimization, debugging, pipeline construction, and data quality. Difficulty labels reflect observed agent failure rates, not editorial judgment.
+48 scenarios in the preview today, including 36 Foo Bar scenarios plus additional domain coverage across advertising, B2B SaaS, B2C SaaS, e-commerce, infra, and UGC.
 
 ```bash
 dec-bench list
@@ -79,6 +79,14 @@ Every scenario runs against real databases, not mocks:
 | **Postgres** | Transactional source of truth — schema migrations, referential integrity |
 | **Redpanda** | High-throughput event streaming — topic management, consumer groups |
 | **ClickHouse** | Columnar analytics — materialized views, real-time aggregation |
+
+## Prerequisites
+
+- Git
+- Docker (running)
+- An API key for your chosen agent
+
+`dec-bench list` is the fastest install smoke test and does not require Docker or an API key. `build` and `run` do.
 
 ## CLI Reference
 

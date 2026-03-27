@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function orders_schema_has_required_columns(ctx: AssertionContext): Promise<AssertionResult> {
   const rows = (await (await ctx.clickhouse.query({
     query: "SELECT name FROM system.columns WHERE database = 'analytics' AND table = 'orders'",
@@ -14,4 +16,8 @@ export async function orders_schema_has_required_columns(ctx: AssertionContext):
     message: passed ? "Orders schema has required columns." : `Schema incomplete. Got: ${JSON.stringify(names)}.`,
     details: { names },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

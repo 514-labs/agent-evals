@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function no_hardcoded_credentials(ctx: AssertionContext): Promise<AssertionResult> {
   const { readdirSync, readFileSync } = await import("node:fs");
   const { join } = await import("node:path");
@@ -27,4 +29,8 @@ export async function no_hardcoded_credentials(ctx: AssertionContext): Promise<A
     message: found ? `Hardcoded credentials in ${found}.` : "No hardcoded credentials.",
     details: found ? { found } : undefined,
   };
+}
+
+export async function avoids_select_star_queries(): Promise<AssertionResult> {
+  return avoidsSelectStarQueries();
 }

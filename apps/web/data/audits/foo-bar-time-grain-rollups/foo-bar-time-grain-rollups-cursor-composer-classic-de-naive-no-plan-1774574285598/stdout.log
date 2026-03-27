@@ -1,0 +1,85 @@
+
+Exploring the codebase to locate ClickHouse schema, rollup definitions, and related scripts.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Fixing rollup INSERTs: replacing zero-filled daily rows with proper `GROUP BY` aggregations and populating hourly and monthly rollups. Verifying ClickHouse availability and applying the fix.
+
+
+
+
+
+Updating `clickhouse-setup.sql` with correct rollup aggregations.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here’s what was wrong and what we changed.
+
+### Cause
+- **Daily:** Rows were inserted with `0 AS event_count` (one row per raw row), so totals were wrong and `sum(event_count)` did not match the source.
+- **Hourly / monthly:** Those tables were never filled.
+
+### Fix (in `/scenario/init/clickhouse-setup.sql`)
+1. **Hourly:** `INSERT … SELECT toStartOfHour(event_ts), count() … GROUP BY hour`
+2. **Daily:** `INSERT … SELECT toDate(event_ts), count() … GROUP BY day` (real counts per calendar day)
+3. **Monthly:** `INSERT … SELECT toDate(toStartOfMonth(event_ts)), count() … GROUP BY month` (month bucket as the first day of the month, matching the `Date` column)
+
+`SummingMergeTree` + `ORDER BY` the bucket key is still appropriate: each grain has one row per bucket with the right `event_count`.
+
+### Verification
+ClickHouse was started as the `clickhouse` user, the DB was recreated, and the setup script was applied. Checks:
+
+- `count()` on `raw_events` = **6**
+- `sum(event_count)` on each of `rollup_hourly`, `rollup_daily`, and `rollup_monthly` = **6**
+- Sample buckets: hourly (e.g. 2+1+2+1), daily (3+2+1), monthly (5+1)
+
+That matches the scenario assertions: daily total vs source, non-empty rollups, and hourly/monthly populated.
