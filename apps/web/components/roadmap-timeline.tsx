@@ -5,7 +5,7 @@ type RoadmapItem = {
 
 function StatusBadge({ status }: { status: "active" | "next" | "future" }) {
   const styles = {
-    active: "bg-[#FF10F0] text-black border-black",
+    active: "bg-[#B91C1C] text-black border-black",
     next: "bg-black text-white border-black",
     future: "bg-transparent text-black/40 border-black/20 border-dashed",
   }
@@ -61,7 +61,7 @@ export function RoadmapTimeline({
           <div className="px-6 py-4 space-y-3">
             {nextItems.map((item) => (
               <div key={item.label} className="flex items-start gap-3 group">
-                <span className="mt-1.5 block size-2 border-[2px] border-black shrink-0 group-hover:bg-[#FF10F0] transition-colors" />
+                <span className="mt-1.5 block size-2 border-[2px] border-black shrink-0 group-hover:bg-[#B91C1C] transition-colors" />
                 <div>
                   <span className="text-sm font-bold uppercase tracking-[0.1em]">
                     {item.label}

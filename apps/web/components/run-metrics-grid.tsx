@@ -32,7 +32,7 @@ export function RunMetricsGrid({ metrics }: { metrics: MetricItem[] }) {
                 </p>
                 <p
                   className={`font-[family-name:var(--font-display)] text-lg mt-0.5 ${
-                    metric.accent ? "text-[#FF10F0]" : ""
+                    metric.accent ? "text-[#B91C1C]" : ""
                   }`}
                 >
                   {metric.value}

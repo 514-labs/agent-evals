@@ -27,8 +27,8 @@ const KIND_COLORS: Record<string, string> = {
   tool_use: "bg-blue-600 text-white",
   tool_result: "bg-blue-900 text-blue-200",
   thinking: "bg-amber-500 text-black",
-  assistant_text: "bg-[#FF10F0] text-black",
-  assistant_final: "bg-[#FF10F0] text-black",
+  assistant_text: "bg-[#B91C1C] text-black",
+  assistant_final: "bg-[#B91C1C] text-black",
   message: "bg-black/70 text-white",
   event: "bg-black/50 text-white",
 };
@@ -38,8 +38,8 @@ const FILTER_ACCENT: Record<string, string> = {
   tool_use: "border-b-blue-600",
   tool_result: "border-b-blue-900",
   thinking: "border-b-amber-500",
-  assistant_text: "border-b-[#FF10F0]",
-  assistant_final: "border-b-[#FF10F0]",
+  assistant_text: "border-b-[#B91C1C]",
+  assistant_final: "border-b-[#B91C1C]",
   message: "border-b-black/70",
   event: "border-b-black/50",
 };

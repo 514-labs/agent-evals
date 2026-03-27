@@ -29,7 +29,7 @@ function formatBytes(value: number): string {
 }
 
 const KIND_STYLES: Record<string, string> = {
-  stdout: "bg-[#FF10F0] text-black",
+  stdout: "bg-[#B91C1C] text-black",
   trace: "bg-blue-600 text-white",
   stderr: "bg-red-600 text-white",
   service: "bg-black/70 text-white",
@@ -219,7 +219,7 @@ export function AuditLogViewer({
       <div className="relative bg-[#0d0d0d] h-96">
         {loading && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#FF10F0]">
+            <span className="text-xs uppercase tracking-[0.2em] text-[#B91C1C]">
               Loading...
             </span>
           </div>

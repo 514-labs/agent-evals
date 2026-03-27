@@ -195,7 +195,7 @@ export function AuditRunPlayer({
       <div className="bg-black px-3 py-2 flex items-center justify-between gap-2 border-b-[3px] border-black shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex gap-1.5 shrink-0">
-            <div className="w-[8px] h-[8px] bg-[#FF10F0]" />
+            <div className="w-[8px] h-[8px] bg-[#B91C1C]" />
             <div className="w-[8px] h-[8px] bg-white/20" />
             <div className="w-[8px] h-[8px] bg-white/10" />
           </div>
@@ -205,7 +205,7 @@ export function AuditRunPlayer({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {loading && (
-            <span className="text-xs uppercase tracking-[0.14em] text-[#FF10F0] animate-pulse">
+            <span className="text-xs uppercase tracking-[0.14em] text-[#B91C1C] animate-pulse">
               Loading...
             </span>
           )}
@@ -218,7 +218,7 @@ export function AuditRunPlayer({
       {/* Progress bar */}
       <div className="h-[3px] bg-black/80 relative shrink-0">
         <div
-          className="h-full bg-[#FF10F0] transition-all duration-75 ease-linear"
+          className="h-full bg-[#B91C1C] transition-all duration-75 ease-linear"
           style={{ width: `${progress * 100}%` }}
         />
       </div>
@@ -245,7 +245,7 @@ export function AuditRunPlayer({
               className={cn(
                 "w-7 h-7 flex items-center justify-center border-[2px] transition-colors",
                 effectivePlaying
-                  ? "border-[#FF10F0] bg-[#FF10F0] text-black"
+                  ? "border-[#B91C1C] bg-[#B91C1C] text-black"
                   : "border-white/30 text-white/60 hover:border-white hover:text-white",
               )}
               aria-label={effectivePlaying ? "Pause" : "Play"}
@@ -286,7 +286,7 @@ export function AuditRunPlayer({
             max={lines.length}
             value={position}
             onChange={handleSeek}
-            className="flex-1 h-1 appearance-none bg-white/10 cursor-pointer accent-[#FF10F0] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#FF10F0] [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer"
+            className="flex-1 h-1 appearance-none bg-white/10 cursor-pointer accent-[#B91C1C] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#B91C1C] [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer"
           />
         </div>
       )}
@@ -330,7 +330,7 @@ export function AuditRunPlayer({
           )}
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <span className="text-xs uppercase tracking-[0.16em] text-[#FF10F0] animate-pulse">
+              <span className="text-xs uppercase tracking-[0.16em] text-[#B91C1C] animate-pulse">
                 Loading log data...
               </span>
             </div>

@@ -1,24 +1,25 @@
 import type { Metadata } from "next"
-import { Anton, Space_Mono } from "next/font/google"
+import { Lora, Chivo_Mono } from "next/font/google"
 
 import "@/styles/app.css"
 
-const fontDisplay = Anton({
+const fontDisplay = Lora({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: "400",
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
 })
 
-const fontBody = Space_Mono({
+const fontBody = Chivo_Mono({
   subsets: ["latin"],
   variable: "--font-body",
-  weight: ["400", "700"],
+  weight: ["300", "400", "700"],
 })
 
 const siteUrl = "https://decbench.ai"
-const title = "DEC Bench — Open-Source Data Engineering Benchmark for AI Agents"
+const title = "DEC Bench — A Multi-Gate Evaluation Framework for AI Coding Agents"
 const description =
-  "Evaluate AI coding agents on real data engineering tasks. Five-gate scoring against live Postgres, Redpanda, and ClickHouse. Compare Claude Code, Codex, and Cursor side by side."
+  "An open benchmark extending evaluation beyond functional correctness into robustness, performance, and production readiness across five sequential quality gates. 37 scenarios, 3 agents, 3 harnesses."
 
 export const metadata: Metadata = {
   title,
@@ -38,18 +39,14 @@ export const metadata: Metadata = {
     description,
   },
   keywords: [
-    "AI agent benchmark",
-    "data engineering evaluation",
-    "coding agent eval",
-    "ClickHouse benchmark",
-    "Postgres benchmark",
-    "AI agent comparison",
-    "Claude Code eval",
-    "Codex eval",
-    "Cursor eval",
-    "open source benchmark",
-    "SWE-bench alternative",
-    "data engineering competency",
+    "AI agent evaluation",
+    "data engineering benchmark",
+    "coding agent benchmark",
+    "multi-gate evaluation",
+    "sequential quality gates",
+    "DEC Bench",
+    "open benchmark",
+    "reproducible evaluation",
   ],
   alternates: {
     canonical: siteUrl,
@@ -72,7 +69,6 @@ export default function RootLayout({
       </head>
       <body
         className={`${fontDisplay.variable} ${fontBody.variable} antialiased`}
-        style={{ backgroundColor: "#ffffff" }}
       >
         <script
           type="application/ld+json"
@@ -87,7 +83,7 @@ export default function RootLayout({
               url: siteUrl,
               author: {
                 "@type": "Organization",
-                name: "FiveOneFour",
+                name: "514 Labs",
                 url: "https://fiveonefour.com",
               },
               license: "https://github.com/514-labs/agent-evals/blob/main/LICENSE",

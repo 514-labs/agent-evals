@@ -279,7 +279,7 @@ export default async function ScenarioAuditRunPage({
           {index.runs.length >= 1 && (
             <Link
               href={`/audit/${scenario}/compare?left=${runId}&right=${index.runs.find((r) => r.runId !== runId)?.runId ?? index.runs[0]?.runId}`}
-              className="text-xs font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-2 border-[#FF10F0] bg-[#FF10F0] text-black hover:bg-black hover:text-white hover:border-black transition-colors"
+              className="text-xs font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-2 border-[#B91C1C] bg-[#B91C1C] text-black hover:bg-black hover:text-white hover:border-black transition-colors"
             >
               Compare
             </Link>
@@ -299,7 +299,7 @@ export default async function ScenarioAuditRunPage({
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
             Gate Progression
           </span>
-          <span className="text-xs uppercase tracking-[0.2em] text-[#FF10F0]">
+          <span className="text-xs uppercase tracking-[0.2em] text-[#B91C1C]">
             {manifest.highestGate}/5
           </span>
         </div>
@@ -315,8 +315,8 @@ export default async function ScenarioAuditRunPage({
                 className={`flex-1 px-3 py-2 border-r border-black/10 last:border-r-0 transition-colors ${
                   passed
                     ? isHighest
-                      ? "bg-[#FF10F0]"
-                      : "bg-[#FF10F0]/20"
+                      ? "bg-[#B91C1C]"
+                      : "bg-[#B91C1C]/20"
                     : "bg-white"
                 }`}
               >
@@ -471,7 +471,7 @@ export default async function ScenarioAuditRunPage({
                   key={run.runId}
                   href={`/audit/${scenario}/${run.runId}`}
                   className={`block px-3 py-2 border-b border-black/10 last:border-b-0 transition-colors ${
-                    active ? "bg-[#FF10F0]" : "hover:bg-black/3"
+                    active ? "bg-[#B91C1C]" : "hover:bg-black/3"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -555,7 +555,7 @@ export default async function ScenarioAuditRunPage({
                     }
                     className={`text-xs font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 ${
                       promptHashMatchesCurrent === true
-                        ? "bg-[#FF10F0]/20 text-black/70"
+                        ? "bg-[#B91C1C]/20 text-black/70"
                         : promptHashMatchesCurrent === false
                           ? "bg-yellow-100 text-yellow-800"
                           : "bg-black/5 text-black/40"

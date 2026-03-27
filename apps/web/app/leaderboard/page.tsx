@@ -22,7 +22,7 @@ function EmptyState() {
       <div className="mt-8 flex flex-wrap justify-center gap-4">
         <Link
           href="/docs/running-evals"
-          className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
+          className="brutal-btn bg-[#B91C1C] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
         >
           RUN THE PREVIEW →
         </Link>

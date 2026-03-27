@@ -28,7 +28,7 @@ function GatePips({ gate }: { gate: number }) {
         <div
           key={g}
           className={`w-[14px] h-[14px] border-[2px] border-black ${
-            g <= gate ? "bg-[#FF10F0]" : "bg-transparent"
+            g <= gate ? "bg-[#B91C1C]" : "bg-transparent"
           }`}
         />
       ))}
@@ -220,7 +220,7 @@ export function LeaderboardClient({
               key={getLeaderboardEntryKey(entry)}
               className={`border-[3px] border-black p-6 ${
                 i === 0
-                  ? "bg-[#FF10F0] md:row-start-1"
+                  ? "bg-[#B91C1C] md:row-start-1"
                   : i === 1
                     ? "border-t-0 md:border-t-[3px] md:border-l-0 bg-black text-white"
                     : "border-t-0 md:border-t-[3px] md:border-l-0"
@@ -287,14 +287,14 @@ export function LeaderboardClient({
             {entries.map((entry) => (
               <TableRow
                 key={getLeaderboardEntryKey(entry)}
-                className={`border-b border-black/10 hover:bg-[#FF10F0]/5 transition-colors ${
-                  entry.rank === 1 ? "bg-[#FF10F0]/3" : ""
+                className={`border-b border-black/10 hover:bg-[#B91C1C]/5 transition-colors ${
+                  entry.rank === 1 ? "bg-[#B91C1C]/3" : ""
                 }`}
               >
                 <TableCell className="pl-6">
                   <span
                     className={`font-[family-name:var(--font-display)] text-xl ${
-                      entry.rank === 1 ? "text-[#FF10F0]" : "text-black/25"
+                      entry.rank === 1 ? "text-[#B91C1C]" : "text-black/25"
                     }`}
                   >
                     {String(entry.rank).padStart(2, "0")}
@@ -317,7 +317,7 @@ export function LeaderboardClient({
                 <TableCell>
                   <span
                     className={`font-[family-name:var(--font-display)] text-2xl tracking-tight ${
-                      entry.rank === 1 ? "text-[#FF10F0]" : ""
+                      entry.rank === 1 ? "text-[#B91C1C]" : ""
                     }`}
                   >
                     {formatScore(entry.normalized_score)}
@@ -348,7 +348,7 @@ export function LeaderboardClient({
         <div className="flex gap-4">
           <Link
             href="/docs/running-evals"
-            className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
+            className="brutal-btn bg-[#B91C1C] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
           >
             RUN THE PREVIEW →
           </Link>

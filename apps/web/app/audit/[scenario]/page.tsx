@@ -68,7 +68,7 @@ export default async function ScenarioAuditLandingPage({
           <div className="mt-6 flex gap-3">
             <Link
               href="/audit"
-              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-[#FF10F0] transition-colors"
+              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-[#B91C1C] transition-colors"
             >
               All Scenarios
             </Link>

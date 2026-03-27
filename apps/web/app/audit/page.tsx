@@ -106,9 +106,9 @@ export default function AuditIndexPage() {
               <Link
                 key={s.id}
                 href={`/audit/${s.id}/${latest.runId}`}
-                className="group border-[3px] border-black hover:border-[#FF10F0] transition-colors flex flex-col"
+                className="group border-[3px] border-black hover:border-[#B91C1C] transition-colors flex flex-col"
               >
-                <div className="bg-black px-4 py-2 flex items-center justify-between group-hover:bg-[#FF10F0] transition-colors">
+                <div className="bg-black px-4 py-2 flex items-center justify-between group-hover:bg-[#B91C1C] transition-colors">
                   <span className="text-xs font-bold uppercase tracking-[0.2em] text-white group-hover:text-black transition-colors truncate">
                     {s.context?.title ?? formatScenarioName(s.id)}
                   </span>
@@ -129,7 +129,7 @@ export default function AuditIndexPage() {
                           key={g}
                           className={`w-2 h-2 border-[1.5px] border-black ${
                             g <= latest.highestGate
-                              ? "bg-[#FF10F0]"
+                              ? "bg-[#B91C1C]"
                               : "bg-transparent"
                           }`}
                         />
