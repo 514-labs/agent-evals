@@ -181,6 +181,10 @@ function createManifest(result, scenario, runId, stdoutBytes, extraLogs) {
     schemaVersion: "1",
     runId,
     scenario,
+    resultKind:
+      typeof result.result_kind === "string" && result.result_kind.trim().length > 0
+        ? result.result_kind.trim()
+        : undefined,
     timestamp: typeof result.created_at === "string" ? result.created_at : safeTimestampFromName(runId),
     harness: String(result.harness ?? "unknown"),
     agent: String(result.agent ?? "unknown"),
