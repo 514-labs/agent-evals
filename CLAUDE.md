@@ -21,27 +21,28 @@ Build tools: pnpm 10.4.1 (JS), Cargo (Rust), turbo (orchestration).
 
 ## Evaluation Design
 
-Three independent variables, two dependent variables.
+Four independent variables, two dependent variables.
 
 **Independent (what you vary):**
 
-1. **Agent** -- Claude Code, Codex, Cursor
+1. **Agent** -- the AI coding agent runner (Claude Code, Codex, Cursor). Each runner can use different underlying models (e.g. Claude Sonnet 4.6, Claude Opus 4.6, GPT-5.4).
 2. **Harness** -- the tooling environment:
    - **Base RT** (control): Postgres + Redpanda + ClickHouse + Python/Node/CLIs
    - **Classic DE**: + dbt, Airflow, Spark
    - **OLAP for SWE**: + MooseStack (typed schemas, auto migrations, MCP)
-3. **Scenario** -- data engineering tasks in the "Foo Bar" synthetic SaaS domain (37 in v0.1, growing)
+3. **Scenario** -- data engineering tasks in the "Foo Bar" synthetic SaaS domain (37 in v0.1, growing). Foo Bar is synthetic by design -- isolates data engineering competency from business-domain knowledge and data contamination risk.
+4. **Persona** -- each scenario has two prompts:
+   - **Naive** (`prompts/naive.md`): minimal context, first-principles problem statement
+   - **Savvy** (`prompts/savvy.md`): expert-level prompt with domain knowledge
 
 **Dependent (what you measure):**
 
 1. **Quality** -- gate scores (G1-G5) and gate attrition curves
 2. **Efficiency** -- wall time, token usage, cost
 
-Agents x Harnesses x Scenarios evaluation matrix. The harness variable directly measures whether specialized tooling helps agents perform better vs bare infrastructure or traditional DE stacks.
+Agent x Harness x Scenario x Persona evaluation matrix. The harness variable directly measures whether specialized tooling helps agents perform better vs bare infrastructure or traditional DE stacks. The persona variable measures whether domain expertise in the prompt changes where agents fall off.
 
-**Evaluation Modes** (orthogonal):
-- **Mode A (Naive vs Savvy)**: Agent gets only the scenario description, no scaffolding
-- **Mode B (Plan vs Execute)**: Agent plans first, then implements (under development)
+**Mode B (Plan vs Execute)** is a planned orthogonal evaluation mode where the agent plans first, then implements. Under development.
 
 ## Five-Gate Scoring
 
@@ -52,6 +53,17 @@ Sequential, strictly ordered gates. Failure blocks higher gates. All assertions 
 3. **G3 Robust** -- handles edge cases and errors
 4. **G4 Performant** -- meets latency/throughput targets
 5. **G5 Production** -- code quality fit for release
+
+Each gate has two layers of assertions: **core** assertions (defined by the eval framework, apply to all scenarios) and **scenario-specific** assertions (written by the scenario author).
+
+## Competitive Context
+
+DEC Bench is complementary to, not competing with, adjacent benchmarks:
+- **SWE-bench** -- resolving real GitHub issues in software repos
+- **DS-1000** -- library-centric data science code generation
+- **BigCodeBench** -- harder function-level code generation
+
+DEC Bench answers a narrower question: can an agent do end-to-end data engineering work on real infrastructure?
 
 ## Scenario Anatomy
 
