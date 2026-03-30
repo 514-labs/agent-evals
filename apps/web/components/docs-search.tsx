@@ -24,7 +24,7 @@ export function DocsSearch() {
         onChange={(event) => setSearch(event.target.value)}
         placeholder="Search docs..."
         aria-label="Search documentation"
-        className="h-8 border border-black/15 bg-white text-xs font-[family-name:var(--font-body)] tracking-wide placeholder:text-black/30 focus-visible:border-[#B91C1C] focus-visible:ring-[#B91C1C]/20"
+        className="h-8 border border-black/15 bg-white text-xs font-[family-name:var(--font-mono)] tracking-wide placeholder:text-black/30 focus-visible:border-[#B91C1C] focus-visible:ring-[#B91C1C]/20"
       />
 
       {query.error ? (

@@ -26,7 +26,7 @@ export function Nav({
   const isSticky = sticky || isLanding;
 
   const linkClass = (active?: boolean) =>
-    `text-[11px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 transition-colors font-[family-name:var(--font-body)] ${
+    `text-[11px] font-bold uppercase tracking-[0.12em] px-2.5 py-1 transition-colors font-[family-name:var(--font-mono)] ${
       active
         ? "bg-[#1C1917] text-[#F9F7F3]"
         : "text-[#57534E] hover:text-[#1C1917]"
@@ -64,7 +64,7 @@ export function Nav({
                 <a
                   key={link.href}
                   href={link.href}
-                  className="hidden md:inline text-[10px] font-bold uppercase tracking-[0.12em] text-[#57534E] hover:text-[#1C1917] transition-colors px-1.5 py-1 font-[family-name:var(--font-body)]"
+                  className="hidden md:inline text-[10px] font-bold uppercase tracking-[0.12em] text-[#57534E] hover:text-[#1C1917] transition-colors px-1.5 py-1 font-[family-name:var(--font-mono)]"
                 >
                   {link.label}
                 </a>
@@ -72,7 +72,7 @@ export function Nav({
               <span className="hidden lg:inline text-[#D6D3D1]">·</span>
               <Link
                 href="/docs"
-                className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#57534E] hover:text-[#1C1917] transition-colors px-1.5 py-1 font-[family-name:var(--font-body)]"
+                className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#57534E] hover:text-[#1C1917] transition-colors px-1.5 py-1 font-[family-name:var(--font-mono)]"
               >
                 Docs
               </Link>
@@ -80,11 +80,11 @@ export function Nav({
                 href="https://github.com/514-labs/agent-evals"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#57534E] hover:text-[#1C1917] transition-colors px-1.5 py-1 font-[family-name:var(--font-body)]"
+                className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#57534E] hover:text-[#1C1917] transition-colors px-1.5 py-1 font-[family-name:var(--font-mono)]"
               >
                 GitHub
               </a>
-              <span className="text-[9px] uppercase tracking-[0.15em] text-[#A8A29E] border border-[#D6D3D1] px-2 py-0.5 font-[family-name:var(--font-body)]">
+              <span className="text-[9px] uppercase tracking-[0.15em] text-[#A8A29E] border border-[#D6D3D1] px-2 py-0.5 font-[family-name:var(--font-mono)]">
                 v0.1
               </span>
             </>
@@ -109,7 +109,7 @@ export function Nav({
                 href="https://github.com/514-labs/agent-evals"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#57534E] border border-[#D6D3D1] px-2.5 py-1 hover:bg-[#1C1917] hover:text-[#F9F7F3] hover:border-[#1C1917] transition-all font-[family-name:var(--font-body)]"
+                className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#57534E] border border-[#D6D3D1] px-2.5 py-1 hover:bg-[#1C1917] hover:text-[#F9F7F3] hover:border-[#1C1917] transition-all font-[family-name:var(--font-mono)]"
               >
                 GH ↗
               </a>

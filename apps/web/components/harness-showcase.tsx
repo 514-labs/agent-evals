@@ -78,7 +78,7 @@ function ScriptBlock({ harnessId, script }: { harnessId: string; script: string 
       <pre className="px-4 py-3 overflow-x-auto bg-white">
         <code
           className="text-sm leading-[1.7] text-black/80"
-          style={{ fontFamily: "var(--font-body), ui-monospace, monospace" }}
+          style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
         >
           {lines.map((line) => `${line}\n`).join("")}
         </code>

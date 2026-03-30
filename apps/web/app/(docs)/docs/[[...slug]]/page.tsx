@@ -68,13 +68,13 @@ export default async function DocsPage({
         {/* Content */}
         <article className="min-w-0 w-full container mx-auto px-8 lg:px-14 py-10">
           <div className="max-w-prose mx-auto">
-            <div className="pb-6 mb-8 border-b-[3px] border-black">
-              <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">DOCUMENTATION</span>
-              <h1 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl tracking-tight uppercase leading-[0.9]">
+            <div className="pb-4 mb-6 border-b-[3px] border-[#1C1917]">
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#A8A29E] block mb-3">Documentation</span>
+              <h1 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl tracking-tight leading-[0.9]">
                 {page.data.title}
               </h1>
               {page.data.description ? (
-                <p className="mt-3 text-sm text-black/50 leading-relaxed max-w-xl">
+                <p className="mt-3 text-sm text-[#57534E] leading-relaxed max-w-xl">
                   {page.data.description}
                 </p>
               ) : null}

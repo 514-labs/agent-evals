@@ -3,16 +3,16 @@ import { Lora, Chivo_Mono } from "next/font/google"
 
 import "@/styles/app.css"
 
-const fontDisplay = Lora({
+const fontSerif = Lora({
   subsets: ["latin"],
   variable: "--font-display",
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
 })
 
-const fontBody = Chivo_Mono({
+const fontMono = Chivo_Mono({
   subsets: ["latin"],
-  variable: "--font-body",
+  variable: "--font-mono",
   weight: ["300", "400", "700"],
 })
 
@@ -68,7 +68,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${fontDisplay.variable} ${fontBody.variable} antialiased`}
+        className={`${fontSerif.variable} ${fontMono.variable} antialiased`}
       >
         <script
           type="application/ld+json"

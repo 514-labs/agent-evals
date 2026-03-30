@@ -20,15 +20,15 @@ const gateHeaderColors = [
 ];
 
 const scenarios = [
-  { id: "01", title: "CSV Ingest", competency: "Ingestion", services: ["clickhouse"], state: "build" },
-  { id: "02", title: "Table Layout", competency: "Schema Design", services: ["clickhouse"], state: "build" },
-  { id: "03", title: "Slow Queries", competency: "Query Optimization", services: ["clickhouse"], state: "fix" },
-  { id: "04", title: "Broken Connection", competency: "Debugging", services: ["postgres"], state: "fix" },
-  { id: "05", title: "Transform Chain", competency: "Transformation", services: ["postgres", "clickhouse"], state: "build" },
-  { id: "06", title: "Schema Evolution", competency: "Schema Design", services: ["postgres", "clickhouse"], state: "build" },
-  { id: "07", title: "Idempotent Pipeline", competency: "Reliability", services: ["postgres", "clickhouse"], state: "build" },
-  { id: "08", title: "Quality Gate", competency: "Data Quality", services: ["postgres", "clickhouse"], state: "fix" },
-  { id: "09", title: "Ingest-to-API", competency: "End-to-End", services: ["postgres", "clickhouse"], state: "build" },
+  { id: "01", title: "CSV Ingest", competency: "Ingestion", services: ["ClickHouse"], state: "build" },
+  { id: "02", title: "Table Layout", competency: "Schema Design", services: ["ClickHouse"], state: "build" },
+  { id: "03", title: "Slow Queries", competency: "Query Optimization", services: ["ClickHouse"], state: "fix" },
+  { id: "04", title: "Broken Connection", competency: "Debugging", services: ["Postgres"], state: "fix" },
+  { id: "05", title: "Transform Chain", competency: "Transformation", services: ["Postgres", "ClickHouse"], state: "build" },
+  { id: "06", title: "Schema Evolution", competency: "Schema Design", services: ["Postgres", "ClickHouse"], state: "build" },
+  { id: "07", title: "Idempotent Pipeline", competency: "Reliability", services: ["Postgres", "ClickHouse"], state: "build" },
+  { id: "08", title: "Quality Gate", competency: "Data Quality", services: ["Postgres", "ClickHouse"], state: "fix" },
+  { id: "09", title: "Ingest-to-API", competency: "End-to-End", services: ["Postgres", "ClickHouse"], state: "build" },
 ];
 
 const harnesses = [
@@ -102,7 +102,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9F7F3] text-[#1C1917] font-[family-name:var(--font-body)]">
+    <div className="min-h-screen bg-[#F9F7F3] text-[#1C1917] font-[family-name:var(--font-display)]">
 
       {/* ── Proceedings Band ── */}
       <div className="border-b border-[#D6D3D1]">
@@ -247,7 +247,7 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="introduction" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
               §1 — Introduction
             </h2>
             <div className="text-sm leading-[1.85] text-[#57534E] space-y-4">
@@ -276,8 +276,8 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="evaluation-design" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
-              §2 — Evaluation Design
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
+              §2 — Evaluation design
             </h2>
 
             {/* 2.1 Five-Gate Model */}
@@ -343,8 +343,8 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="scenarios" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
-              §3 — Benchmark Scenarios
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
+              §3 — Benchmark scenarios
             </h2>
             <p className="text-sm leading-[1.85] text-[#57534E] mb-6">
               DEC Bench v0.1 includes 37 scenarios, each designed to isolate a distinct competency required in production data engineering. Difficulty labels are not editorial — they reflect observed agent failure rates across initial evaluation runs (§5). The scenario library is designed to grow through community contribution.
@@ -395,8 +395,8 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="harnesses" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
-              §4 — Evaluation Harnesses
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
+              §4 — Evaluation harnesses
             </h2>
             <p className="text-sm leading-[1.85] text-[#57534E] mb-4">
               When a coding agent is evaluated on a scenario, it operates within a <em>harness</em> — the set of tools, libraries, test suites, and scaffolding made available during evaluation. The harness is a meaningful evaluation variable because it changes the competency being measured.
@@ -423,7 +423,7 @@ export default function HomePage() {
                 <tbody>
                   {harnesses.map((h) => (
                     <tr key={h.id} className="border-b border-[#E8E5E0] hover:bg-[#F5F3EE] transition-colors align-top">
-                      <td className="py-2.5 pr-4">
+                      <td className="py-2.5 pr-4 whitespace-nowrap">
                         <span className="text-xs font-bold">{h.name}</span>
                         <span className="block text-[9px] uppercase tracking-[0.15em] text-[#A8A29E] mt-0.5">{h.label}</span>
                       </td>
@@ -446,8 +446,8 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="results" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
-              §5 — Comparative Results
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
+              §5 — Comparative results
             </h2>
             <p className="text-sm leading-[1.85] text-[#57534E] mb-6">
               We report initial results from the v0.1 evaluation for Codex, Claude Code, and Cursor across 37 data engineering scenarios. All evaluation runs were executed in identical containerized environments; complete run data is available in the{" "}
@@ -527,7 +527,7 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="infrastructure" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
               §6 — Infrastructure
             </h2>
             <p className="text-sm leading-[1.85] text-[#57534E] mb-6">
@@ -566,7 +566,7 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="limitations" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
               §7 — Limitations
             </h2>
             <div className="text-sm leading-[1.85] text-[#57534E] space-y-6">
@@ -610,8 +610,8 @@ export default function HomePage() {
            ════════════════════════════════════════════ */}
         <section id="evaluation-access" className="pt-12">
           <div className="border-t border-[#D6D3D1] pt-8">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight uppercase mb-6">
-              §8 — Evaluation Access
+            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl tracking-tight mb-6">
+              §8 — Evaluation access
             </h2>
 
             <div className="grid md:grid-cols-2 gap-0 my-8">

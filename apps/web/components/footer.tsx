@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="border-t-2 border-[#1C1917] mt-16">
       <div className="max-w-[52rem] mx-auto px-6 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 flex-wrap font-[family-name:var(--font-body)]">
+          <div className="flex items-center gap-2 flex-wrap font-[family-name:var(--font-mono)]">
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1C1917]">
               DEC
             </span>
@@ -33,7 +33,7 @@ export function Footer() {
               GitHub
             </a>
           </div>
-          <div className="font-[family-name:var(--font-body)]">
+          <div className="font-[family-name:var(--font-mono)]">
             <span className="text-[10px] uppercase tracking-[0.15em] text-[#A8A29E]">
               <a
                 href="https://fiveonefour.com"
