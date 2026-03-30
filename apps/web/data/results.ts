@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
@@ -77,18 +78,21 @@ function resolveResultsDir(): string | null {
   const explicitDir = process.env.DEC_BENCH_RESULTS_DIR?.trim();
   if (explicitDir && existsSync(explicitDir)) return explicitDir;
 
+  const sampleCandidates = [
+    join(process.cwd(), "data", "results"),
+    join(process.cwd(), "apps", "web", "data", "results"),
+  ];
+  const sampleDir = sampleCandidates.find((candidate) => existsSync(candidate)) ?? null;
+  const preferSampleData =
+    process.env.DEC_BENCH_USE_SAMPLE_DATA === "1" || process.env.NODE_ENV === "production";
+  if (preferSampleData && sampleDir) return sampleDir;
+
   const runtimeCandidates = [join(process.cwd(), "..", "..", "results"), join(process.cwd(), "results")];
   for (const candidate of runtimeCandidates) {
     if (existsSync(candidate)) return candidate;
   }
 
-  const useSampleData = process.env.DEC_BENCH_USE_SAMPLE_DATA === "1";
-  if (!useSampleData) return runtimeCandidates[0] ?? null;
-
-  const sampleCandidates = [join(process.cwd(), "data", "results"), join(process.cwd(), "apps", "web", "data", "results")];
-  for (const candidate of sampleCandidates) {
-    if (existsSync(candidate)) return candidate;
-  }
+  if (sampleDir) return sampleDir;
 
   return runtimeCandidates[0] ?? null;
 }
@@ -204,28 +208,30 @@ function loadResults(): EvalResult[] {
   return [...deduped.values()];
 }
 
-export function getLeaderboardEntries(): LeaderboardEntry[] {
-  const results = loadResults();
+const getCachedResults = cache(loadResults);
 
-  results.sort((a, b) => {
+export function getLeaderboardEntries(): LeaderboardEntry[] {
+  const results = getCachedResults();
+
+  const sorted = [...results].sort((a, b) => {
     if (b.highest_gate !== a.highest_gate) {
       return b.highest_gate - a.highest_gate;
     }
     return b.normalized_score - a.normalized_score;
   });
 
-  return results.map((result, index) => ({
+  return sorted.map((result, index) => ({
     ...result,
     rank: index + 1,
   }));
 }
 
 export function getUniqueScenarios(): string[] {
-  const results = loadResults();
+  const results = getCachedResults();
   return [...new Set(results.map((r) => r.scenario))].sort();
 }
 
 export function getUniqueHarnesses(): string[] {
-  const results = loadResults();
+  const results = getCachedResults();
   return [...new Set(results.map((r) => r.harness))].sort();
 }

@@ -21,6 +21,16 @@ export interface AssertionLog {
   details?: Record<string, unknown>;
 }
 
+export interface ProductionThresholds {
+  maxExpectedLines: number;
+  maxFileLines: number;
+}
+
+export interface ScenarioProductionConfig {
+  tier?: string;
+  thresholds: ProductionThresholds;
+}
+
 export type AssertionLogMap = Record<string, AssertionLog>;
 
 export type AssertionLogOutput = Record<

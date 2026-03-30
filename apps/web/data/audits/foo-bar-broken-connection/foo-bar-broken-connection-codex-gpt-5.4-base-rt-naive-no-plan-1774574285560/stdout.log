@@ -1,0 +1,9 @@
+Fixed the Postgres setup so it matches the live database on `localhost:5432`.
+
+Updated [load_data.py](/workspace/load_data.py) to use the correct default credentials (`postgres/postgres` on `5432`), honor `POSTGRES_URL`/`PG*` env vars, and load the rows repeatably. Updated [init.sql](/workspace/init.sql) to correct the broken `CREATE TABLE` syntax. I also corrected the stale exported connection string in [/root/.bashrc](/root/.bashrc) and [/scenario/init/setup-broken.sh](/scenario/init/setup-broken.sh), which were still pointing at `5433`.
+
+Verified end to end:
+- `psql -f /workspace/init.sql` succeeds
+- `python3 /workspace/load_data.py` succeeds
+- querying `app.users` returns 5 rows
+- `bash -lc 'echo $POSTGRES_URL'` now shows `postgresql://postgres:postgres@localhost:5432/postgres`

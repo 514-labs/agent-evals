@@ -21,8 +21,8 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
 
   return (
     <nav>
-      <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/40 block mb-3">
-        ON THIS PAGE
+      <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#A8A29E] block mb-1.5">
+        On this page
       </span>
       <div ref={scrollRef} className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-160px)]">
         <ScrollProvider containerRef={scrollRef}>

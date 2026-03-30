@@ -78,7 +78,7 @@ function ScriptBlock({ harnessId, script }: { harnessId: string; script: string 
       <pre className="px-4 py-3 overflow-x-auto bg-white">
         <code
           className="text-sm leading-[1.7] text-black/80"
-          style={{ fontFamily: "var(--font-body), ui-monospace, monospace" }}
+          style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
         >
           {lines.map((line) => `${line}\n`).join("")}
         </code>
@@ -116,7 +116,7 @@ function HarnessSection({ harness }: { harness: HarnessWithScenarioCount }) {
           <h2 className="font-[family-name:var(--font-display)] text-2xl md:text-3xl uppercase tracking-tight leading-none">
             {harness.title}
           </h2>
-          <span className="text-xs uppercase tracking-[0.2em] text-[#FF10F0] font-bold">
+          <span className="text-xs uppercase tracking-[0.2em] text-[#B91C1C] font-bold">
             {harness.tagline}
           </span>
         </div>
@@ -144,7 +144,7 @@ function HarnessSection({ harness }: { harness: HarnessWithScenarioCount }) {
         <span className="text-black/20">|</span>
         <Link
           href="/docs/registry/scenarios"
-          className="underline decoration-black/20 hover:decoration-[#FF10F0] hover:text-black transition-colors"
+          className="underline decoration-black/20 hover:decoration-[#B91C1C] hover:text-black transition-colors"
         >
           {harness.scenarioCount} scenarios
         </Link>
@@ -236,9 +236,9 @@ export function HarnessShowcase({ harnesses }: HarnessShowcaseProps) {
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="font-bold">Standard agent</span>
             <span className="text-black/30">+</span>
-            <span className="font-bold text-[#FF10F0]">Harness plugins</span>
+            <span className="font-bold text-[#B91C1C]">Harness plugins</span>
             <span className="text-black/30">=</span>
-            <span className="font-bold text-[#FF10F0] border-b-[2px] border-[#FF10F0] pb-0.5">Specialized agent</span>
+            <span className="font-bold text-[#B91C1C] border-b-[2px] border-[#B91C1C] pb-0.5">Specialized agent</span>
           </div>
           <p className="text-xs text-black/45 leading-relaxed pl-0.5">
             Skills, MCPs, and pre-installed tools (dbt, Airflow, MooseStack) that turn a
@@ -262,7 +262,7 @@ export function HarnessShowcase({ harnesses }: HarnessShowcaseProps) {
         </p>
         <Link
           href="/docs/add-eval/getting-started"
-          className="text-sm underline decoration-black/20 hover:decoration-[#FF10F0] hover:text-black transition-colors"
+          className="text-sm underline decoration-black/20 hover:decoration-[#B91C1C] hover:text-black transition-colors"
         >
           Getting started guide
         </Link>

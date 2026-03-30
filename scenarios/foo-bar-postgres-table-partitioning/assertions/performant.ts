@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function date_range_query_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
   const start = Date.now();
   await ctx.pg.query(
@@ -12,4 +14,8 @@ export async function date_range_query_under_200ms(ctx: AssertionContext): Promi
     message: passed ? "Date range query under 200ms." : `Query took ${elapsed}ms.`,
     details: { elapsedMs: elapsed },
   };
+}
+
+export async function avoids_select_star_queries(): Promise<AssertionResult> {
+  return avoidsSelectStarQueries();
 }

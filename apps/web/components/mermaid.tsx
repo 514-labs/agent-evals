@@ -16,7 +16,7 @@ export function Mermaid({ chart }: { chart: string }) {
         mermaid.initialize({
           startOnLoad: false,
           theme: "base",
-          fontFamily: "var(--font-body), ui-monospace, monospace",
+          fontFamily: "var(--font-mono), ui-monospace, monospace",
           securityLevel: "loose",
           themeVariables: {
             primaryColor: "#ffffff",

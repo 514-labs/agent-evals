@@ -8,10 +8,10 @@ import {
 } from "@/data/audits";
 
 function formatScenarioName(value: string): string {
-  return value
-    .replace(/^foo-bar-/, "")
-    .replace(/-/g, " ")
-    .toUpperCase();
+  const words = value.replace(/^foo-bar-/, "").split("-");
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 export function generateStaticParams() {
@@ -38,7 +38,7 @@ export default async function ScenarioAuditLandingPage({
 
   return (
     <div className="px-4 lg:px-8 py-8">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-black/40 mb-4">
+      <div className="flex items-center gap-2 text-xs tracking-[0.04em] text-black/40 mb-4">
         <Link href="/audit" className="hover:text-black transition-colors">
           Audit
         </Link>
@@ -55,7 +55,7 @@ export default async function ScenarioAuditLandingPage({
           </span>
         </div>
         <div className="p-6">
-          <h1 className="font-[family-name:var(--font-display)] uppercase tracking-tight text-4xl">
+          <h1 className="font-[family-name:var(--font-display)] tracking-tight text-4xl">
             {context?.title ?? formatScenarioName(scenario)}
           </h1>
           <p className="mt-3 text-sm text-black/50 max-w-2xl leading-relaxed">
@@ -68,7 +68,7 @@ export default async function ScenarioAuditLandingPage({
           <div className="mt-6 flex gap-3">
             <Link
               href="/audit"
-              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-[#FF10F0] transition-colors"
+              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-[#B91C1C] transition-colors"
             >
               All Scenarios
             </Link>

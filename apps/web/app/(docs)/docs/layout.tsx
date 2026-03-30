@@ -21,7 +21,7 @@ export default function DocsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white text-black font-[family-name:var(--font-body)] overscroll-none">
+    <div className="min-h-screen bg-[#F9F7F3] text-[#1C1917] font-[family-name:var(--font-display)] overscroll-none">
       <Nav activeItem="docs" sticky={true} fullWidth={true} />
 
       <SidebarProvider
@@ -30,7 +30,7 @@ export default function DocsLayout({
       >
         <Sidebar
           collapsible="offcanvas"
-          className="top-[60px] h-[calc(100svh-60px)] border-r-[3px] border-black"
+          className="top-[60px] h-[calc(100svh-60px)] border-r-[3px] border-[#1C1917]"
         >
           <SidebarHeader className="px-4 pt-4 pb-2">
             <DocsSearch />
@@ -46,7 +46,7 @@ export default function DocsLayout({
         </Sidebar>
 
         <SidebarInset>
-          <div className="md:hidden border-b border-black/10 px-4 py-2">
+          <div className="md:hidden border-b border-[#D6D3D1] px-4 py-2">
             <SidebarTrigger />
           </div>
           {children}

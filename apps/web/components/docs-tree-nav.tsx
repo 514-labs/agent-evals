@@ -68,7 +68,7 @@ function FolderNode({ node, currentUrl, depth }: { node: Node & { type: "folder"
             onClick={targetUrl ? handleLabelClick : () => setOpen((prev) => !prev)}
             className={`text-xs tracking-wide border-l-[3px] cursor-pointer flex-1 p-1.5 rounded-md text-left ${
               isActive
-                ? "font-bold text-black border-[#FF10F0]"
+                ? "font-bold text-black border-[#B91C1C]"
                 : "text-black/90 hover:text-black border-transparent"
             }`}
           >
@@ -118,7 +118,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
             isActive={isActive}
             className={`!text-xs tracking-wide !bg-transparent translate-x-0 border-l-[3px] ${
               isActive
-                ? "!text-black border-[#FF10F0]"
+                ? "!text-black border-[#B91C1C]"
                 : "!text-black/90 hover:!text-black border-black/10"
             }`}
           >
@@ -135,7 +135,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
           isActive={isActive}
           className={`text-xs tracking-wide !bg-transparent border-l-[3px] ${
             isActive
-              ? "font-bold !text-black border-[#FF10F0]"
+              ? "font-bold !text-black border-[#B91C1C]"
               : "!text-black/90 hover:!text-black border-transparent"
           }`}
         >
@@ -157,7 +157,7 @@ function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
             isActive={isActive}
             className={`text-xs tracking-wide !bg-transparent border-l-[3px] ${
               isActive
-                ? "font-bold !text-black border-[#FF10F0]"
+                ? "font-bold !text-black border-[#B91C1C]"
                 : "!text-black/90 hover:!text-black border-transparent"
             }`}
           >

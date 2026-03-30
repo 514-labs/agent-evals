@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 import { readFileSync, existsSync } from "node:fs";
 
 export async function uses_env_for_connection(): Promise<AssertionResult> {
@@ -14,4 +16,8 @@ export async function uses_env_for_connection(): Promise<AssertionResult> {
     message: passed ? "Uses env for connection." : "Does not use env vars for connection.",
     details: { passed },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

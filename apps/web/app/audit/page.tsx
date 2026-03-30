@@ -7,10 +7,10 @@ import {
 } from "@/data/audits";
 
 function formatScenarioName(value: string): string {
-  return value
-    .replace(/^foo-bar-/, "")
-    .replace(/-/g, " ")
-    .toUpperCase();
+  const words = value.replace(/^foo-bar-/, "").split("-");
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 function formatDuration(seconds: number): string {
@@ -49,7 +49,7 @@ export default function AuditIndexPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-black/40 mb-2">
             DEC Bench
           </p>
-          <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[5rem] tracking-tight uppercase leading-[0.85]">
+          <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[5rem] tracking-tight leading-[0.85]">
             AUDIT
           </h1>
           <p className="mt-3 text-xs uppercase tracking-wider text-black/50 max-w-lg leading-relaxed">
@@ -106,9 +106,9 @@ export default function AuditIndexPage() {
               <Link
                 key={s.id}
                 href={`/audit/${s.id}/${latest.runId}`}
-                className="group border-[3px] border-black hover:border-[#FF10F0] transition-colors flex flex-col"
+                className="group border-[3px] border-black hover:border-[#B91C1C] transition-colors flex flex-col"
               >
-                <div className="bg-black px-4 py-2 flex items-center justify-between group-hover:bg-[#FF10F0] transition-colors">
+                <div className="bg-black px-4 py-2 flex items-center justify-between group-hover:bg-[#B91C1C] transition-colors">
                   <span className="text-xs font-bold uppercase tracking-[0.2em] text-white group-hover:text-black transition-colors truncate">
                     {s.context?.title ?? formatScenarioName(s.id)}
                   </span>
@@ -129,7 +129,7 @@ export default function AuditIndexPage() {
                           key={g}
                           className={`w-2 h-2 border-[1.5px] border-black ${
                             g <= latest.highestGate
-                              ? "bg-[#FF10F0]"
+                              ? "bg-[#B91C1C]"
                               : "bg-transparent"
                           }`}
                         />

@@ -22,6 +22,39 @@ Each gate checks two things:
 
 A gate passes when all core assertions pass **and** scenario assertions hit the 80% threshold.
 
+Production includes a shared deterministic hygiene floor before any scenario-specific ship checks:
+
+- `uses_env_vars`
+- `no_secrets_in_code`
+- `output_line_count_reasonable`
+- `output_line_count_disciplined`
+- `no_dead_code_markers`
+- `files_are_reasonably_sized`
+- `no_debug_artifacts`
+- `zero_compiler_errors`
+- `zero_lint_errors`
+- `has_type_safety`
+- `functions_are_focused`
+- `no_deep_nesting`
+
+The file-size and total-line checks support scenario-level overrides through `scenario.json`:
+
+- `productionChecks.maxExpectedLines`
+- `productionChecks.maxFileLines`
+
+Line-count scoring is intentionally stricter at the top gate:
+
+- `output_line_count_disciplined` uses the exact scenario target.
+- `output_line_count_reasonable` uses a 1.25x hard ceiling on that same target.
+
+When a scenario does not override the thresholds, tier defaults apply:
+
+| Tier | `maxExpectedLines` | `maxFileLines` |
+|------|--------------------|----------------|
+| `tier-1` | `200` | `250` |
+| `tier-2` | `350` | `250` |
+| `tier-3` | `500` | `250` |
+
 ## Efficiency
 
 Wall clock time, agent steps, tokens used, and LLM API cost are tracked but scored separately. They break ties between agents at the same gate -- they never inflate or deflate the gate score itself.
@@ -87,7 +120,20 @@ Within each gate, `gates[gate].score` still records the raw scenario-assertion s
     "production": {
       "passed": false,
       "score": 1.00,
-      "core": { "uses_env_vars": false, "no_secrets_in_code": true },
+      "core": {
+        "uses_env_vars": false,
+        "no_secrets_in_code": true,
+        "output_line_count_reasonable": true,
+        "output_line_count_disciplined": false,
+        "no_dead_code_markers": true,
+        "files_are_reasonably_sized": true,
+        "no_debug_artifacts": true,
+        "zero_compiler_errors": true,
+        "zero_lint_errors": true,
+        "has_type_safety": true,
+        "functions_are_focused": true,
+        "no_deep_nesting": true
+      },
       "scenario": { "connection_env_vars_available": true, "no_temporary_tables": true }
     }
   },
@@ -105,7 +151,7 @@ Within each gate, `gates[gate].score` still records the raw scenario-assertion s
 }
 ```
 
-This agent cleared gates 1--4, reached production, and failed 1 of 4 total assertions in that gate. `highest_gate` is 4, and `normalized_score` is `(4 + 3/4) / 5 = 0.95`. Notice that `production.score` is still `1.00` because the scenario assertions passed; the gate failed on a core assertion instead.
+This agent cleared gates 1--4, reached production, and failed 1 of 14 total assertions in that gate. `highest_gate` is 4, and `normalized_score` is `(4 + 13/14) / 5 = 0.9857`. Notice that `production.score` is still `1.00` because the scenario assertions passed; the gate failed on a core assertion instead.
 
 ## Assertion Log Sidecar
 

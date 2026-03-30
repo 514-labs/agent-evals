@@ -28,7 +28,10 @@ const GATE_LABELS: Record<string, { label: string; number: string; detail: strin
 };
 
 function formatScenarioName(value: string): string {
-  return value.replace(/^foo-bar-/, "").replace(/-/g, " ").toUpperCase();
+  const words = value.replace(/^foo-bar-/, "").split("-");
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 function formatTimestamp(raw: string): string {
@@ -250,7 +253,7 @@ export default async function ScenarioAuditRunPage({
   return (
     <div className="px-4 lg:px-6 py-5">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-black/40 mb-4">
+      <div className="flex items-center gap-2 text-xs tracking-[0.04em] text-black/40 mb-4">
         <Link href="/audit" className="hover:text-black transition-colors">
           Audit
         </Link>
@@ -268,7 +271,7 @@ export default async function ScenarioAuditRunPage({
       {/* Title + actions */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-5xl tracking-tight uppercase leading-[0.9]">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-5xl tracking-tight leading-[0.9]">
             {context?.title ?? formatScenarioName(scenario)}
           </h1>
           <p className="text-sm text-black/50 mt-2 max-w-2xl leading-normal">
@@ -279,7 +282,7 @@ export default async function ScenarioAuditRunPage({
           {index.runs.length >= 1 && (
             <Link
               href={`/audit/${scenario}/compare?left=${runId}&right=${index.runs.find((r) => r.runId !== runId)?.runId ?? index.runs[0]?.runId}`}
-              className="text-xs font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-2 border-[#FF10F0] bg-[#FF10F0] text-black hover:bg-black hover:text-white hover:border-black transition-colors"
+              className="text-xs font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-2 border-[#B91C1C] bg-[#B91C1C] text-black hover:bg-black hover:text-white hover:border-black transition-colors"
             >
               Compare
             </Link>
@@ -299,7 +302,7 @@ export default async function ScenarioAuditRunPage({
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
             Gate Progression
           </span>
-          <span className="text-xs uppercase tracking-[0.2em] text-[#FF10F0]">
+          <span className="text-xs uppercase tracking-[0.2em] text-[#B91C1C]">
             {manifest.highestGate}/5
           </span>
         </div>
@@ -315,8 +318,8 @@ export default async function ScenarioAuditRunPage({
                 className={`flex-1 px-3 py-2 border-r border-black/10 last:border-r-0 transition-colors ${
                   passed
                     ? isHighest
-                      ? "bg-[#FF10F0]"
-                      : "bg-[#FF10F0]/20"
+                      ? "bg-[#B91C1C]"
+                      : "bg-[#B91C1C]/20"
                     : "bg-white"
                 }`}
               >
@@ -471,7 +474,7 @@ export default async function ScenarioAuditRunPage({
                   key={run.runId}
                   href={`/audit/${scenario}/${run.runId}`}
                   className={`block px-3 py-2 border-b border-black/10 last:border-b-0 transition-colors ${
-                    active ? "bg-[#FF10F0]" : "hover:bg-black/3"
+                    active ? "bg-[#B91C1C]" : "hover:bg-black/3"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -555,7 +558,7 @@ export default async function ScenarioAuditRunPage({
                     }
                     className={`text-xs font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 ${
                       promptHashMatchesCurrent === true
-                        ? "bg-[#FF10F0]/20 text-black/70"
+                        ? "bg-[#B91C1C]/20 text-black/70"
                         : promptHashMatchesCurrent === false
                           ? "bg-yellow-100 text-yellow-800"
                           : "bg-black/5 text-black/40"

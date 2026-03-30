@@ -1,10 +1,13 @@
+use std::fs::{self, File};
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand};
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, Duration as TokioDuration};
 
 use super::preflight;
 
@@ -91,6 +94,10 @@ struct ExportPlan {
     manifest_path: Option<PathBuf>,
 }
 
+struct StartedWebServer {
+    log_path: PathBuf,
+}
+
 pub async fn execute(args: AuditArgs) -> Result<()> {
     match args.command {
         AuditCommand::Export(args) => export(args).await,
@@ -120,6 +127,7 @@ async fn open(args: OpenArgs) -> Result<()> {
     };
     let plan = run_export(&export_args)?;
     let url = format!("http://localhost:{}/audit/{}/{}", args.port, args.scenario, args.run_id);
+    let url_path = format!("/audit/{}/{}", args.scenario, args.run_id);
 
     println!("Audit manifest: {}", plan
         .manifest_path
@@ -133,11 +141,32 @@ async fn open(args: OpenArgs) -> Result<()> {
         return Ok(());
     }
 
-    if !is_port_open(args.port) {
-        start_web_server(&plan.web_dir, &plan.audits_dir, &resolve_results_dir(&plan.repo_root, &args.results_dir)?, args.port)?;
-        wait_for_port(args.port).await?;
+    if is_port_open(args.port) {
+        let status = probe_http_status(args.port, &url_path).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Port {} is already in use, but the existing process did not respond like an HTTP server for {}.\n\n\
+                 Free the port or rerun with `--port <open-port>`.",
+                args.port,
+                url
+            )
+        })?;
+        println!(
+            "Reusing existing local web server on port {} for {} (HTTP {}).",
+            args.port, url, status
+        );
+    } else {
+        preflight::check_pnpm()?;
+        let started = start_web_server(
+            &plan.web_dir,
+            &plan.audits_dir,
+            &resolve_results_dir(&plan.repo_root, &args.results_dir)?,
+            args.port,
+        )?;
+        let status = wait_for_http_server(args.port, &url_path, &started.log_path).await?;
+        println!("Local audit server is ready on {} (HTTP {}).", url, status);
     }
 
+    println!("Opening audit URL: {}", url);
     open_url(&url)?;
     Ok(())
 }
@@ -246,17 +275,63 @@ fn is_port_open(port: u16) -> bool {
     TcpStream::connect(("127.0.0.1", port)).is_ok()
 }
 
-async fn wait_for_port(port: u16) -> Result<()> {
+async fn wait_for_http_server(port: u16, path: &str, log_path: &Path) -> Result<u16> {
     for _ in 0..60 {
-        if is_port_open(port) {
-            return Ok(());
+        if let Some(status) = probe_http_status(port, path) {
+            return Ok(status);
         }
-        sleep(Duration::from_millis(500)).await;
+        sleep(TokioDuration::from_millis(500)).await;
     }
-    bail!("Timed out waiting for local web server on port {}", port)
+
+    let log_excerpt = read_log_excerpt(log_path);
+    bail!(
+        "Timed out waiting for the local audit server to respond on port {}.\n\n\
+         Common fixes:\n\
+          - confirm `pnpm install` has been run in the repo\n\
+          - free the port or rerun with `--port <open-port>`\n\
+          - inspect the startup log at {}\n\n\
+         Recent server output:\n{}",
+        port,
+        log_path.display(),
+        log_excerpt
+    )
 }
 
-fn start_web_server(web_dir: &Path, audits_dir: &Path, results_dir: &Path, port: u16) -> Result<()> {
+fn probe_http_status(port: u16, path: &str) -> Option<u16> {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).ok()?;
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_millis(750)))
+        .ok()?;
+    stream
+        .set_write_timeout(Some(std::time::Duration::from_millis(750)))
+        .ok()?;
+
+    let request = format!(
+        "GET {} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n",
+        path, port
+    );
+    stream.write_all(request.as_bytes()).ok()?;
+
+    let mut buffer = [0_u8; 512];
+    let read = stream.read(&mut buffer).ok()?;
+    if read == 0 {
+        return None;
+    }
+
+    let response = String::from_utf8_lossy(&buffer[..read]);
+    let first_line = response.lines().next()?.trim();
+    let status = first_line.split_whitespace().nth(1)?.parse::<u16>().ok()?;
+    Some(status)
+}
+
+fn start_web_server(web_dir: &Path, audits_dir: &Path, results_dir: &Path, port: u16) -> Result<StartedWebServer> {
+    let log_path = std::env::temp_dir().join(format!("dec-bench-audit-{}.log", unix_timestamp()));
+    let stdout_log = File::create(&log_path)
+        .with_context(|| format!("Failed to create audit startup log {}", log_path.display()))?;
+    let stderr_log = stdout_log
+        .try_clone()
+        .with_context(|| format!("Failed to clone audit startup log {}", log_path.display()))?;
+
     let mut command = Command::new("pnpm");
     command
         .arg("dev")
@@ -267,13 +342,13 @@ fn start_web_server(web_dir: &Path, audits_dir: &Path, results_dir: &Path, port:
         .env("DEC_BENCH_AUDITS_DIR", audits_dir)
         .env("DEC_BENCH_RESULTS_DIR", results_dir)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdout(Stdio::from(stdout_log))
+        .stderr(Stdio::from(stderr_log));
 
     command
         .spawn()
         .with_context(|| format!("Failed to start local web app in {}", web_dir.display()))?;
-    Ok(())
+    Ok(StartedWebServer { log_path })
 }
 
 fn open_url(url: &str) -> Result<()> {
@@ -305,4 +380,23 @@ fn open_url(url: &str) -> Result<()> {
         bail!("Browser open command failed for {}", url);
     }
     Ok(())
+}
+
+fn read_log_excerpt(path: &Path) -> String {
+    let Ok(raw) = fs::read_to_string(path) else {
+        return "(startup log unavailable)".to_string();
+    };
+    let lines: Vec<&str> = raw.lines().collect();
+    if lines.is_empty() {
+        return "(startup log is empty)".to_string();
+    }
+    let start = lines.len().saturating_sub(20);
+    lines[start..].join("\n")
+}
+
+fn unix_timestamp() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
 }

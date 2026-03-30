@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function select_star_works(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await ctx.clickhouse.query({
     query: "SELECT * FROM analytics.events LIMIT 1",
@@ -12,4 +14,8 @@ export async function select_star_works(ctx: AssertionContext): Promise<Assertio
     message: passed ? "SELECT * works." : "SELECT * failed or returned wrong shape.",
     details: { rowCount: rows.length },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

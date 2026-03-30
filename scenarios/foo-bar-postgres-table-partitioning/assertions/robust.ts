@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function table_is_partitioned(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await ctx.pg.query(
     "SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname = 'app' AND c.relname = 'events'",
@@ -16,4 +18,8 @@ export async function table_is_partitioned(ctx: AssertionContext): Promise<Asser
     message: passed ? "Table is partitioned." : "Table is not partitioned.",
     details: { relkind, partitionCount },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function quality_checks_under_500ms(ctx: AssertionContext): Promise<AssertionResult> {
   const start = Date.now();
 
@@ -20,4 +22,8 @@ export async function quality_checks_under_500ms(ctx: AssertionContext): Promise
     message: passed ? "Quality checks under 500ms." : `Quality checks took ${elapsed}ms.`,
     details: { elapsedMs: elapsed },
   };
+}
+
+export async function avoids_select_star_queries(): Promise<AssertionResult> {
+  return avoidsSelectStarQueries();
 }

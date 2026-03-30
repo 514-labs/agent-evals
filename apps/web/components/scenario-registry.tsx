@@ -108,7 +108,7 @@ function FilterChip({
       className={cn(
         "text-xs uppercase tracking-[0.15em] px-2.5 py-1 border-[2px] transition-colors",
         active
-          ? "bg-[#FF10F0] border-black text-black"
+          ? "bg-[#B91C1C] border-black text-black"
           : "bg-white border-black/20 text-black/60 hover:text-black hover:border-black"
       )}
     >
@@ -159,7 +159,7 @@ function ScriptBlock({ harnessId, script }: { harnessId: string; script: string 
         </button>
       </div>
       <pre className="px-4 py-3 overflow-x-auto bg-white">
-        <code className="text-sm leading-[1.7] text-black/80" style={{ fontFamily: "var(--font-body), ui-monospace, monospace" }}>
+        <code className="text-sm leading-[1.7] text-black/80" style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}>
           {preview.lines.map((line) => `${line}\n`).join("")}{scriptPreviewSuffix(preview.truncated)}
         </code>
       </pre>
@@ -400,7 +400,7 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search title, description, tags..."
             aria-label="Search scenario and harness registry"
-            className="h-9 border-[2px] border-black text-sm tracking-wide placeholder:text-black/35 focus-visible:ring-[#FF10F0]/20 focus-visible:border-[#FF10F0]"
+            className="h-9 border-[2px] border-black text-sm tracking-wide placeholder:text-black/35 focus-visible:ring-[#B91C1C]/20 focus-visible:border-[#B91C1C]"
           />
 
           {tab === "scenarios" && (
@@ -411,7 +411,7 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
                   className={cn(
                     "h-9 shrink-0 px-3 text-xs font-bold uppercase tracking-[0.2em] border-[2px] transition-colors",
                     (selectedDomains.length + selectedCompetencies.length + selectedFeatures.length + selectedTaskCategories.length) > 0
-                      ? "bg-[#FF10F0] border-black text-black"
+                      ? "bg-[#B91C1C] border-black text-black"
                       : "bg-white border-black text-black hover:bg-black hover:text-white"
                   )}
                 >
@@ -668,7 +668,7 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
         </p>
         <Link
           href="/docs/add-eval/getting-started"
-          className="inline-block text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-3 py-1.5 hover:bg-[#FF10F0]"
+          className="inline-block text-xs font-bold uppercase tracking-[0.2em] border-[2px] border-black px-3 py-1.5 hover:bg-[#B91C1C]"
         >
           Open Getting Started
         </Link>

@@ -1,0 +1,306 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "metrics_table_exists": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "Metrics table exists.",
+        "details": {
+          "count": 1
+        }
+      },
+      "metrics_table_has_rows": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Metrics table has 10 rows.",
+        "details": {
+          "count": 10
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "host_and_metric_columns_present": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Required columns present.",
+        "details": {
+          "names": [
+            "host_id",
+            "metric_name",
+            "value",
+            "ts"
+          ],
+          "hasHost": true,
+          "hasMetric": true,
+          "hasValue": true
+        }
+      },
+      "value_checksum_matches_seed": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Value checksum matches seed.",
+        "details": {
+          "sum": 648.8,
+          "expectedSum": 648.8
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found; session log contains rerun-safety signals.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            "ENGINE = MergeTree()",
+            "`MergeTree` with the compound sort key means GROUP BY queries on `host_id` + `metric_name` use the primary index rather than a full scan — well under 200 ms ..."
+          ],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "handles_null_values": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Table has data.",
+        "details": {
+          "count": 10
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "aggregation_query_under_200ms": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Aggregation under 200ms.",
+        "details": {
+          "elapsedMs": 4
+        }
+      },
+      "avoids_select_star_queries": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace avoids `SELECT *` queries in checked source files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": false,
+        "durationMs": 0,
+        "message": "Missing required data store environment variables.",
+        "details": {
+          "hasPostgresUrl": false,
+          "hasClickhouseUrl": true
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "No hardcoded secrets detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 2,
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "output_line_count_reasonable": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace output stays within the hard 438-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "reasonable",
+          "totalLines": 123,
+          "maxExpectedLines": 350,
+          "maxLines": 438,
+          "scannedFiles": 1,
+          "largestFiles": [
+            {
+              "file": "consumer.py",
+              "lineCount": 123
+            }
+          ]
+        }
+      },
+      "output_line_count_disciplined": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace output stays within the target 350-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "disciplined",
+          "totalLines": 123,
+          "maxExpectedLines": 350,
+          "maxLines": 350,
+          "scannedFiles": 1,
+          "largestFiles": [
+            {
+              "file": "consumer.py",
+              "lineCount": 123
+            }
+          ]
+        }
+      },
+      "no_dead_code_markers": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No dead-code markers detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "files_are_reasonably_sized": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No workspace file exceeds 250 lines.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "maxFileLines": 250,
+          "offenders": []
+        }
+      },
+      "no_debug_artifacts": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No obvious debug artifacts detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "zero_compiler_errors": {
+        "passed": true,
+        "durationMs": 25,
+        "message": "Compiler check passed with zero errors.",
+        "details": {
+          "command": "python3 -m compileall -q .",
+          "workspaceRoot": "/workspace",
+          "output": ""
+        }
+      },
+      "zero_lint_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported lint configuration detected; lint check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 350,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "has_type_safety": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No TypeScript sources detected; type-safety check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 0
+        }
+      },
+      "functions_are_focused": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No oversized functions detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      },
+      "no_deep_nesting": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Deeply nested control flow detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": [
+            {
+              "file": "consumer.py",
+              "kind": "deep_nesting",
+              "excerpt": "data[\"host_id\"],"
+            }
+          ]
+        }
+      }
+    },
+    "scenario": {
+      "connection_env_vars_available": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Connection env vars available.",
+        "details": {
+          "hasRedpanda": true,
+          "hasClickHouse": true
+        }
+      },
+      "has_readme_or_docs": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace includes operator-facing docs or a README.",
+        "details": {
+          "foundPaths": [
+            "/workspace/README.md"
+          ]
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  }
+}

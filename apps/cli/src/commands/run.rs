@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -204,8 +205,8 @@ async fn run_single(
     );
     preflight::check_image_exists(&image)?;
 
-    let timestamp = unix_timestamp();
-    let container_name = format!("dec-bench-{}-{}", scenario_id, timestamp);
+    let default_run_id = make_run_id(args, scenario_id, &persona, &mode);
+    let container_name = format!("dec-bench-{default_run_id}");
 
     println!(
         "Running scenario={} harness={} persona={:?} mode={:?} image={}",
@@ -331,9 +332,9 @@ async fn run_single(
         .as_deref()
         .and_then(parse_json_value)
         .unwrap_or_else(|| extract_result_json(&cleaned_stdout, scenario_id, &args.harness, exit_code));
-    let (output_path, run_id) = write_result_file(&args.results_dir, scenario_id, &mut result_json)?;
+    let (output_path, run_id) =
+        write_result_file(&args.results_dir, &default_run_id, &mut result_json)?;
     println!("Wrote result: {}", output_path.display());
-    println!("Run ID: {}", run_id);
 
     let stdout_path = output_path.with_extension("stdout");
     let output_stdout = match agent_stdout {
@@ -427,14 +428,52 @@ async fn run_single(
         warn!("Container produced stderr output.");
     }
 
-    println!("Next steps:");
+    let use_ansi = stdout_supports_ansi();
+    println!();
+    println!("{}", "-".repeat(72));
+    println!("{}", format_block_heading("Run summary", use_ansi));
+    println!("Run ID: {}", format_emphasized_value(&run_id, use_ansi));
+    println!("Gate/score: {}", format_gate_and_score_summary(&result_json));
+    println!("Result file: {}", output_path.display());
+    println!("{}", format_block_heading("Next steps", use_ansi));
     println!("  dec-bench results --run-id {}", run_id);
-    println!(
-        "  dec-bench audit open --scenario {} --run-id {}",
-        scenario_id, run_id
-    );
+    println!("  dec-bench audit open --scenario {} --run-id {}", scenario_id, run_id);
 
     Ok(())
+}
+
+fn stdout_supports_ansi() -> bool {
+    io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none()
+}
+
+fn format_block_heading(label: &str, use_ansi: bool) -> String {
+    if use_ansi {
+        format!("\x1b[1;36m{label}\x1b[0m")
+    } else {
+        label.to_string()
+    }
+}
+
+fn format_emphasized_value(value: &str, use_ansi: bool) -> String {
+    if use_ansi {
+        format!("\x1b[1m{value}\x1b[0m")
+    } else {
+        value.to_string()
+    }
+}
+
+fn format_gate_and_score_summary(value: &serde_json::Value) -> String {
+    let highest_gate = value
+        .get("highest_gate")
+        .and_then(|raw| raw.as_u64())
+        .map(|raw| raw.to_string())
+        .unwrap_or_else(|| "?".to_string());
+    let normalized_score = value
+        .get("normalized_score")
+        .and_then(|raw| raw.as_f64())
+        .map(|raw| format!("{raw:.3}"))
+        .unwrap_or_else(|| "?".to_string());
+    format!("highest gate {highest_gate} | normalized score {normalized_score}")
 }
 
 fn extract_result_json(
@@ -549,11 +588,7 @@ fn sanitize_sensitive_content(content: &str) -> String {
     sanitized
 }
 
-fn write_result_file(
-    results_dir: &str,
-    scenario_id: &str,
-    value: &mut serde_json::Value,
-) -> Result<(PathBuf, String)> {
+fn write_result_file(results_dir: &str, default_run_id: &str, value: &mut serde_json::Value) -> Result<(PathBuf, String)> {
     let dir = PathBuf::from(results_dir);
     fs::create_dir_all(&dir).with_context(|| format!("Failed to create {}", dir.display()))?;
     let run_id = value
@@ -561,7 +596,7 @@ fn write_result_file(
         .and_then(|raw| raw.as_str())
         .filter(|raw| !raw.trim().is_empty())
         .map(|raw| raw.trim().to_string())
-        .unwrap_or_else(|| format!("{}-{}", scenario_id, unix_timestamp()));
+        .unwrap_or_else(|| default_run_id.to_string());
     if let Some(object) = value.as_object_mut() {
         object.insert("run_id".to_string(), serde_json::Value::String(run_id.clone()));
     }
@@ -596,11 +631,43 @@ fn load_registry_scenarios(dir: &Path) -> Result<Vec<RegistryScenario>> {
     Ok(scenarios)
 }
 
-fn unix_timestamp() -> u64 {
+fn unix_timestamp_millis() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
+        .map(|d| d.as_millis())
         .unwrap_or(0)
+}
+
+fn sanitize_identifier_component(raw: &str) -> String {
+    let sanitized: String = raw
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+                ch.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let trimmed = sanitized.trim_matches('-');
+    if trimmed.is_empty() {
+        "unknown".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn make_run_id(args: &RunArgs, scenario_id: &str, persona: &Persona, mode: &PlanMode) -> String {
+    format!(
+        "{}-{}-{}-{}-{}-{}-{}",
+        sanitize_identifier_component(scenario_id),
+        sanitize_identifier_component(&args.agent),
+        sanitize_identifier_component(&args.model),
+        sanitize_identifier_component(&args.harness),
+        persona.as_str(),
+        mode.as_str(),
+        unix_timestamp_millis()
+    )
 }
 
 impl Persona {
@@ -674,14 +741,27 @@ mod tests {
             "highest_gate": 3
         });
 
-        let (path, run_id) =
-            write_result_file(temp.path().to_str().unwrap_or(""), "test-scenario", &mut payload)
-            .expect("write_result_file succeeds");
+        let default_run_id = "test-scenario-codex-gpt-5.4-base-rt-naive-no-plan-1234";
+        let (path, run_id) = write_result_file(
+            temp.path().to_str().unwrap_or(""),
+            default_run_id,
+            &mut payload,
+        )
+        .expect("write_result_file succeeds");
         let raw = fs::read_to_string(path).expect("result file readable");
         let value: serde_json::Value = serde_json::from_str(&raw).expect("valid json");
         assert_eq!(value["scenario"], "test-scenario");
         assert_eq!(value["highest_gate"], 3);
         assert_eq!(value["run_id"], run_id);
+        assert_eq!(run_id, default_run_id);
+    }
+
+    #[test]
+    fn sanitize_identifier_component_normalizes_unsafe_chars() {
+        assert_eq!(
+            sanitize_identifier_component("GPT 5.4/Preview"),
+            "gpt-5.4-preview"
+        );
     }
 
     #[test]

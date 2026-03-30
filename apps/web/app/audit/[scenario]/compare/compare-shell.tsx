@@ -52,7 +52,7 @@ function GateDots({ highestGate }: { highestGate: number }) {
           key={g}
           className={cn(
             "w-2.5 h-2.5 border-[1.5px] border-black",
-            g <= highestGate ? "bg-[#FF10F0]" : "bg-transparent",
+            g <= highestGate ? "bg-[#B91C1C]" : "bg-transparent",
           )}
         />
       ))}
@@ -105,8 +105,8 @@ function RunSelector({
             className={cn(
               "text-xs font-bold uppercase tracking-[0.14em] px-2.5 py-1 border-2 transition-colors",
               open
-                ? "border-[#FF10F0] bg-[#FF10F0] text-black"
-                : "border-[#FF10F0] text-[#FF10F0] hover:bg-[#FF10F0] hover:text-black",
+                ? "border-[#B91C1C] bg-[#B91C1C] text-black"
+                : "border-[#B91C1C] text-[#B91C1C] hover:bg-[#B91C1C] hover:text-black",
             )}
           >
             {open ? "Close" : "Change"}
@@ -145,8 +145,8 @@ function RunSelector({
                 className={cn(
                   "w-full text-left px-3 py-2 border-b border-black/10 last:border-b-0 transition-colors",
                   isActive
-                    ? "bg-[#FF10F0] cursor-default"
-                    : "hover:border-l-[4px] hover:border-l-[#FF10F0] hover:bg-black/3",
+                    ? "bg-[#B91C1C] cursor-default"
+                    : "hover:border-l-[4px] hover:border-l-[#B91C1C] hover:bg-black/3",
                 )}
               >
                 <div className="flex items-center gap-3 mb-1">
@@ -305,7 +305,7 @@ export function CompareShell({
               className={cn(
                 "text-xs font-bold uppercase tracking-[0.14em] px-2.5 py-1 border transition-colors",
                 synced
-                  ? "border-[#FF10F0] bg-[#FF10F0] text-black"
+                  ? "border-[#B91C1C] bg-[#B91C1C] text-black"
                   : "border-white/30 text-white/50 hover:text-white",
               )}
             >
@@ -333,7 +333,7 @@ export function CompareShell({
                 className={cn(
                   "w-9 h-9 flex items-center justify-center border-2 transition-colors",
                   playing
-                    ? "border-[#FF10F0] bg-[#FF10F0] text-black"
+                    ? "border-[#B91C1C] bg-[#B91C1C] text-black"
                     : "border-white/30 text-white/60 hover:border-white hover:text-white",
                 )}
               >
@@ -373,7 +373,7 @@ export function CompareShell({
               max={maxEvents}
               value={position}
               onChange={handleSeek}
-              className="flex-1 h-1 appearance-none bg-white/10 cursor-pointer accent-[#FF10F0] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#FF10F0] [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer"
+              className="flex-1 h-1 appearance-none bg-white/10 cursor-pointer accent-[#B91C1C] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#B91C1C] [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:cursor-pointer"
             />
 
             <span className="text-xs uppercase tracking-[0.1em] text-white/30 tabular-nums shrink-0">
@@ -385,7 +385,7 @@ export function CompareShell({
         {synced && (
           <div className="h-1 bg-black relative">
             <div
-              className="h-full bg-[#FF10F0] transition-all duration-100 ease-linear"
+              className="h-full bg-[#B91C1C] transition-all duration-100 ease-linear"
               style={{ width: `${progress * 100}%` }}
             />
           </div>

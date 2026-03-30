@@ -171,7 +171,7 @@ export function AuditRubricPanel({
           <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
             Rubric
           </span>
-          <span className="text-xs uppercase tracking-[0.14em] text-[#FF10F0]">
+          <span className="text-xs uppercase tracking-[0.14em] text-[#B91C1C]">
             {passedAssertions}/{totalAssertions}
           </span>
         </div>
@@ -198,7 +198,7 @@ export function AuditRubricPanel({
               <div key={gate}>
                 <div
                   className={`px-3 py-1.5 flex items-center justify-between ${
-                    detail.passed ? "bg-[#FF10F0]/10" : ""
+                    detail.passed ? "bg-[#B91C1C]/10" : ""
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -216,7 +216,7 @@ export function AuditRubricPanel({
                     <span
                       className={`text-xs font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border-2 ${
                         detail.passed
-                          ? "border-black bg-[#FF10F0] text-black"
+                          ? "border-black bg-[#B91C1C] text-black"
                           : "border-black/20 text-black/40"
                       }`}
                     >
@@ -266,7 +266,7 @@ export function AuditRubricPanel({
                             )}
                           </div>
                           {assertion.passed ? (
-                            <Check size={14} strokeWidth={3} className="shrink-0 text-[#FF10F0]" />
+                            <Check size={14} strokeWidth={3} className="shrink-0 text-[#B91C1C]" />
                           ) : (
                             <X size={14} strokeWidth={3} className="shrink-0 text-black/20" />
                           )}
@@ -290,7 +290,7 @@ export function AuditRubricPanel({
           <SheetHeader className="p-0 gap-0 shrink-0">
             <div className="bg-black px-4 py-2.5 flex items-center gap-3">
               <div className="flex gap-1 shrink-0">
-                <div className="w-2 h-2 bg-[#FF10F0]" />
+                <div className="w-2 h-2 bg-[#B91C1C]" />
                 <div className="w-2 h-2 bg-white/20" />
                 <div className="w-2 h-2 bg-white/10" />
               </div>
@@ -302,7 +302,7 @@ export function AuditRubricPanel({
               <span
                 className={`text-xs font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border-2 shrink-0 ${
                   selected?.passed
-                    ? "border-white/30 bg-[#FF10F0] text-black"
+                    ? "border-white/30 bg-[#B91C1C] text-black"
                     : "border-white/20 text-white/40"
                 }`}
               >
@@ -342,7 +342,7 @@ export function AuditRubricPanel({
                     <div
                       className={cn(
                         "w-8 h-8 flex items-center justify-center shrink-0",
-                        selectedLog.passed ? "bg-[#FF10F0]" : "bg-red-500/80",
+                        selectedLog.passed ? "bg-[#B91C1C]" : "bg-red-500/80",
                       )}
                     >
                       {selectedLog.passed ? (

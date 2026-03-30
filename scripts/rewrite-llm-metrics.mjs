@@ -304,6 +304,13 @@ function shouldAuditArtifact(container, trace) {
   );
 }
 
+function isSyntheticTimeoutArtifact(container) {
+  return (
+    container?.result_kind === "synthetic-timeout" ||
+    container?.resultKind === "synthetic-timeout"
+  );
+}
+
 function updateEfficiency(container, metrics) {
   const efficiency =
     container?.efficiency && typeof container.efficiency === "object" ? container.efficiency : {};
@@ -377,6 +384,9 @@ function rewriteArtifacts(filePaths, getTracePath, changedFiles, issues) {
       traceRelativePath,
       parsed,
     );
+    if (isSyntheticTimeoutArtifact(parsed)) {
+      continue;
+    }
     const metrics = resolvePricingMetrics(parsed, trace);
     const shouldAudit = shouldAuditArtifact(parsed, trace);
 

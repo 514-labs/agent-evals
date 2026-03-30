@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function connection_env_vars_available(ctx: AssertionContext): Promise<AssertionResult> {
   const hasPostgres = Boolean(ctx.env("POSTGRES_URL"));
   const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
@@ -47,4 +49,8 @@ export async function api_does_not_hardcode_credentials(): Promise<AssertionResu
     message: passed ? "No hardcoded credentials found." : `Suspect pattern found in ${foundFile}.`,
     details: foundFile ? { foundFile } : undefined,
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

@@ -24,7 +24,7 @@ EVAL_RESULT_END="__DEC_BENCH_EVAL_RESULT_JSON_END__"
 ASSERTION_LOG_START="__DEC_BENCH_ASSERTION_LOG_JSON_START__"
 ASSERTION_LOG_END="__DEC_BENCH_ASSERTION_LOG_JSON_END__"
 
-mkdir -p "${OUTPUT_DIR}"
+mkdir -p "${OUTPUT_DIR}" /workspace
 
 if [[ "${NETWORK_POLICY:-open}" == "restricted" ]] && [[ -x /opt/dec-bench/agent/iptables.sh ]]; then
   /opt/dec-bench/agent/iptables.sh
@@ -97,7 +97,7 @@ wait_for_redpanda() {
     port="9092"
   fi
   echo "Waiting for Redpanda..."
-  for _ in $(seq 1 45); do
+  for _ in $(seq 1 120); do
     if bash -lc ">/dev/tcp/${host}/${port}" >/dev/null 2>&1; then
       echo "Redpanda is ready."
       return 0

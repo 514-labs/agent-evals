@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 export async function connection_env_vars_available(ctx: AssertionContext): Promise<AssertionResult> {
   const hasPostgres = Boolean(ctx.env("POSTGRES_URL"));
   const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
@@ -25,4 +27,8 @@ export async function daily_grain_enforced(ctx: AssertionContext): Promise<Asser
     message: passed ? "Daily grain enforced." : `Found ${count} rows with non-date grain.`,
     details: { count },
   };
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

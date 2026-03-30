@@ -1,44 +1,125 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
-  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
-  return (await (result as any).json()) as T[];
-}
+import {
+  DRIFT_REPORT_PATH,
+  expectedBehindSystems,
+  getLiveCounts,
+  readDriftReport,
+} from "./shared";
 
-export async function row_counts_reconciled(ctx: AssertionContext): Promise<AssertionResult> {
-  const pgResult = await ctx.pg.query("SELECT count(*) AS n FROM app.transactions");
-  const pgCount = Number(pgResult.rows[0]?.n ?? 0);
+export async function structured_drift_report_exists(
+  _ctx: AssertionContext,
+): Promise<AssertionResult> {
+  const reportResult = readDriftReport();
+  if ("error" in reportResult) {
+    return {
+      passed: false,
+      message: reportResult.error,
+      details: { expectedPath: DRIFT_REPORT_PATH },
+    };
+  }
 
-  const chRows = await queryRows<{ n: number }>(
-    ctx,
-    "SELECT count() AS n FROM analytics.transactions",
-  );
-  const chCount = Number(chRows[0]?.n ?? 0);
+  const { report } = reportResult;
+  const hasCoreFields =
+    typeof report.pg_count === "number" &&
+    typeof report.topic_count === "number" &&
+    typeof report.ch_count === "number" &&
+    typeof report.tolerance === "number" &&
+    typeof report.status === "string" &&
+    Array.isArray(report.behind_systems) &&
+    Array.isArray(report.discrepancies);
 
-  const passed = chCount >= pgCount;
   return {
-    passed,
-    message: passed
-      ? `Counts reconciled: pg=${pgCount}, ch=${chCount}.`
-      : `PG ${pgCount}, CH ${chCount} — sink behind source.`,
-    details: { pgCount, chCount },
+    passed: hasCoreFields,
+    message: hasCoreFields
+      ? `Structured drift report found at ${DRIFT_REPORT_PATH}.`
+      : "Structured drift report is missing one or more required fields.",
+    details: {
+      expectedPath: DRIFT_REPORT_PATH,
+      presentKeys: Object.keys(report),
+    },
   };
 }
 
-export async function amount_checksum_matches(ctx: AssertionContext): Promise<AssertionResult> {
-  const pgResult = await ctx.pg.query("SELECT coalesce(sum(amount), 0) AS s FROM app.transactions");
-  const pgSum = Number(pgResult.rows[0]?.s ?? 0);
+export async function drift_report_matches_live_counts(
+  ctx: AssertionContext,
+): Promise<AssertionResult> {
+  const reportResult = readDriftReport();
+  if ("error" in reportResult) {
+    return {
+      passed: false,
+      message: reportResult.error,
+      details: { expectedPath: DRIFT_REPORT_PATH },
+    };
+  }
 
-  const chRows = await queryRows<{ s: number }>(
-    ctx,
-    "SELECT sum(amount) AS s FROM analytics.transactions",
-  );
-  const chSum = Number(chRows[0]?.s ?? 0);
+  const counts = await getLiveCounts(ctx);
+  const report = reportResult.report;
+  const passed =
+    report.pg_count === counts.pgCount &&
+    report.topic_count === counts.topicCount &&
+    report.ch_count === counts.chCount;
 
-  const passed = Math.abs(pgSum - chSum) < 0.01;
   return {
     passed,
-    message: passed ? "Amount checksum matches." : `PG sum=${pgSum}, CH sum=${chSum}.`,
-    details: { pgSum, chSum },
+    message: passed
+      ? "Structured drift report matches the live Postgres, Redpanda, and ClickHouse counts."
+      : "Structured drift report does not match the live system counts.",
+    details: {
+      report: {
+        pg_count: report.pg_count,
+        topic_count: report.topic_count,
+        ch_count: report.ch_count,
+      },
+      live: counts,
+    },
+  };
+}
+
+export async function discrepancy_context_is_actionable(
+  ctx: AssertionContext,
+): Promise<AssertionResult> {
+  const reportResult = readDriftReport();
+  if ("error" in reportResult) {
+    return {
+      passed: false,
+      message: reportResult.error,
+      details: { expectedPath: DRIFT_REPORT_PATH },
+    };
+  }
+
+  const counts = await getLiveCounts(ctx);
+  const behindSystems = expectedBehindSystems(counts);
+  const report = reportResult.report;
+  const discrepancies = Array.isArray(report.discrepancies) ? report.discrepancies : [];
+  const reportBehindSystems = Array.isArray(report.behind_systems)
+    ? report.behind_systems.map((value) => String(value).toLowerCase()).sort()
+    : [];
+  const expectedSystems = behindSystems.slice().sort();
+  const discrepancyShapeValid = discrepancies.every((entry) => {
+    return (
+      typeof entry?.system === "string" &&
+      typeof entry?.expected === "number" &&
+      typeof entry?.actual === "number" &&
+      typeof entry?.difference === "number"
+    );
+  });
+  const discrepancyCoverageValid =
+    expectedSystems.length === 0 ? true : discrepancies.length >= expectedSystems.length;
+  const behindSystemsValid =
+    reportBehindSystems.length === expectedSystems.length &&
+    reportBehindSystems.every((value, index) => value === expectedSystems[index]);
+
+  const passed = discrepancyShapeValid && discrepancyCoverageValid && behindSystemsValid;
+  return {
+    passed,
+    message: passed
+      ? "Drift report includes actionable discrepancy context for the current system state."
+      : "Drift report is missing actionable discrepancy context or behind-system annotations.",
+    details: {
+      expectedBehindSystems: expectedSystems,
+      reportedBehindSystems: reportBehindSystems,
+      discrepancies,
+    },
   };
 }

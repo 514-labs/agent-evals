@@ -9,6 +9,8 @@ The audit UI reads static, repo-checked run bundles from:
 
 The goal is to keep listing pages fast while still preserving full raw output for audit.
 
+The checked-in bundles in this directory are the public seeded sample set used by the web app in production. The current seed mirrors the `results/initial-benchmark-batch` research-preview slice so comparison routes and audit pages work without requiring a local runtime `results/` directory.
+
 ## `index.json`
 
 Scenario-level run index used for static route generation.

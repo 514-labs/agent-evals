@@ -1,0 +1,3 @@
+Added the indexes in [postgres-setup.sql](/scenario/init/postgres-setup.sql): a composite btree on `(user_id, created_at DESC)` for the per-user recent-orders query, and a covering btree on `created_at INCLUDE (order_id, user_id, amount)` for the date-range query. I also added `VACUUM ANALYZE app.orders;` after the bulk load so Postgres can use the new indexes immediately with correct stats and index-only scans.
+
+Verified against the live Postgres instance by rebuilding the schema from the updated setup file and running `EXPLAIN (ANALYZE, BUFFERS)` on both workload queries. The `user_id` query now executes in about `3.9ms`, and the `created_at` range query uses an index-only scan with `Heap Fetches: 0` and executes in about `31.2ms`, which is under the `50ms` target.

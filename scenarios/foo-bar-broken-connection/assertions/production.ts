@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
 import { readFileSync } from "node:fs";
 
 export async function no_hardcoded_credentials(ctx: AssertionContext): Promise<AssertionResult> {
@@ -37,4 +39,8 @@ export async function uses_env_vars(ctx: AssertionContext): Promise<AssertionRes
       details: { error: e instanceof Error ? e.message : String(e) },
     };
   }
+}
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
 }

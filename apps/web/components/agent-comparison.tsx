@@ -12,7 +12,7 @@ function GatePips({ gate }: { gate: number }) {
         <div
           key={g}
           className={`w-3 h-3 border-[2px] border-current ${
-            g <= gate ? "bg-[#FF10F0]" : "bg-transparent"
+            g <= gate ? "bg-[#B91C1C]" : "bg-transparent"
           }`}
         />
       ))}
@@ -67,7 +67,7 @@ function AgentColumn({
 
   return (
     <div
-      className={`flex flex-col border-[3px] border-black group hover:bg-[#FF10F0]/5 transition-colors ${
+      className={`flex flex-col border-[3px] border-black group hover:bg-[#B91C1C]/5 transition-colors ${
         highlight ? "border-t-0 md:border-t-[3px] md:border-l-0" : ""
       }`}
     >
@@ -121,7 +121,7 @@ function AgentColumn({
       <div className="px-5 py-3 border-t border-black/10">
         <Link
           href={`/audit/${entry.scenario}/${entry.run_id ?? ""}`}
-          className="text-xs font-bold uppercase tracking-[0.15em] text-black/40 hover:text-[#FF10F0] transition-colors"
+          className="text-xs font-bold uppercase tracking-[0.15em] text-black/40 hover:text-[#B91C1C] transition-colors"
         >
           View audit →
         </Link>
@@ -175,7 +175,7 @@ export function AgentComparison() {
           </Link>
           <Link
             href="/docs/running-evals"
-            className="brutal-btn bg-[#FF10F0] text-black border-[3px] border-black px-6 py-2 text-xs font-bold uppercase tracking-[0.15em]"
+            className="brutal-btn bg-[#B91C1C] text-black border-[3px] border-black px-6 py-2 text-xs font-bold uppercase tracking-[0.15em]"
           >
             Run your own comparison →
           </Link>

@@ -1,0 +1,61 @@
+---
+title: "Security & Key Handling"
+description: "How DEC Bench handles API keys, restricts network access, and redacts secrets from evaluation artifacts."
+---
+
+DEC Bench requires API keys for the agent under evaluation. This page documents how keys are handled through the evaluation lifecycle.
+
+## Key Injection
+
+API keys are passed as **container environment variables** from the host process. The CLI reads the key from the host environment (e.g. `ANTHROPIC_API_KEY`), validates it exists before starting the run, and injects it into the Docker container at launch. Keys are never written to the filesystem or mounted as secret files.
+
+The required key depends on the agent:
+
+| Agent | Required Environment Variable |
+|-------|-------------------------------|
+| Claude Code | `ANTHROPIC_API_KEY` |
+| Codex | `OPENAI_API_KEY` |
+| Cursor | `CURSOR_API_KEY` |
+
+The CLI will refuse to start a run if the required key is not set.
+
+## Artifact Redaction
+
+After a run completes, the CLI redacts any occurrence of the four known API key values (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CODEX_API_KEY`, `CURSOR_API_KEY`) from the following artifacts before writing them to disk:
+
+- `run-meta.json`
+- `agent-raw.json`
+- `trace.json`
+- `session.jsonl`
+
+Redaction is substring replacement: any literal match of the host's current key value is replaced with `[redacted]`.
+
+Artifacts not covered by this redaction include `result.json`, `assertion-log.json`, stderr logs, and raw stdout captures. If any of these inadvertently contain key material, the key would not be automatically removed.
+
+## Container Isolation
+
+Containers are created with `auto_remove: true`, which removes the container and its writable layer after the run completes. Keys injected as environment variables do not persist beyond the container's lifecycle.
+
+## Network Policy
+
+DEC Bench supports per-agent network egress restrictions through iptables rules. When `NETWORK_POLICY=restricted` is set, the container's outbound network access is limited to the agent's API endpoint:
+
+| Agent | Allowed Hosts |
+|-------|---------------|
+| Claude Code | `api.anthropic.com` |
+| Codex | `api.openai.com` |
+| Cursor | `api.cursor.sh`, `api2.cursor.sh` |
+
+All other outbound traffic is dropped. This prevents the agent from exfiltrating data or keys to unauthorized endpoints during the evaluation.
+
+Note: restricted network mode is not the default. To enable it, set `NETWORK_POLICY=restricted` in the container's environment.
+
+## Code-Level Assertions
+
+The evaluation framework includes a `no_secrets_in_code` assertion that scans agent-generated code for hardcoded credential patterns. This assertion passes if the agent uses environment variable access patterns (`process.env`, `os.environ`) rather than embedding key values directly in source files.
+
+## Recommendations
+
+1. **Rotate keys** used for benchmarking if you are concerned about exposure through unredacted artifacts.
+2. **Enable restricted network mode** if running untrusted scenarios or agents.
+3. **Review artifact output** before sharing run results publicly — redaction covers the four primary API keys but does not cover database credentials or other secrets the agent may have encountered.

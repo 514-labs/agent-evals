@@ -663,20 +663,20 @@ function resolveAuditsDir(): string {
   const explicitDir = process.env.DEC_BENCH_AUDITS_DIR;
   if (explicitDir && existsSync(explicitDir)) return explicitDir;
 
-  const runtimeResultsDir = join(process.cwd(), "..", "..", "results");
-  if (existsSync(runtimeResultsDir)) {
-    return join(runtimeResultsDir, "audits");
+  const sampleCandidates = [join(process.cwd(), "data", "audits"), join(process.cwd(), "apps", "web", "data", "audits")];
+  const sampleDir = sampleCandidates.find((candidate) => existsSync(candidate));
+  const preferSampleData =
+    process.env.DEC_BENCH_USE_SAMPLE_DATA === "1" || process.env.NODE_ENV === "production";
+  if (preferSampleData && sampleDir) return sampleDir;
+
+  const runtimeAuditsDir = join(process.cwd(), "..", "..", "results", "audits");
+  if (existsSync(runtimeAuditsDir)) {
+    return runtimeAuditsDir;
   }
 
-  const useSampleData = process.env.DEC_BENCH_USE_SAMPLE_DATA === "1";
-  if (!useSampleData) {
-    return join(runtimeResultsDir, "audits");
-  }
+  if (sampleDir) return sampleDir;
 
-  const localDir = join(process.cwd(), "data", "audits");
-  if (existsSync(localDir)) return localDir;
-
-  return join(process.cwd(), "apps", "web", "data", "audits");
+  return join(runtimeResultsDir, "audits");
 }
 
 function resolveScenarioSourcesDir(): string {
@@ -1083,6 +1083,120 @@ const CORE_ASSERTION_SOURCE: Record<string, string> = {
       totalFindings: scan.totalFindings,
       findings: scan.findings,
     },
+  };
+}`,
+  output_line_count_reasonable: `async function output_line_count_reasonable(): Promise<AssertionResult> {
+  const files = collectWorkspaceQualityFiles(workspaceRoot);
+  const totalLines = files.reduce((sum, file) => sum + file.lineCount, 0);
+  return {
+    passed: totalLines <= thresholds.maxExpectedLines,
+    message:
+      totalLines <= thresholds.maxExpectedLines
+        ? \`Workspace output stays within the expected \${thresholds.maxExpectedLines}-line budget.\`
+        : \`Workspace output exceeds the expected \${thresholds.maxExpectedLines}-line budget.\`,
+    details: { totalLines, thresholds },
+  };
+}`,
+  output_line_count_disciplined: `async function output_line_count_disciplined(): Promise<AssertionResult> {
+  const files = collectWorkspaceQualityFiles(workspaceRoot);
+  const totalLines = files.reduce((sum, file) => sum + file.lineCount, 0);
+  return {
+    passed: totalLines <= thresholds.maxExpectedLines,
+    message:
+      totalLines <= thresholds.maxExpectedLines
+        ? \`Workspace output stays within the target \${thresholds.maxExpectedLines}-line budget.\`
+        : \`Workspace output exceeds the target \${thresholds.maxExpectedLines}-line budget.\`,
+    details: { totalLines, thresholds },
+  };
+}`,
+  no_dead_code_markers: `async function no_dead_code_markers(): Promise<AssertionResult> {
+  const findings = collectWorkspaceLineFindings(workspaceRoot, DEAD_CODE_MARKERS);
+  return {
+    passed: findings.length === 0,
+    message:
+      findings.length === 0
+        ? "No dead-code markers detected in workspace files."
+        : "Dead-code markers detected in workspace files.",
+    details: { totalFindings: findings.length, findings },
+  };
+}`,
+  files_are_reasonably_sized: `async function files_are_reasonably_sized(): Promise<AssertionResult> {
+  const offenders = collectWorkspaceQualityFiles(workspaceRoot)
+    .filter((file) => file.lineCount > thresholds.maxFileLines);
+  return {
+    passed: offenders.length === 0,
+    message:
+      offenders.length === 0
+        ? \`No workspace file exceeds \${thresholds.maxFileLines} lines.\`
+        : \`One or more workspace files exceed \${thresholds.maxFileLines} lines.\`,
+    details: { maxFileLines: thresholds.maxFileLines, offenders },
+  };
+}`,
+  no_debug_artifacts: `async function no_debug_artifacts(): Promise<AssertionResult> {
+  const fileFindings = collectWorkspaceFileFindings(workspaceRoot);
+  const lineFindings = collectWorkspaceLineFindings(workspaceRoot, DEBUG_ARTIFACT_PATTERNS);
+  const findings = [...fileFindings, ...lineFindings];
+  return {
+    passed: findings.length === 0,
+    message:
+      findings.length === 0
+        ? "No obvious debug artifacts detected in workspace files."
+        : "Debug artifacts detected in workspace files.",
+    details: { totalFindings: findings.length, findings },
+  };
+}`,
+  zero_compiler_errors: `async function zero_compiler_errors(): Promise<AssertionResult> {
+  if (!exists(workspaceRoot)) {
+    return { passed: true, message: "Workspace root unavailable; compiler check skipped." };
+  }
+  const command = resolveCompilerCommand(workspaceRoot);
+  return command
+    ? runWorkspaceCommandAssertion(workspaceRoot, command, "Compiler check passed with zero errors.", "Compiler check failed.")
+    : { passed: true, message: "No supported compiler target detected; compiler check skipped." };
+}`,
+  zero_lint_errors: `async function zero_lint_errors(): Promise<AssertionResult> {
+  if (!exists(workspaceRoot)) {
+    return { passed: true, message: "Workspace root unavailable; lint check skipped." };
+  }
+  const command = resolveLintCommand(workspaceRoot);
+  return command
+    ? runWorkspaceCommandAssertion(workspaceRoot, command, "Lint check passed with zero errors.", "Lint check failed.")
+    : { passed: true, message: "No supported lint configuration detected; lint check skipped." };
+}`,
+  has_type_safety: `async function has_type_safety(): Promise<AssertionResult> {
+  const findings = collectWorkspaceLineFindings(workspaceRoot, [
+    { kind: "explicit_any", regex: /\\b(?:as any|<any>|:\\s*any\\b)/ },
+    { kind: "ts_ignore", regex: /@ts-(?:ignore|nocheck)/ },
+  ]);
+  return {
+    passed: findings.length === 0,
+    message:
+      findings.length === 0
+        ? "No obvious type-safety escapes detected in TypeScript sources."
+        : "Type-safety escapes detected in TypeScript sources.",
+    details: { findings },
+  };
+}`,
+  functions_are_focused: `async function functions_are_focused(): Promise<AssertionResult> {
+  const findings = collectLongFunctionFindings(workspaceRoot);
+  return {
+    passed: findings.length === 0,
+    message:
+      findings.length === 0
+        ? "No oversized functions detected in workspace sources."
+        : "Oversized functions detected in workspace sources.",
+    details: { findings },
+  };
+}`,
+  no_deep_nesting: `async function no_deep_nesting(): Promise<AssertionResult> {
+  const findings = collectDeepNestingFindings(workspaceRoot);
+  return {
+    passed: findings.length === 0,
+    message:
+      findings.length === 0
+        ? "No deeply nested control flow detected in workspace sources."
+        : "Deeply nested control flow detected in workspace sources.",
+    details: { findings },
   };
 }`,
 };
