@@ -669,9 +669,9 @@ function resolveAuditsDir(): string {
     process.env.DEC_BENCH_USE_SAMPLE_DATA === "1" || process.env.NODE_ENV === "production";
   if (preferSampleData && sampleDir) return sampleDir;
 
-  const runtimeResultsDir = join(process.cwd(), "..", "..", "results");
-  if (existsSync(runtimeResultsDir)) {
-    return join(runtimeResultsDir, "audits");
+  const runtimeAuditsDir = join(process.cwd(), "..", "..", "results", "audits");
+  if (existsSync(runtimeAuditsDir)) {
+    return runtimeAuditsDir;
   }
 
   if (sampleDir) return sampleDir;
