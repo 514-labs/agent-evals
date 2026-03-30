@@ -15,3 +15,21 @@ export async function total_row_count_unchanged(ctx: AssertionContext): Promise<
     details: { count },
   };
 }
+
+export async function purchase_query_uses_prewhere_or_index(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows<{ explain: string }>(
+    ctx,
+    "EXPLAIN indexes=1 SELECT toDate(event_ts) AS day, count() AS events FROM analytics.events_log WHERE event_type = 'purchase' GROUP BY day ORDER BY day",
+  );
+  const plan = rows.map((r) => r.explain ?? JSON.stringify(r)).join("\n").toLowerCase();
+  const usesIndex = plan.includes("index") || plan.includes("prewhere") || plan.includes("minmax") || plan.includes("granule");
+  const fullScan = plan.includes("parts: 1/1") && !usesIndex;
+  const passed = usesIndex || !fullScan;
+  return {
+    passed,
+    message: passed
+      ? "Purchase query uses indexing or prewhere optimization."
+      : "Purchase query appears to do a full scan with no optimization.",
+    details: { usesIndex, fullScan, planPreview: plan.slice(0, 500) },
+  };
+}

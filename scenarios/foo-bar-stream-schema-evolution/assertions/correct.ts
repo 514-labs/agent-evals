@@ -18,19 +18,24 @@ export async function schema_supports_region_field(ctx: AssertionContext): Promi
         break;
       }
     }
+    if (schemaFiles.length === 0) {
+      return {
+        passed: false,
+        message: "No schema files found in workspace — expected .avsc, .json, or schema-related files.",
+        details: { schemaFiles },
+      };
+    }
     return {
-      passed: foundRegion || schemaFiles.length === 0,
+      passed: foundRegion,
       message: foundRegion
-        ? "Schema supports region field."
-        : schemaFiles.length === 0
-          ? "No schema files to verify."
-          : "Schema does not include optional region field.",
+        ? "Schema supports optional region field."
+        : "Schema does not include optional region field.",
       details: { schemaFiles, foundRegion },
     };
-  } catch {
+  } catch (e: any) {
     return {
-      passed: true,
-      message: "Could not verify schema files.",
+      passed: false,
+      message: `Error reading schema files: ${e.message?.slice(0, 200)}`,
       details: {},
     };
   }

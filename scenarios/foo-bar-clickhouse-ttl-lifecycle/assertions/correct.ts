@@ -6,17 +6,32 @@ async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
 }
 
 export async function table_has_ttl(ctx: AssertionContext): Promise<AssertionResult> {
-  const rows = await queryRows<{ create_table_query: string }>(
+  const rows = await queryRows<{ engine_full: string }>(
+    ctx,
+    "SELECT engine_full FROM system.tables WHERE database = 'analytics' AND name = 'raw_events'",
+  );
+  const engineFull = rows[0]?.engine_full ?? "";
+
+  // Also check the create_table_query for TTL clause since engine_full may not surface TTL in all engines
+  const ddlRows = await queryRows<{ create_table_query: string }>(
     ctx,
     "SELECT create_table_query FROM system.tables WHERE database = 'analytics' AND name = 'raw_events'",
   );
-  const query = rows[0]?.create_table_query ?? "";
-  const hasTtl = /TTL\s+event_ts|TTL\s+\w+\s*\+|ttl/i.test(query);
-  const has90 = /90|interval\s+90/i.test(query);
-  const passed = hasTtl && has90;
+  const ddl = ddlRows[0]?.create_table_query ?? "";
+
+  // Look for TTL in either source — must reference a time column and a 90-day interval
+  const combined = `${engineFull}\n${ddl}`;
+  const hasTtlClause = /TTL\s+\w+/i.test(combined);
+  // Match various representations: INTERVAL 90 DAY, toIntervalDay(90), + 90, etc.
+  const has90DayInterval =
+    /INTERVAL\s+90\s+DAY/i.test(combined) ||
+    /toIntervalDay\s*\(\s*90\s*\)/i.test(combined) ||
+    /\+\s*90/i.test(combined) ||
+    /90\s*DAY/i.test(combined);
+  const passed = hasTtlClause && has90DayInterval;
   return {
     passed,
-    message: passed ? "Table has TTL (90 days)." : "Table missing TTL or wrong interval.",
-    details: { hasTtl, has90 },
+    message: passed ? "Table has TTL with 90-day interval." : "Table missing TTL or wrong interval.",
+    details: { engineFull, hasTtlClause, has90DayInterval },
   };
 }
