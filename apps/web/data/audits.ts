@@ -676,7 +676,7 @@ function resolveAuditsDir(): string {
 
   if (sampleDir) return sampleDir;
 
-  return join(runtimeResultsDir, "audits");
+  return runtimeAuditsDir;
 }
 
 function resolveScenarioSourcesDir(): string {
