@@ -12,10 +12,10 @@ import { CompareShell } from "./compare-shell";
 const GATE_ORDER = ["functional", "correct", "robust", "performant", "production"] as const;
 
 function formatScenarioName(value: string): string {
-  return value
-    .replace(/^foo-bar-/, "")
-    .replace(/-/g, " ")
-    .toUpperCase();
+  const words = value.replace(/^foo-bar-/, "").split("-");
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 export default async function ComparePage({
@@ -75,7 +75,7 @@ export default async function ComparePage({
   return (
     <div className="px-4 lg:px-6 py-5">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-black/40 mb-4">
+      <div className="flex items-center gap-2 text-xs tracking-[0.04em] text-black/40 mb-4">
         <Link href="/audit" className="hover:text-black transition-colors">
           Audit
         </Link>
@@ -93,7 +93,7 @@ export default async function ComparePage({
       {/* Title */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl tracking-tight uppercase leading-[0.9]">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl tracking-tight leading-[0.9]">
             {context?.title ?? formatScenarioName(scenario)}
             <span className="text-[#B91C1C] ml-2">Compare</span>
           </h1>

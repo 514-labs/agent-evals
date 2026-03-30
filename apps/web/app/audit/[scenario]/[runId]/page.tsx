@@ -28,7 +28,10 @@ const GATE_LABELS: Record<string, { label: string; number: string; detail: strin
 };
 
 function formatScenarioName(value: string): string {
-  return value.replace(/^foo-bar-/, "").replace(/-/g, " ").toUpperCase();
+  const words = value.replace(/^foo-bar-/, "").split("-");
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 function formatTimestamp(raw: string): string {
@@ -250,7 +253,7 @@ export default async function ScenarioAuditRunPage({
   return (
     <div className="px-4 lg:px-6 py-5">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-black/40 mb-4">
+      <div className="flex items-center gap-2 text-xs tracking-[0.04em] text-black/40 mb-4">
         <Link href="/audit" className="hover:text-black transition-colors">
           Audit
         </Link>
@@ -268,7 +271,7 @@ export default async function ScenarioAuditRunPage({
       {/* Title + actions */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-5xl tracking-tight uppercase leading-[0.9]">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-5xl tracking-tight leading-[0.9]">
             {context?.title ?? formatScenarioName(scenario)}
           </h1>
           <p className="text-sm text-black/50 mt-2 max-w-2xl leading-normal">

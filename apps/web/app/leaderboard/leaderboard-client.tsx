@@ -37,10 +37,10 @@ function GatePips({ gate }: { gate: number }) {
 }
 
 function formatScenarioName(id: string): string {
-  return id
-    .replace(/^foo-bar-/, "")
-    .replace(/-/g, " ")
-    .toUpperCase();
+  const words = id.replace(/^foo-bar-/, "").split("-");
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 function formatScore(value: number | null | undefined): string {

@@ -7,10 +7,10 @@ import {
 } from "@/data/audits";
 
 function formatScenarioName(value: string): string {
-  return value
-    .replace(/^foo-bar-/, "")
-    .replace(/-/g, " ")
-    .toUpperCase();
+  const words = value.replace(/^foo-bar-/, "").split("-");
+  return words
+    .map((w, i) => (i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
 
 function formatDuration(seconds: number): string {
@@ -49,7 +49,7 @@ export default function AuditIndexPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-black/40 mb-2">
             DEC Bench
           </p>
-          <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[5rem] tracking-tight uppercase leading-[0.85]">
+          <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[5rem] tracking-tight leading-[0.85]">
             AUDIT
           </h1>
           <p className="mt-3 text-xs uppercase tracking-wider text-black/50 max-w-lg leading-relaxed">
