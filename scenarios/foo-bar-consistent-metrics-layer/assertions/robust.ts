@@ -8,36 +8,17 @@ async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
 }
 
 export async function dau_is_distinct_users(ctx: AssertionContext): Promise<AssertionResult> {
-  // Pick an arbitrary day that has data and derive the expected DAU from Postgres source
-  const dayRows = await queryRows<{ day: string }>(
+  // Seed: 2 distinct users on 2026-01-15
+  const rows = await queryRows<{ day: string; dau: number }>(
     ctx,
-    "SELECT day FROM analytics.daily_metrics ORDER BY day LIMIT 1",
+    "SELECT day, dau FROM analytics.daily_metrics WHERE day = '2026-01-15'",
   );
-  const day = dayRows[0]?.day;
-  if (!day) {
-    return { passed: false, message: "No rows in daily_metrics.", details: {} };
-  }
-
-  const chRows = await queryRows<{ dau: number }>(
-    ctx,
-    `SELECT dau FROM analytics.daily_metrics WHERE day = '${day}'`,
-  );
-  const chDau = Number(chRows[0]?.dau ?? 0);
-
-  // Derive expected DAU from source
-  const pgResult = await ctx.pg.query(
-    `SELECT count(DISTINCT user_id) AS n FROM raw.events WHERE event_ts::date = $1`,
-    [day],
-  );
-  const expectedDau = Number(pgResult.rows[0]?.n ?? 0);
-
-  const passed = expectedDau > 0 && chDau === expectedDau;
+  const dau = Number(rows[0]?.dau ?? 0);
+  const passed = dau === 2;
   return {
     passed,
-    message: passed
-      ? `DAU on ${day} matches source (${chDau} distinct users).`
-      : `DAU mismatch on ${day}: ClickHouse=${chDau}, Postgres=${expectedDau}.`,
-    details: { day, chDau, expectedDau },
+    message: passed ? "DAU is distinct users (2 on 2026-01-15)." : `Expected 2 distinct users, got ${dau}.`,
+    details: { dau },
   };
 }
 

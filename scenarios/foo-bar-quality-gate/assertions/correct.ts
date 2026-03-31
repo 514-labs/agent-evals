@@ -30,7 +30,7 @@ export async function detects_null_event_ids(ctx: AssertionContext): Promise<Ass
 
   const results = await ctx.pg.query(`SELECT * FROM ${table}`);
   const resultText = JSON.stringify(results.rows).toLowerCase();
-  const passed = nullCount >= 1 && (resultText.includes("null") || resultText.includes("missing"));
+  const passed = nullCount === 5 && (resultText.includes("null") || resultText.includes("missing"));
   return {
     passed,
     message: passed ? "Detects null event IDs." : `Expected 5 nulls and quality flag; nullCount=${nullCount}.`,
@@ -78,7 +78,7 @@ export async function detects_schema_drift(ctx: AssertionContext): Promise<Asser
 
   const results = await ctx.pg.query(`SELECT * FROM ${table}`);
   const resultText = JSON.stringify(results.rows).toLowerCase();
-  const passed = driftCount >= 1 && (resultText.includes("schema") || resultText.includes("drift") || resultText.includes("device_type"));
+  const passed = driftCount === 3 && (resultText.includes("schema") || resultText.includes("drift") || resultText.includes("device_type"));
   return {
     passed,
     message: passed ? "Detects schema drift." : `driftCount=${driftCount}, quality flag missing.`,
@@ -100,7 +100,7 @@ export async function detects_stale_timestamps(ctx: AssertionContext): Promise<A
 
   const results = await ctx.pg.query(`SELECT * FROM ${table}`);
   const resultText = JSON.stringify(results.rows).toLowerCase();
-  const passed = staleCount >= 1 && (resultText.includes("stale") || resultText.includes("fresh") || resultText.includes("old") || resultText.includes("timestamp"));
+  const passed = staleCount === 5 && (resultText.includes("stale") || resultText.includes("fresh") || resultText.includes("old") || resultText.includes("timestamp"));
   return {
     passed,
     message: passed ? "Detects stale timestamps." : `staleCount=${staleCount}, quality flag missing.`,

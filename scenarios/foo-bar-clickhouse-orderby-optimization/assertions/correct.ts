@@ -15,12 +15,12 @@ export async function order_by_includes_region(ctx: AssertionContext): Promise<A
   const hasRegion = columns.includes("region");
   const hasEventTs = columns.includes("event_ts");
   const regionFirst = hasRegion && hasEventTs && columns.indexOf("region") < columns.indexOf("event_ts");
-  const passed = hasRegion && hasEventTs;
+  const passed = hasRegion && hasEventTs && regionFirst;
   return {
     passed,
     message: passed
-      ? `ORDER BY includes region and event_ts${regionFirst ? " (region is prefix)" : ""}.`
-      : `ORDER BY does not match filter columns. sorting_key: ${sortingKey}`,
+      ? "ORDER BY has region as prefix before event_ts."
+      : `ORDER BY optimization requires region before event_ts. sorting_key: ${sortingKey}`,
     details: { sortingKey, columns, hasRegion, hasEventTs, regionFirst },
   };
 }

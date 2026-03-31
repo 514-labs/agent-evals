@@ -1,25 +1,24 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-export async function total_amount_matches_events(ctx: AssertionContext): Promise<AssertionResult> {
-  // Derive expected sum from the event log instead of hardcoding
-  const eventResult = await ctx.pg.query(`
-    SELECT coalesce(sum(amount), 0) AS s FROM app.order_events
-    WHERE order_id IN (SELECT DISTINCT order_id FROM app.order_snapshots WHERE status = 'active')
-      AND event_type NOT IN ('order_cancelled', 'cancel')
-  `);
-  const expectedSum = Number(eventResult.rows[0]?.s ?? 0);
+// Seed events (from init/seed-events.py):
+//   ord_001 created 29.99, then updated to 20.00 → active, total = 20.00
+//   ord_002 created 59.50, then cancelled → cancelled, total = 0
+//   ord_003 created 14.25 → active, total = 14.25
+//   ord_004 created 99.00 → active, total = 99.00
+// Expected active sum: 20.00 + 14.25 + 99.00 = 133.25
 
-  const snapshotResult = await ctx.pg.query(
+export async function total_amount_matches_events(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await ctx.pg.query(
     "SELECT coalesce(sum(total_amount), 0) AS s FROM app.order_snapshots WHERE status = 'active'",
   );
-  const snapshotSum = Number(snapshotResult.rows[0]?.s ?? 0);
-
-  const passed = expectedSum > 0 && Math.abs(snapshotSum - expectedSum) < 0.01;
+  const snapshotSum = Number(result.rows[0]?.s ?? 0);
+  const expectedSum = 133.25; // 20.00 + 14.25 + 99.00
+  const passed = Math.abs(snapshotSum - expectedSum) < 0.01;
   return {
     passed,
     message: passed
       ? "Total amount matches replayed events."
-      : `Snapshot sum ${snapshotSum} vs event-derived ${expectedSum}.`,
+      : `Expected ~${expectedSum}, got ${snapshotSum}.`,
     details: { snapshotSum, expectedSum },
   };
 }
@@ -43,5 +42,18 @@ export async function cancelled_order_has_zero_amount(ctx: AssertionContext): Pr
       ? `All ${result.rows.length} cancelled orders have zero amount.`
       : "Some cancelled orders have non-zero amounts.",
     details: { cancelledCount: result.rows.length, rows: result.rows },
+  };
+}
+
+export async function all_four_orders_present(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await ctx.pg.query(
+    "SELECT count(DISTINCT order_id) AS n FROM app.order_snapshots",
+  );
+  const count = Number(result.rows[0]?.n ?? 0);
+  const passed = count === 4;
+  return {
+    passed,
+    message: passed ? "All 4 orders present in snapshots." : `Expected 4 distinct orders, got ${count}.`,
+    details: { count },
   };
 }

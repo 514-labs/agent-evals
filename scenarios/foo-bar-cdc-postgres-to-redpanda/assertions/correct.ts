@@ -23,12 +23,12 @@ print(topicCount)
     topicCount = 0;
   }
 
-  const passed = topicCount >= sourceCount;
+  const passed = topicCount === sourceCount;
   return {
     passed,
     message: passed
       ? `CDC row count matches: source=${sourceCount}, topic=${topicCount}.`
-      : `Source ${sourceCount}, topic ${topicCount}.`,
+      : `Source ${sourceCount}, topic ${topicCount} (expected exact match).`,
     details: { sourceCount, topicCount },
   };
 }

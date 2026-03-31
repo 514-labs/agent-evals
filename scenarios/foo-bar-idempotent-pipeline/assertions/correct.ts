@@ -20,3 +20,23 @@ export async function count_matches_unique_order_ids(ctx: AssertionContext): Pro
     details: { sourceCount, targetCount },
   };
 }
+
+export async function amount_checksum_matches(ctx: AssertionContext): Promise<AssertionResult> {
+  const source = await ctx.pg.query("SELECT coalesce(sum(amount), 0) AS s FROM raw.orders");
+  const sourceSum = Number(source.rows[0]?.s ?? 0);
+
+  const targetRows = await queryRows<{ s: number }>(
+    ctx,
+    "SELECT sum(amount) AS s FROM analytics.orders FINAL",
+  );
+  const targetSum = Number(targetRows[0]?.s ?? 0);
+
+  const passed = sourceSum > 0 && Math.abs(targetSum - sourceSum) < 0.01;
+  return {
+    passed,
+    message: passed
+      ? "Amount checksum matches."
+      : `Source sum ${sourceSum}, target sum ${targetSum}.`,
+    details: { sourceSum, targetSum },
+  };
+}

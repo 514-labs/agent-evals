@@ -7,21 +7,20 @@ async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   return (await (result as any).json()) as T[];
 }
 
-export async function idempotent_row_count(ctx: AssertionContext): Promise<AssertionResult> {
-  const firstRun = await queryRows<{ n: number }>(
+export async function no_duplicate_order_ids(ctx: AssertionContext): Promise<AssertionResult> {
+  // Check that FINAL deduplication produces exactly 1 row per order_id.
+  // If the agent didn't set up ReplacingMergeTree (or equivalent), duplicates will appear.
+  const dupsRows = await queryRows<{ order_id: string; n: number }>(
     ctx,
-    "SELECT count() AS n FROM analytics.orders FINAL",
+    "SELECT order_id, count() AS n FROM analytics.orders FINAL GROUP BY order_id HAVING n > 1",
   );
-  const countAfterFirstCheck = Number(firstRun[0]?.n ?? 0);
-
-  const source = await ctx.pg.query("SELECT count(DISTINCT order_id) AS n FROM raw.orders");
-  const sourceCount = Number(source.rows[0]?.n ?? 0);
-
-  const passed = countAfterFirstCheck === sourceCount;
+  const passed = dupsRows.length === 0;
   return {
     passed,
-    message: passed ? "Idempotent row count matches." : `Target ${countAfterFirstCheck}, source ${sourceCount}.`,
-    details: { countAfterFirstCheck, sourceCount },
+    message: passed
+      ? "No duplicate order IDs after FINAL."
+      : `${dupsRows.length} order IDs have duplicates after FINAL.`,
+    details: { duplicateCount: dupsRows.length, examples: dupsRows.slice(0, 5) },
   };
 }
 

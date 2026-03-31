@@ -23,13 +23,11 @@ export async function purchase_query_uses_prewhere_or_index(ctx: AssertionContex
   );
   const plan = rows.map((r) => r.explain ?? JSON.stringify(r)).join("\n").toLowerCase();
   const usesIndex = plan.includes("index") || plan.includes("prewhere") || plan.includes("minmax") || plan.includes("granule");
-  const fullScan = plan.includes("parts: 1/1") && !usesIndex;
-  const passed = usesIndex || !fullScan;
   return {
-    passed,
-    message: passed
+    passed: usesIndex,
+    message: usesIndex
       ? "Purchase query uses indexing or prewhere optimization."
-      : "Purchase query appears to do a full scan with no optimization.",
-    details: { usesIndex, fullScan, planPreview: plan.slice(0, 500) },
+      : "Purchase query shows no index or prewhere optimization.",
+    details: { usesIndex, planPreview: plan.slice(0, 500) },
   };
 }

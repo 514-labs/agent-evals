@@ -15,12 +15,12 @@ export async function row_count_matches_source(ctx: AssertionContext): Promise<A
   );
   const targetCount = Number(chRows[0]?.n ?? 0);
 
-  const passed = targetCount >= sourceCount;
+  const passed = targetCount === sourceCount;
   return {
     passed,
     message: passed
       ? `Row count matches: source=${sourceCount}, target=${targetCount}.`
-      : `Source ${sourceCount}, target ${targetCount}.`,
+      : `Source ${sourceCount}, target ${targetCount} (expected exact match).`,
     details: { sourceCount, targetCount },
   };
 }

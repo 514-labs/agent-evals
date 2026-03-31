@@ -366,18 +366,24 @@ function getCoreAssertions(
   if (gate === "production") {
     return {
       uses_env_vars: async (ctx) => {
-        const hasPostgres = Boolean(ctx.env("POSTGRES_URL"));
-        const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
-        const passed = hasPostgres && hasClickHouse;
+        const supervisord = safeRead("/etc/supervisord.conf") ?? "";
+        const needsPostgres = supervisord.includes("[program:postgres]");
+        const needsClickHouse = supervisord.includes("[program:clickhouse]");
+        const needsRedpanda = supervisord.includes("[program:redpanda]");
+
+        const checks: { name: string; envVar: string; present: boolean }[] = [];
+        if (needsPostgres) checks.push({ name: "postgres", envVar: "POSTGRES_URL", present: Boolean(ctx.env("POSTGRES_URL")) });
+        if (needsClickHouse) checks.push({ name: "clickhouse", envVar: "CLICKHOUSE_URL", present: Boolean(ctx.env("CLICKHOUSE_URL")) });
+        if (needsRedpanda) checks.push({ name: "redpanda", envVar: "REDPANDA_BROKER", present: Boolean(ctx.env("REDPANDA_BROKER")) });
+
+        const missing = checks.filter((c) => !c.present).map((c) => c.envVar);
+        const passed = missing.length === 0;
         return {
           passed,
           message: passed
             ? "Required data store environment variables are available."
-            : "Missing required data store environment variables.",
-          details: {
-            hasPostgresUrl: hasPostgres,
-            hasClickhouseUrl: hasClickHouse,
-          },
+            : `Missing required data store environment variables: ${missing.join(", ")}.`,
+          details: Object.fromEntries(checks.map((c) => [c.envVar, c.present])),
         };
       },
       no_secrets_in_code: async () =>
