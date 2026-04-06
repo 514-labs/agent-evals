@@ -6,7 +6,8 @@ import { cn } from "@workspace/ui/lib/utils"
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/docs", label: "Docs" },
+  // Hidden for Apr 9 launch - re-enable after docs review
+  // { href: "/docs", label: "Docs" },
   { href: "/leaderboard", label: "Leaderboard" },
 ]
 
