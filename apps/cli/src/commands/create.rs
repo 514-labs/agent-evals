@@ -96,11 +96,11 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     }
 
     write_file(
-        &root.join("prompts/naive.md"),
+        &root.join("prompts/baseline.md"),
         "<!-- Describe the task in plain language. No tool names, no implementation hints. -->\n",
     )?;
     write_file(
-        &root.join("prompts/savvy.md"),
+        &root.join("prompts/informed.md"),
         "<!-- Describe the task with specific tools, targets, and technical constraints. -->\n",
     )?;
 
@@ -143,8 +143,8 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
         "harness": args.harness,
         "tasks": [],
         "personaPrompts": {
-            "naive": "prompts/naive.md",
-            "savvy": "prompts/savvy.md"
+            "baseline": "prompts/baseline.md",
+            "informed": "prompts/informed.md"
         },
         "tags": [],
         "baselineMetrics": {
@@ -169,7 +169,7 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     print_tree(&root, "", true)?;
     println!();
     println!("Next steps:");
-    println!("  1. Fill in prompts/naive.md and prompts/savvy.md");
+    println!("  1. Fill in prompts/baseline.md and prompts/informed.md");
     println!("  2. Add init scripts, seed data, and gate assertions");
     println!("  3. Complete scenario.json metadata (including lede: \"In this scenario, an agent must...\")");
     println!("  4. Validate the scenario:");
@@ -244,8 +244,8 @@ mod tests {
 
         let root = temp.path().join("sample-scenario");
         assert!(root.join("scenario.json").exists());
-        assert!(root.join("prompts/naive.md").exists());
-        assert!(root.join("prompts/savvy.md").exists());
+        assert!(root.join("prompts/baseline.md").exists());
+        assert!(root.join("prompts/informed.md").exists());
         assert!(root.join("init/postgres-setup.sql").exists());
         assert!(root.join("assertions/functional.ts").exists());
         assert!(root.join("assertions/correct.ts").exists());

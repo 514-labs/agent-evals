@@ -52,7 +52,7 @@ pub struct RunArgs {
     pub harness: String,
 
     /// Agent persona
-    #[arg(long, value_enum, default_value = "naive")]
+    #[arg(long, value_enum, default_value = "baseline")]
     pub persona: Persona,
 
     /// Planning mode
@@ -86,8 +86,8 @@ pub struct RunArgs {
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub enum Persona {
-    Naive,
-    Savvy,
+    Baseline,
+    Informed,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -116,7 +116,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
         let mut jobs: Vec<(String, Persona, PlanMode)> = vec![];
         for scenario in &scenarios {
-            for persona in [Persona::Naive, Persona::Savvy] {
+            for persona in [Persona::Baseline, Persona::Informed] {
                 for mode in [PlanMode::NoPlan, PlanMode::Plan] {
                     jobs.push((scenario.id.clone(), persona.clone(), mode.clone()));
                 }
@@ -673,8 +673,8 @@ fn make_run_id(args: &RunArgs, scenario_id: &str, persona: &Persona, mode: &Plan
 impl Persona {
     fn as_str(&self) -> &'static str {
         match self {
-            Self::Naive => "naive",
-            Self::Savvy => "savvy",
+            Self::Baseline => "baseline",
+            Self::Informed => "informed",
         }
     }
 }
