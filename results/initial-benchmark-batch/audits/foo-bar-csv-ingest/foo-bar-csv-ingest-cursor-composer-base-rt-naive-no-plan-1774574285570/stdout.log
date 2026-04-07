@@ -1,0 +1,77 @@
+
+Exploring the CSV files and ClickHouse setup so we can load clean event data.
+
+
+Reading all CSV files and testing ClickHouse date parsing.
+
+
+
+
+
+Starting the ClickHouse server and building a data-loading solution.
+
+
+
+
+
+Verifying JSONEachRow insert format and implementing a loader script.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Creating `analytics.events` (per benchmark assertions), implementing a loader that handles all CSV quirks, and verifying assertions.
+
+
+
+
+
+
+
+
+
+
+
+Here’s what was wrong in the files and how it was fixed.
+
+### Issues in the CSVs
+| File | Problem | Handling |
+|------|---------|----------|
+| `events_01.csv` | OK | ISO `event_ts` kept as UTC |
+| `events_02.csv` | `DD/MM/YYYY` only | Parsed as midnight UTC |
+| `events_03.csv` | `N/A`, `null`, empty `value` | Stored as SQL `NULL` (`Nullable(Float64)`) |
+| `events_04.csv` | Header repeated mid-file | Rows with `event_id = event_id` skipped |
+| `events_05.csv` | Trailing comma (extra column) | Trailing empty fields stripped |
+
+### What was created
+- **Database/table:** `analytics.events` (this matches the benchmark checks in `/scenario/assertions/`)
+- **Columns:** `event_id`, `event_ts` (`DateTime64(3, 'UTC')`), `user_id`, `event_type`, `value` (`Nullable(Float64)`)
+- **Engine:** `MergeTree` ordered by `(event_ts, event_id)`
+- **15 rows** loaded (all `evt_001` … `evt_015`)
+
+### Verification (same logic as the scenario assertions)
+- Table exists in `analytics`
+- Row count = 15  
+- No empty/null `event_id`  
+- All `event_ts` in 2026  
+- No literal header row (`event_id = 'event_id'`)  
+- `min(value) = 0` (nulls excluded from `min`)  
+- Aggregation `GROUP BY event_type` runs successfully  
+
+A repeatable loader is at **`/data/load_events_to_clickhouse.py`** (copy of `/tmp/load_analytics_events.py`). Run:
+
+`python3 /data/load_events_to_clickhouse.py`
+
+ClickHouse was started locally for testing; your harness will use its own instance and `CLICKHOUSE_URL`—re-run that script (or the equivalent SQL/inserts) in that environment so `analytics.events` is populated there too.

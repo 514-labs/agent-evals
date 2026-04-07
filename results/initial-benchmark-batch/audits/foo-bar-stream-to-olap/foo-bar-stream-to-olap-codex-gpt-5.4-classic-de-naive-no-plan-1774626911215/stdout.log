@@ -1,0 +1,17 @@
+Built the pipeline in [consumer.py](/workspace/consumer.py), with a background launcher in [start_consumer.sh](/workspace/start_consumer.sh) and operator notes in [README.md](/workspace/README.md).
+
+`consumer.py` now:
+- creates `analytics.metrics` as `MergeTree ORDER BY (host_id, metric_name, ts)`
+- creates `analytics.metrics_offsets` to persist Kafka offsets in ClickHouse
+- consumes JSON messages from `REDPANDA_BROKER`
+- inserts into ClickHouse via `CLICKHOUSE_URL`
+- supports both one-shot drain and continuous `--follow` mode
+
+I ran it against the live services and verified:
+- `analytics.metrics` exists with columns `host_id`, `metric_name`, `value`, `ts`
+- row count is `10`
+- checksum `sum(value)` is `648.8`
+- the aggregation query returns expected grouped averages
+- a second one-shot run inserted `0` rows, confirming no duplicate reprocessing from stored offsets
+
+A continuous consumer is also running in the background with PID `1080`.

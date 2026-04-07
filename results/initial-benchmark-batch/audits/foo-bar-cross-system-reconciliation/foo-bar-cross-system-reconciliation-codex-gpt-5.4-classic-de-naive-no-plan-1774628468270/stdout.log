@@ -1,0 +1,10 @@
+Added a reusable reconciliation command in [reconcile-drift.mjs](/opt/dec-bench/eval-core/scripts/reconcile-drift.mjs) and exposed it as `npm run reconcile:drift` in [package.json](/opt/dec-bench/eval-core/package.json). I also added a repo-level wrapper at [reconcile-drift](/opt/dec-bench/reconcile-drift) so an operator can schedule `./reconcile-drift` from `/opt/dec-bench` without caring about the package subdirectory.
+
+The command checks `app.transactions` in Postgres, `transactions` in Redpanda, and `analytics.transactions` in ClickHouse, supports `--tolerance` and `--report-path`, writes the structured JSON report, and exits with `0` for in-tolerance, `2` for drift, and `1` for dependency/config failures. The required report is present at [artifacts/drift-report.json](/opt/dec-bench/artifacts/drift-report.json).
+
+Verified live:
+- `./reconcile-drift` exited `2` and reported `Postgres=10, Redpanda topic=0, ClickHouse=0`, with `redpanda` and `clickhouse` behind.
+- `./reconcile-drift --tolerance 10 --report-path artifacts/drift-report-tolerated.json` exited `0`.
+- `./reconcile-drift --topic definitely-missing --report-path artifacts/drift-report-error.json` exited `1`.
+
+The default report includes `pg_count`, `topic_count`, `ch_count`, `behind_systems`, `discrepancies`, `tolerance`, `summary`, `generated_at`, and `report_path`.
