@@ -137,6 +137,7 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
         "id": args.name,
         "title": "",
         "description": "",
+        "lede": "",
         "tier": args.tier.to_string(),
         "domain": args.domain.to_string(),
         "harness": args.harness,
@@ -170,7 +171,7 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     println!("Next steps:");
     println!("  1. Fill in prompts/naive.md and prompts/savvy.md");
     println!("  2. Add init scripts, seed data, and gate assertions");
-    println!("  3. Complete scenario.json metadata");
+    println!("  3. Complete scenario.json metadata (including lede: \"In this scenario, an agent must...\")");
     println!("  4. Validate the scenario:");
     println!("     dec-bench validate --scenario {}", args.name);
     println!("  5. Build the local eval image:");
