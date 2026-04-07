@@ -9,6 +9,7 @@ import {
   tiers,
 } from "@/data/registry";
 import { upNext } from "@/flags";
+import { listAuditScenarios } from "@/data/audits";
 
 import { ScenarioRegistry } from "@/components/scenario-registry";
 
@@ -27,6 +28,8 @@ export async function ScenarioRegistryBlock({
     ? domains
     : domains.filter((d) => d.slug === "foo-bar");
 
+  const scenariosWithResults = listAuditScenarios();
+
   return (
     <div className="not-prose">
       <ScenarioRegistry
@@ -39,6 +42,7 @@ export async function ScenarioRegistryBlock({
         taskCategories={taskCategories}
         tiers={tiers}
         startingStates={startingStates}
+        scenariosWithResults={scenariosWithResults}
       />
     </div>
   );

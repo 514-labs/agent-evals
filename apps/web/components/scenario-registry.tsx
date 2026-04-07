@@ -57,8 +57,26 @@ type ScenarioRegistryProps = {
   taskCategories: TaxonomyOption[]
   tiers: TaxonomyOption[]
   startingStates: TaxonomyOption[]
+  scenariosWithResults: string[]
   view?: "all" | "scenarios" | "harnesses"
 }
+
+const TIER_PILLS = [
+  { slug: "tier-1", label: "T1" },
+  { slug: "tier-2", label: "T2" },
+  { slug: "tier-3", label: "T3" },
+]
+
+const STATE_PILLS = [
+  { slug: "broken", label: "Broken" },
+  { slug: "greenfield", label: "Greenfield" },
+]
+
+const SERVICE_PILLS = [
+  { slug: "postgres", label: "Postgres" },
+  { slug: "clickhouse", label: "ClickHouse" },
+  { slug: "redpanda", label: "Redpanda" },
+]
 
 const SCRIPT_PREVIEW_LINE_LIMIT = 6
 
@@ -92,6 +110,19 @@ function formatInstallScriptPreview(rawScript: string): { lines: string[]; trunc
   return { lines, truncated }
 }
 
+// ─── Mono-caps label used throughout the filter bar ────────────────────────
+function FilterLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-black/40"
+      style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
+    >
+      {children}
+    </span>
+  )
+}
+
+// ─── Pill toggle chip ───────────────────────────────────────────────────────
 function FilterChip({
   label,
   active,
@@ -106,10 +137,10 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "text-xs uppercase tracking-[0.15em] px-2.5 py-1 border-[2px] transition-colors",
+        "text-[11px] uppercase tracking-[0.14em] px-2.5 py-1 border-[2px] transition-colors leading-none",
         active
-          ? "bg-[#B91C1C] border-black text-black"
-          : "bg-white border-black/20 text-black/60 hover:text-black hover:border-black"
+          ? "bg-[#B91C1C] border-[#B91C1C] text-white"
+          : "bg-white border-black/25 text-black/55 hover:text-black hover:border-black"
       )}
     >
       {label}
@@ -117,6 +148,95 @@ function FilterChip({
   )
 }
 
+// ─── Styled native select ───────────────────────────────────────────────────
+function FilterSelect({
+  value,
+  onChange,
+  children,
+}: {
+  value: string
+  onChange: (val: string) => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="relative inline-flex items-center">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          "appearance-none border-[2px] bg-white pl-2.5 pr-6 py-1 cursor-pointer transition-colors",
+          "text-[11px] uppercase tracking-[0.12em] leading-none",
+          value
+            ? "border-[#B91C1C] text-black"
+            : "border-black/25 text-black/55 hover:border-black hover:text-black"
+        )}
+        style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
+      >
+        {children}
+      </select>
+      <span className="pointer-events-none absolute right-1.5 text-[9px] text-black/40">▾</span>
+    </div>
+  )
+}
+
+// ─── Has-Results toggle ─────────────────────────────────────────────────────
+function HasResultsToggle({
+  active,
+  disabled,
+  onClick,
+}: {
+  active: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 border-[2px] transition-colors leading-none",
+        "text-[11px] uppercase tracking-[0.14em]",
+        disabled
+          ? "border-black/10 text-black/25 cursor-not-allowed"
+          : active
+          ? "bg-[#B91C1C] border-[#B91C1C] text-white"
+          : "bg-white border-black/25 text-black/55 hover:text-black hover:border-black"
+      )}
+    >
+      {/* Toggle switch pill */}
+      <span
+        className={cn(
+          "relative inline-block w-6 h-3 border transition-colors shrink-0",
+          disabled
+            ? "border-black/15 bg-transparent"
+            : active
+            ? "border-white/50 bg-white/20"
+            : "border-black/30 bg-transparent"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0 h-full w-2.5 border transition-all",
+            disabled
+              ? "border-black/15 bg-black/10 left-0"
+              : active
+              ? "border-white/60 bg-white right-0"
+              : "border-black/30 bg-black/20 left-0"
+          )}
+        />
+      </span>
+      Has Results
+    </button>
+  )
+}
+
+// ─── Inline vertical rule between filter groups ─────────────────────────────
+function VRule() {
+  return <span className="hidden sm:block w-px h-4 bg-black/15 shrink-0" />
+}
+
+// ─── Filter section in the "More" sheet ─────────────────────────────────────
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
@@ -183,20 +303,35 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
       : searchParams.get("tab") === "harnesses" ? "harnesses" : "scenarios"
   )
   const [query, setQuery] = useState(searchParams.get("q") ?? "")
-  const [selectedDomains, setSelectedDomains] = useState<string[]>(
-    parseList(searchParams.get("domain"))
+
+  // Single-select dropdowns
+  const [selectedDomain, setSelectedDomain] = useState(
+    parseList(searchParams.get("domain"))[0] ?? ""
   )
-  const [selectedCompetencies, setSelectedCompetencies] = useState<string[]>(
-    parseList(searchParams.get("competency"))
+  const [selectedCompetency, setSelectedCompetency] = useState(
+    parseList(searchParams.get("competency"))[0] ?? ""
   )
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(
-    parseList(searchParams.get("feature"))
-  )
+
+  // Multi-select pills
   const [selectedTiers, setSelectedTiers] = useState<string[]>(
     parseList(searchParams.get("tier"))
   )
   const [selectedStartingStates, setSelectedStartingStates] = useState<string[]>(
     parseList(searchParams.get("state"))
+  )
+  const [selectedServices, setSelectedServices] = useState<string[]>(
+    parseList(searchParams.get("services"))
+  )
+
+  // Has Results toggle — defaults to true when there are any results
+  const hasAnyResults = props.scenariosWithResults.length > 0
+  const [hasResults, setHasResults] = useState(
+    hasAnyResults && searchParams.get("results") !== "0"
+  )
+
+  // "More" filters (sheet)
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(
+    parseList(searchParams.get("feature"))
   )
   const [selectedTaskCategories, setSelectedTaskCategories] = useState<string[]>(
     parseList(searchParams.get("category"))
@@ -204,30 +339,37 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
+  const moreFilterCount = selectedFeatures.length + selectedTaskCategories.length
+
+  // Count active "primary" filters for Clear All visibility
   const activeFilterCount =
-    selectedDomains.length +
-    selectedCompetencies.length +
-    selectedFeatures.length +
+    (selectedDomain ? 1 : 0) +
+    (selectedCompetency ? 1 : 0) +
     selectedTiers.length +
     selectedStartingStates.length +
-    selectedTaskCategories.length
+    selectedServices.length +
+    moreFilterCount
 
   useEffect(() => {
     const params = new URLSearchParams()
 
     if (showTabs && tab !== "scenarios") params.set("tab", tab)
     if (query) params.set("q", query)
+    if (selectedDomain) params.set("domain", selectedDomain)
+    if (selectedCompetency) params.set("competency", selectedCompetency)
 
     const setList = (key: string, values: string[]) => {
       if (values.length > 0) params.set(key, values.join(","))
     }
 
-    setList("domain", selectedDomains)
-    setList("competency", selectedCompetencies)
-    setList("feature", selectedFeatures)
     setList("tier", selectedTiers)
     setList("state", selectedStartingStates)
+    setList("services", selectedServices)
+    setList("feature", selectedFeatures)
     setList("category", selectedTaskCategories)
+
+    // Only write results=0 when explicitly turned off; absence means "on" (default)
+    if (hasAnyResults && !hasResults) params.set("results", "0")
 
     const next = params.toString()
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false })
@@ -235,12 +377,15 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
     pathname,
     query,
     router,
-    selectedCompetencies,
-    selectedDomains,
-    selectedFeatures,
-    selectedStartingStates,
-    selectedTaskCategories,
+    selectedDomain,
+    selectedCompetency,
     selectedTiers,
+    selectedStartingStates,
+    selectedServices,
+    selectedFeatures,
+    selectedTaskCategories,
+    hasResults,
+    hasAnyResults,
     showTabs,
     tab,
   ])
@@ -255,12 +400,18 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
     return counts
   }, [props.scenarios])
 
+  const resultsSet = useMemo(
+    () => new Set(props.scenariosWithResults),
+    [props.scenariosWithResults]
+  )
+
   const filteredScenarios = useMemo(() => {
     const needle = query.trim().toLowerCase()
 
     return props.scenarios
       .filter((scenario) => {
-        if (selectedDomains.length > 0 && !selectedDomains.includes(scenario.domain)) return false
+        if (hasResults && hasAnyResults && !resultsSet.has(scenario.id)) return false
+        if (selectedDomain && scenario.domain !== selectedDomain) return false
         if (selectedTiers.length > 0 && !selectedTiers.includes(scenario.tier)) return false
         if (
           selectedStartingStates.length > 0 &&
@@ -269,8 +420,14 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
           return false
         }
         if (
-          selectedCompetencies.length > 0 &&
-          !selectedCompetencies.every((slug) => scenario.competencies.includes(slug))
+          selectedCompetency &&
+          !scenario.competencies.includes(selectedCompetency)
+        ) {
+          return false
+        }
+        if (
+          selectedServices.length > 0 &&
+          !selectedServices.some((svc) => scenario.services.includes(svc))
         ) {
           return false
         }
@@ -300,12 +457,16 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
   }, [
     props.scenarios,
     query,
-    selectedCompetencies,
-    selectedDomains,
-    selectedFeatures,
-    selectedStartingStates,
-    selectedTaskCategories,
+    hasResults,
+    hasAnyResults,
+    resultsSet,
+    selectedDomain,
+    selectedCompetency,
     selectedTiers,
+    selectedStartingStates,
+    selectedServices,
+    selectedFeatures,
+    selectedTaskCategories,
   ])
 
   const filteredHarnesses = useMemo(() => {
@@ -320,102 +481,121 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
   const optionLabel = (options: TaxonomyOption[], slug: string) =>
     options.find((option) => option.slug === slug)?.label ?? slug
 
-  const toggle = (values: string[], slug: string, set: (next: string[]) => void) => {
+  const toggleList = (values: string[], slug: string, set: (next: string[]) => void) => {
     if (values.includes(slug)) {
-      set(values.filter((value) => value !== slug))
+      set(values.filter((v) => v !== slug))
     } else {
       set([...values, slug])
     }
   }
 
   const clearScenarioFilters = () => {
-    setSelectedDomains([])
-    setSelectedCompetencies([])
-    setSelectedFeatures([])
+    setSelectedDomain("")
+    setSelectedCompetency("")
     setSelectedTiers([])
     setSelectedStartingStates([])
+    setSelectedServices([])
+    setSelectedFeatures([])
     setSelectedTaskCategories([])
   }
 
   return (
     <div className="space-y-6">
-      <div className="border-[3px] border-black p-4 lg:p-5">
-        {showTabs ? (
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <button
-              type="button"
-              onClick={() => setTab("scenarios")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
-                tab === "scenarios" ? "bg-black text-white border-black" : "bg-white border-black text-black"
-              )}
-            >
-              Scenarios
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("harnesses")}
-              className={cn(
-                "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
-                tab === "harnesses" ? "bg-black text-white border-black" : "bg-white border-black text-black"
-              )}
-            >
-              Harnesses
-            </button>
-            <div className="ml-auto text-xs uppercase tracking-[0.2em] text-black/50">
-              {tab === "scenarios" ? `${filteredScenarios.length} scenarios` : `${filteredHarnesses.length} harnesses`}
-            </div>
-          </div>
-        ) : tab === "scenarios" ? (
-          <div className="mb-4 space-y-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="text-xs font-bold uppercase tracking-[0.2em]">
-                {filteredScenarios.length} scenarios
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40">
-                {props.scenarios.filter((s) => s.tier === "tier-1").length} Tier 1
-                {" / "}
-                {props.scenarios.filter((s) => s.tier === "tier-2").length} Tier 2
-                {" / "}
-                {props.scenarios.filter((s) => s.tier === "tier-3").length} Tier 3
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40">
-                {props.scenarios.filter((s) => s.startingState === "greenfield").length} Greenfield
-                {" / "}
-                {props.scenarios.filter((s) => s.startingState === "broken").length} Broken
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center mb-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-black/50">
-              {`${filteredHarnesses.length} harnesses`}
-            </div>
-          </div>
-        )}
+      {/* ── Tab switcher (when view="all") ────────────────────────── */}
+      {showTabs && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTab("scenarios")}
+            className={cn(
+              "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
+              tab === "scenarios" ? "bg-black text-white border-black" : "bg-white border-black text-black"
+            )}
+          >
+            Scenarios
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("harnesses")}
+            className={cn(
+              "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] border-[2px]",
+              tab === "harnesses" ? "bg-black text-white border-black" : "bg-white border-black text-black"
+            )}
+          >
+            Harnesses
+          </button>
+        </div>
+      )}
 
-        <div className="flex gap-2">
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search title, description, tags..."
-            aria-label="Search scenario and harness registry"
-            className="h-9 border-[2px] border-black text-sm tracking-wide placeholder:text-black/35 focus-visible:ring-[#B91C1C]/20 focus-visible:border-[#B91C1C]"
-          />
+      {/* ── Filter bar ────────────────────────────────────────────── */}
+      {tab === "scenarios" && (
+        <div className="border-[3px] border-black">
 
-          {tab === "scenarios" && (
+          {/* Row 1 — Search + count */}
+          <div className="flex items-center gap-2 p-3">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title, description, tags…"
+              aria-label="Search scenarios"
+              className="h-8 border-[2px] border-black/25 text-sm tracking-wide placeholder:text-black/30 focus-visible:border-black focus-visible:ring-0"
+            />
+            <span
+              className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-black/40 whitespace-nowrap"
+              style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
+            >
+              {filteredScenarios.length}&thinsp;/&thinsp;{props.scenarios.length}
+            </span>
+          </div>
+
+          {/* Rule */}
+          <div className="border-t border-black/15" />
+
+          {/* Row 2 — Has Results + Domain + Competency + More sheet */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+            <HasResultsToggle
+              active={hasResults}
+              disabled={!hasAnyResults}
+              onClick={() => setHasResults((v) => !v)}
+            />
+
+            <VRule />
+
+            <div className="flex items-center gap-2">
+              <FilterLabel>Domain</FilterLabel>
+              <FilterSelect value={selectedDomain} onChange={setSelectedDomain}>
+                <option value="">All</option>
+                {props.domains.map((d) => (
+                  <option key={d.slug} value={d.slug}>{d.label}</option>
+                ))}
+              </FilterSelect>
+            </div>
+
+            <VRule />
+
+            <div className="flex items-center gap-2">
+              <FilterLabel>Competency</FilterLabel>
+              <FilterSelect value={selectedCompetency} onChange={setSelectedCompetency}>
+                <option value="">All</option>
+                {props.competencies.map((c) => (
+                  <option key={c.slug} value={c.slug}>{c.label}</option>
+                ))}
+              </FilterSelect>
+            </div>
+
+            {/* More filters (Features + Task Categories) */}
             <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
               <SheetTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "h-9 shrink-0 px-3 text-xs font-bold uppercase tracking-[0.2em] border-[2px] transition-colors",
-                    (selectedDomains.length + selectedCompetencies.length + selectedFeatures.length + selectedTaskCategories.length) > 0
-                      ? "bg-[#B91C1C] border-black text-black"
-                      : "bg-white border-black text-black hover:bg-black hover:text-white"
+                    "ml-auto h-7 shrink-0 px-2.5 text-[11px] uppercase tracking-[0.14em] border-[2px] transition-colors leading-none",
+                    moreFilterCount > 0
+                      ? "bg-[#B91C1C] border-[#B91C1C] text-white"
+                      : "bg-white border-black/25 text-black/50 hover:border-black hover:text-black"
                   )}
                 >
-                  More{(selectedDomains.length + selectedCompetencies.length + selectedFeatures.length + selectedTaskCategories.length) > 0 ? ` (${selectedDomains.length + selectedCompetencies.length + selectedFeatures.length + selectedTaskCategories.length})` : ""}
+                  More{moreFilterCount > 0 ? ` (${moreFilterCount})` : ""}
                 </button>
               </SheetTrigger>
               <SheetContent side="right" className="overflow-y-auto">
@@ -424,186 +604,217 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
                     <SheetTitle className="text-sm font-bold uppercase tracking-[0.2em]">
                       More Filters
                     </SheetTitle>
-                    <button
-                      type="button"
-                      onClick={clearScenarioFilters}
-                      className="text-xs uppercase tracking-[0.16em] text-black/50 hover:text-black"
-                    >
-                      Clear All
-                    </button>
+                    {moreFilterCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFeatures([])
+                          setSelectedTaskCategories([])
+                        }}
+                        className="text-xs uppercase tracking-[0.16em] text-black/50 hover:text-black"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
                 </SheetHeader>
-
                 <div className="px-4 pb-6 space-y-5">
-                  <FilterSection label="Domains">
-                    {props.domains.map((option) => (
-                      <FilterChip
-                        key={option.slug}
-                        label={option.label}
-                        active={selectedDomains.includes(option.slug)}
-                        onClick={() => toggle(selectedDomains, option.slug, setSelectedDomains)}
-                      />
-                    ))}
-                  </FilterSection>
-
-                  <FilterSection label="Competencies">
-                    {props.competencies.map((option) => (
-                      <FilterChip
-                        key={option.slug}
-                        label={option.label}
-                        active={selectedCompetencies.includes(option.slug)}
-                        onClick={() =>
-                          toggle(selectedCompetencies, option.slug, setSelectedCompetencies)
-                        }
-                      />
-                    ))}
-                  </FilterSection>
-
                   <FilterSection label="Features">
                     {props.features.map((option) => (
                       <FilterChip
                         key={option.slug}
                         label={option.label}
                         active={selectedFeatures.includes(option.slug)}
-                        onClick={() => toggle(selectedFeatures, option.slug, setSelectedFeatures)}
+                        onClick={() => toggleList(selectedFeatures, option.slug, setSelectedFeatures)}
                       />
                     ))}
                   </FilterSection>
-
                   <FilterSection label="Task Category">
                     {props.taskCategories.map((option) => (
                       <FilterChip
                         key={option.slug}
                         label={option.label}
                         active={selectedTaskCategories.includes(option.slug)}
-                        onClick={() =>
-                          toggle(selectedTaskCategories, option.slug, setSelectedTaskCategories)
-                        }
+                        onClick={() => toggleList(selectedTaskCategories, option.slug, setSelectedTaskCategories)}
                       />
                     ))}
                   </FilterSection>
                 </div>
               </SheetContent>
             </Sheet>
-          )}
-        </div>
+          </div>
 
-        {tab === "scenarios" && (
-          <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40 mr-1">Tier</span>
-              {props.tiers.map((option) => (
+          {/* Rule */}
+          <div className="border-t border-black/15" />
+
+          {/* Row 3 — Tier · State · Services pills */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+            <div className="flex items-center gap-1.5">
+              <FilterLabel>Tier</FilterLabel>
+              {TIER_PILLS.map((pill) => (
                 <FilterChip
-                  key={option.slug}
-                  label={option.label}
-                  active={selectedTiers.includes(option.slug)}
-                  onClick={() => toggle(selectedTiers, option.slug, setSelectedTiers)}
+                  key={pill.slug}
+                  label={pill.label}
+                  active={selectedTiers.includes(pill.slug)}
+                  onClick={() => toggleList(selectedTiers, pill.slug, setSelectedTiers)}
                 />
               ))}
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] uppercase tracking-[0.15em] text-black/40 mr-1">State</span>
-              {props.startingStates.map((option) => (
+
+            <VRule />
+
+            <div className="flex items-center gap-1.5">
+              <FilterLabel>State</FilterLabel>
+              {STATE_PILLS.map((pill) => (
                 <FilterChip
-                  key={option.slug}
-                  label={option.label}
-                  active={selectedStartingStates.includes(option.slug)}
-                  onClick={() =>
-                    toggle(selectedStartingStates, option.slug, setSelectedStartingStates)
-                  }
+                  key={pill.slug}
+                  label={pill.label}
+                  active={selectedStartingStates.includes(pill.slug)}
+                  onClick={() => toggleList(selectedStartingStates, pill.slug, setSelectedStartingStates)}
                 />
               ))}
             </div>
+
+            <VRule />
+
+            <div className="flex items-center gap-1.5">
+              <FilterLabel>Services</FilterLabel>
+              {SERVICE_PILLS.map((pill) => (
+                <FilterChip
+                  key={pill.slug}
+                  label={pill.label}
+                  active={selectedServices.includes(pill.slug)}
+                  onClick={() => toggleList(selectedServices, pill.slug, setSelectedServices)}
+                />
+              ))}
+            </div>
+
             {activeFilterCount > 0 && (
               <button
                 type="button"
                 onClick={clearScenarioFilters}
-                className="text-[10px] uppercase tracking-[0.15em] text-black/40 hover:text-black ml-auto"
+                className="ml-auto text-[10px] uppercase tracking-[0.15em] text-black/35 hover:text-black transition-colors"
+                style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
               >
-                Clear all
+                Clear all ×
               </button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {/* ── Harness search (no filter bar needed) ─────────────────── */}
+      {tab === "harnesses" && (
+        <div className="border-[3px] border-black p-3">
+          <div className="flex items-center gap-2">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search harnesses…"
+              aria-label="Search harness registry"
+              className="h-8 border-[2px] border-black/25 text-sm tracking-wide placeholder:text-black/30 focus-visible:border-black focus-visible:ring-0"
+            />
+            <span
+              className="shrink-0 text-[10px] uppercase tracking-[0.18em] text-black/40 whitespace-nowrap"
+              style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
+            >
+              {filteredHarnesses.length}&thinsp;/&thinsp;{props.harnesses.length}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Scenario list ─────────────────────────────────────────── */}
       {tab === "scenarios" && (
-        <div className="grid gap-3">
-          {filteredScenarios.map((scenario) => {
-            const key = `scenario:${scenario.id}`
-            const expanded = expandedId === key
-            return (
-              <div
-                key={scenario.id}
-                className="border-t border-black/10 first:border-t-0 py-4"
-              >
-                <Link
-                  href={`/audit/${scenario.id}`}
-                  className="text-sm font-bold uppercase tracking-[0.05em] hover:underline"
-                >
-                  {scenario.title}
-                </Link>
-                <p className="mt-1 text-sm leading-relaxed text-black/50">
-                  {scenario.description}
-                </p>
-                <p className="mt-1.5 text-xs text-black/35">
-                  {optionLabel(props.tiers, scenario.tier)}
-                  {" · "}
-                  {scenario.startingState === "broken" ? "Starts broken" : "Starts clean"}
-                  {" · "}
-                  {scenario.taskCount} {scenario.taskCount === 1 ? "task" : "tasks"}
-                  {" · "}
-                  {scenario.services.join(", ")}
-                  {" · "}
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(expanded ? null : key)}
-                    className="underline decoration-black/20 hover:decoration-black hover:text-black transition-colors"
-                  >
-                    {expanded ? "hide details" : "details"}
-                  </button>
-                </p>
+        <div className="grid gap-0 divide-y divide-black/10">
+          {filteredScenarios.length === 0 ? (
+            <p
+              className="py-10 text-center text-xs uppercase tracking-[0.18em] text-black/35"
+              style={{ fontFamily: "var(--font-mono), ui-monospace, monospace" }}
+            >
+              No scenarios match the current filters
+            </p>
+          ) : (
+            filteredScenarios.map((scenario) => {
+              const key = `scenario:${scenario.id}`
+              const expanded = expandedId === key
+              const hasAuditData = resultsSet.has(scenario.id)
+              return (
+                <div key={scenario.id} className="py-4">
+                  <div className="flex items-start gap-2">
+                    <Link
+                      href={`/audit/${scenario.id}`}
+                      className="text-sm font-bold uppercase tracking-[0.05em] hover:underline leading-tight"
+                    >
+                      {scenario.title}
+                    </Link>
+                    {hasAuditData && (
+                      <span className="shrink-0 mt-0.5 inline-block w-1.5 h-1.5 rounded-full bg-[#B91C1C]" title="Has results" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed text-black/50">
+                    {scenario.description}
+                  </p>
+                  <p className="mt-1.5 text-xs text-black/35">
+                    {optionLabel(props.tiers, scenario.tier)}
+                    {" · "}
+                    {scenario.startingState === "broken" ? "Starts broken" : "Starts clean"}
+                    {" · "}
+                    {scenario.taskCount} {scenario.taskCount === 1 ? "task" : "tasks"}
+                    {" · "}
+                    {scenario.services.join(", ")}
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(expanded ? null : key)}
+                      className="underline decoration-black/20 hover:decoration-black hover:text-black transition-colors"
+                    >
+                      {expanded ? "hide details" : "details"}
+                    </button>
+                  </p>
 
-                {expanded && (
-                  <div className="mt-3 pl-0 space-y-2 text-xs text-black/45">
-                    <p>
-                      <span className="text-black/30">Competencies: </span>
-                      {scenario.competencies.map((slug, i) => (
-                        <span key={slug}>
-                          {i > 0 && ", "}
-                          <Link
-                            href={`/docs/evals/competencies/${slug}`}
-                            className="underline decoration-black/15 hover:decoration-black hover:text-black transition-colors"
-                          >
-                            {optionLabel(props.competencies, slug)}
-                          </Link>
-                        </span>
-                      ))}
-                    </p>
-                    {scenario.features.length > 0 && (
+                  {expanded && (
+                    <div className="mt-3 space-y-2 text-xs text-black/45">
                       <p>
-                        <span className="text-black/30">Features: </span>
-                        {scenario.features.map((slug, i) => (
+                        <span className="text-black/30">Competencies: </span>
+                        {scenario.competencies.map((slug, i) => (
                           <span key={slug}>
                             {i > 0 && ", "}
                             <Link
-                              href={`/docs/evals/features/${slug}`}
+                              href={`/docs/evals/competencies/${slug}`}
                               className="underline decoration-black/15 hover:decoration-black hover:text-black transition-colors"
                             >
-                              {optionLabel(props.features, slug)}
+                              {optionLabel(props.competencies, slug)}
                             </Link>
                           </span>
                         ))}
                       </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+                      {scenario.features.length > 0 && (
+                        <p>
+                          <span className="text-black/30">Features: </span>
+                          {scenario.features.map((slug, i) => (
+                            <span key={slug}>
+                              {i > 0 && ", "}
+                              <Link
+                                href={`/docs/evals/features/${slug}`}
+                                className="underline decoration-black/15 hover:decoration-black hover:text-black transition-colors"
+                              >
+                                {optionLabel(props.features, slug)}
+                              </Link>
+                            </span>
+                          ))}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
         </div>
       )}
 
+      {/* ── Harness list ──────────────────────────────────────────── */}
       {tab === "harnesses" && (
         <div className="grid gap-3">
           {filteredHarnesses.map((harness) => {
@@ -659,6 +870,7 @@ export function ScenarioRegistry({ view = "all", ...props }: ScenarioRegistryPro
         </div>
       )}
 
+      {/* ── Contribute CTA ────────────────────────────────────────── */}
       <div className="border-[2px] border-black/20 p-4">
         <p className="text-xs uppercase tracking-[0.2em] text-black/50 mb-2">Contribute New Scenarios</p>
         <p className="text-sm text-black/65 mb-3">
