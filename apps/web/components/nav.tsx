@@ -69,6 +69,7 @@ export function Nav({
                   {link.label}
                 </a>
               ))}
+              {/* Hidden for Apr 9 launch - re-enable after docs review
               <span className="hidden lg:inline text-[#D6D3D1]">·</span>
               <Link
                 href="/docs"
@@ -76,6 +77,7 @@ export function Nav({
               >
                 Docs
               </Link>
+              */}
               <a
                 href="https://github.com/514-labs/agent-evals"
                 target="_blank"
@@ -90,9 +92,11 @@ export function Nav({
             </>
           ) : (
             <>
+              {/* Hidden for Apr 9 launch - re-enable after docs review
               <Link href="/docs" className={linkClass(activeItem === "docs")}>
                 Docs
               </Link>
+              */}
               <Link
                 href="/leaderboard"
                 className={linkClass(activeItem === "leaderboard")}
