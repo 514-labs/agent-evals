@@ -31,8 +31,8 @@ export type Harness = BuiltInHarness | "custom";
 // Agent planning mode
 export type PlanMode = "plan" | "no-plan";
 
-// Agent persona reflecting ClickHouse expertise level
-export type Persona = "naive" | "savvy";
+// Agent persona: baseline (minimal context) or informed (domain-specific guidance)
+export type Persona = "baseline" | "informed";
 
 // Baseline metrics before agent intervention
 export interface BaselineMetrics {
@@ -52,8 +52,8 @@ export interface ReferenceMetrics {
 
 // Persona-specific system prompts for the agent
 export interface PersonaPrompts {
-  naive: string;
-  savvy: string;
+  baseline: string;
+  informed: string;
 }
 
 export interface ScenarioInfrastructure {

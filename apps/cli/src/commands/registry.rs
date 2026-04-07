@@ -412,8 +412,8 @@ fn validate_scenario_dir(dir: &Path) -> Result<()> {
     let required = [
         "scenario.json",
         "supervisord.conf",
-        "prompts/naive.md",
-        "prompts/savvy.md",
+        "prompts/baseline.md",
+        "prompts/informed.md",
         "assertions/functional.ts",
         "assertions/correct.ts",
         "assertions/robust.ts",

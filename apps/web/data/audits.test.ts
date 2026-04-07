@@ -98,7 +98,7 @@ test("audit loaders index manifests and read log chunks", () => {
           harness: "base-rt",
           tasks: [{ id: "task-1", description: "Do thing", category: "ingestion" }],
           personaPrompts: {
-            naive: "prompts/naive.md",
+            baseline: "prompts/baseline.md",
           },
         },
         null,
@@ -106,7 +106,7 @@ test("audit loaders index manifests and read log chunks", () => {
       ),
       "utf8",
     );
-    writeFileSync(join(fixtureRoot, "scenarios", scenario, "prompts", "naive.md"), "hello prompt", "utf8");
+    writeFileSync(join(fixtureRoot, "scenarios", scenario, "prompts", "baseline.md"), "hello prompt", "utf8");
 
     process.env.DEC_BENCH_AUDITS_DIR = join(fixtureRoot, "data", "audits");
 

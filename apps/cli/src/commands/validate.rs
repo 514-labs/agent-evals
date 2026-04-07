@@ -33,8 +33,8 @@ const FEATURE_SLUGS: [&str; 5] = [
 const REQUIRED_FILES: [&str; 8] = [
     "scenario.json",
     "supervisord.conf",
-    "prompts/naive.md",
-    "prompts/savvy.md",
+    "prompts/baseline.md",
+    "prompts/informed.md",
     "assertions/functional.ts",
     "assertions/correct.ts",
     "assertions/robust.ts",
@@ -231,7 +231,7 @@ fn validate_with_repo_root(
     validate_prompt(
         &scenario_dir,
         &persona_prompts,
-        "naive",
+        "baseline",
         SCAFFOLD_NAIVE_PROMPT,
         &mut errors,
         &mut warnings,
@@ -239,7 +239,7 @@ fn validate_with_repo_root(
     validate_prompt(
         &scenario_dir,
         &persona_prompts,
-        "savvy",
+        "informed",
         SCAFFOLD_SAVVY_PROMPT,
         &mut errors,
         &mut warnings,
@@ -542,12 +542,12 @@ mod tests {
   "domain": "foo-bar",
   "harness": "base-rt",
   "tasks": [{"id":"task-1","description":"Do the thing","category":"ingestion"}],
-  "personaPrompts": {"naive":"prompts/naive.md","savvy":"prompts/savvy.md"},
+  "personaPrompts": {"baseline":"prompts/baseline.md","informed":"prompts/informed.md"},
   "infrastructure": {"services": ["clickhouse"]}
 }"#,
         );
-        write_file(&scenario_dir.join("prompts/naive.md"), "Do the task.\n");
-        write_file(&scenario_dir.join("prompts/savvy.md"), "Use ClickHouse.\n");
+        write_file(&scenario_dir.join("prompts/baseline.md"), "Do the task.\n");
+        write_file(&scenario_dir.join("prompts/informed.md"), "Use ClickHouse.\n");
         write_file(&scenario_dir.join("supervisord.conf"), "[program:clickhouse]\n");
         write_file(&scenario_dir.join("init/setup.sh"), "#!/usr/bin/env bash\n");
         for gate in ["functional", "correct", "robust", "performant", "production"] {

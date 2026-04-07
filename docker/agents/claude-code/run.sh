@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROMPT_FILE="/scenario/prompts/${PERSONA:-naive}.md"
+PROMPT_FILE="/scenario/prompts/${PERSONA:-baseline}.md"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 METRICS_PATH="${OUTPUT_DIR}/agent-metrics.json"
 RUN_META_PATH="${OUTPUT_DIR}/run-meta.json"
@@ -50,7 +50,7 @@ if (!runMetaPath) {
 }
 const promptContent = fs.readFileSync(promptPath, "utf8");
 const promptSha256 = crypto.createHash("sha256").update(promptContent, "utf8").digest("hex");
-const persona = process.env.PERSONA || "naive";
+const persona = process.env.PERSONA || "baseline";
 const planMode = process.env.PLAN_MODE || "no-plan";
 const metadata = {
   persona,
