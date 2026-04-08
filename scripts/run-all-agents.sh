@@ -9,6 +9,8 @@ set -euo pipefail
 #   ./scripts/run-all-agents.sh --dry-run        # print what would run
 #   ./scripts/run-all-agents.sh --run-only       # skip build step
 #   ./scripts/run-all-agents.sh --build-only     # build images only
+#   ./scripts/run-all-agents.sh --agent=cursor   # only run cursor agent
+#   ./scripts/run-all-agents.sh --scenario=foo-bar-csv-ingest  # only run one scenario
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCENARIOS_DIR="${REPO_ROOT}/scenarios"
@@ -17,12 +19,18 @@ RESULTS_DIR="${REPO_ROOT}/results"
 DRY_RUN=false
 RUN_ONLY=false
 BUILD_ONLY=false
+LIMIT=0  # 0 = no limit
+FILTER_AGENT=""
+FILTER_SCENARIO=""
 
 for arg in "$@"; do
   case "$arg" in
-    --dry-run)    DRY_RUN=true ;;
-    --run-only)   RUN_ONLY=true ;;
-    --build-only) BUILD_ONLY=true ;;
+    --dry-run)      DRY_RUN=true ;;
+    --run-only)     RUN_ONLY=true ;;
+    --build-only)   BUILD_ONLY=true ;;
+    --limit=*)      LIMIT="${arg#--limit=}" ;;
+    --agent=*)      FILTER_AGENT="${arg#--agent=}" ;;
+    --scenario=*)   FILTER_SCENARIO="${arg#--scenario=}" ;;
     *) echo "Unknown flag: $arg"; exit 1 ;;
   esac
 done
@@ -31,7 +39,7 @@ done
 # Format: agent_id:model_slug:required_env_key
 AGENTS=(
   "codex:gpt-5.4:OPENAI_API_KEY"
-  "cursor:cursor-composer:CURSOR_API_KEY"
+  "cursor:composer-2:CURSOR_API_KEY"
 )
 
 # Uncomment to include Anthropic agents:
@@ -83,8 +91,20 @@ for i in "${!scenarios[@]}"; do
   scenario="${scenarios[$i]}"
   harness="${harnesses[$i]}"
 
+  if [[ -n "$FILTER_SCENARIO" && "$scenario" != "$FILTER_SCENARIO" ]]; then
+    continue
+  fi
+
   for agent_spec in "${AGENTS[@]}"; do
     IFS=: read -r agent_id model_slug env_key <<< "$agent_spec"
+    if [[ -n "$FILTER_AGENT" && "$agent_id" != "$FILTER_AGENT" ]]; then
+      continue
+    fi
+    if [[ "$LIMIT" -gt 0 && "$total" -ge "$LIMIT" ]]; then
+      echo "  [limit reached] stopping at $LIMIT runs"
+      break 2
+    fi
+
     total=$((total + 1))
     image_tag="${scenario}.${harness}.${agent_id}.${model_slug}.v0.1.0"
 
