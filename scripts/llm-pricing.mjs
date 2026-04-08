@@ -21,9 +21,9 @@ const MODEL_PRICING = {
     outputPerMillion: 17.5,
   },
   "composer-2": {
-    inputPerMillion: 4,
-    cachedInputPerMillion: 0.4,
-    outputPerMillion: 20,
+    inputPerMillion: 0.5,
+    cachedInputPerMillion: 0.2,
+    outputPerMillion: 2.5,
   },
   "gpt-5-mini": {
     inputPerMillion: 0.25,
