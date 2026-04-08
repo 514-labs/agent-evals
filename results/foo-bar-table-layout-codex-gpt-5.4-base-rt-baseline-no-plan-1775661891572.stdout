@@ -1,0 +1,35 @@
+I created and loaded `analytics.metrics_optimized` directly in ClickHouse with a layout designed for the dashboard filters:
+
+```sql
+CREATE TABLE analytics.metrics_optimized
+(
+  ts DateTime CODEC(DoubleDelta, ZSTD(1)),
+  host_id LowCardinality(String) CODEC(ZSTD(1)),
+  metric_name Enum8(
+    'cpu_usage' = 1,
+    'memory_usage' = 2,
+    'disk_io' = 3,
+    'network_rx' = 4,
+    'network_tx' = 5
+  ) CODEC(ZSTD(1)),
+  value Float64 CODEC(Gorilla, ZSTD(1)),
+  tags LowCardinality(String) CODEC(ZSTD(1))
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(ts)
+ORDER BY (metric_name, host_id, ts);
+```
+
+Then I copied the 5M rows from `raw.metrics` and ran `OPTIMIZE TABLE ... FINAL`.
+
+Verification:
+- Row count preserved: `5,000,000`
+- Value checksum preserved: `249957409.02`
+- Partition key: `toYYYYMM(ts)`
+- Sorting key: `metric_name, host_id, ts`
+- Storage: `79.9 MB` in `raw.metrics` -> `30.3 MB` in `analytics.metrics_optimized`
+- HTTP query timings for the evaluator queries:
+  - metric filter query: `61 ms`
+  - host filter query: `36 ms`
+
+The main gains came from replacing `ORDER BY tuple()` with a useful sort key, adding monthly partitioning, and compressing low-cardinality/time-series columns appropriately.

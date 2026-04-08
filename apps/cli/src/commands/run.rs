@@ -2,11 +2,12 @@ use std::fs;
 use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context, Result};
 use bollard::container::{
-    Config, CreateContainerOptions, LogOutput, LogsOptions, StartContainerOptions, WaitContainerOptions,
+    Config, CreateContainerOptions, KillContainerOptions, LogOutput, LogsOptions,
+    StartContainerOptions, WaitContainerOptions,
 };
 use bollard::models::HostConfig;
 use bollard::Docker;
@@ -41,13 +42,34 @@ const SENSITIVE_ENV_KEYS: [&str; 4] = [
     "CURSOR_API_KEY",
 ];
 
+/// Agent/model pair for matrix runs (e.g. "claude-code:claude-sonnet-4-6")
+#[derive(Clone, Debug)]
+pub struct AgentModel {
+    pub agent: String,
+    pub model: String,
+}
+
+fn parse_agent_model(value: &str) -> std::result::Result<AgentModel, String> {
+    let parts: Vec<&str> = value.splitn(2, ':').collect();
+    if parts.len() != 2 || parts[0].is_empty() || parts[1].is_empty() {
+        return Err(format!(
+            "Invalid agent:model pair '{}'. Expected format: agent:model (e.g. claude-code:claude-sonnet-4-6)",
+            value
+        ));
+    }
+    Ok(AgentModel {
+        agent: parts[0].to_string(),
+        model: parts[1].to_string(),
+    })
+}
+
 #[derive(Args, Clone)]
 pub struct RunArgs {
-    /// Scenario ID to run
+    /// Scenario ID to run (single-run mode) or filter (matrix mode)
     #[arg(short, long)]
     pub scenario: Option<String>,
 
-    /// Evaluation harness to use
+    /// Evaluation harness to use (single-run mode) or filter (matrix mode)
     #[arg(long, default_value = "base-rt")]
     pub harness: String,
 
@@ -59,7 +81,7 @@ pub struct RunArgs {
     #[arg(long, value_enum, default_value = "no-plan")]
     pub mode: PlanMode,
 
-    /// Run all scenario/persona/mode combinations
+    /// Run all scenario/agent combinations in the matrix
     #[arg(long)]
     pub matrix: bool,
 
@@ -67,13 +89,17 @@ pub struct RunArgs {
     #[arg(long, default_value = "1", value_parser = parse_parallelism)]
     pub parallel: Parallelism,
 
-    /// Agent runner ID baked into the image tag
+    /// Agent runner ID baked into the image tag (single-run mode)
     #[arg(long, default_value = "claude-code")]
     pub agent: String,
 
-    /// Model slug baked into the image tag
+    /// Model slug baked into the image tag (single-run mode)
     #[arg(long, default_value = "claude-sonnet-4-20250514")]
     pub model: String,
+
+    /// Agent:model pairs for matrix mode (repeatable, e.g. --agents claude-code:claude-sonnet-4-6 --agents codex:gpt-5.4)
+    #[arg(long = "agents", value_parser = parse_agent_model)]
+    pub agent_models: Vec<AgentModel>,
 
     /// Image version suffix
     #[arg(long, default_value = "v0.1.0")]
@@ -82,6 +108,18 @@ pub struct RunArgs {
     /// Directory where run outputs are persisted
     #[arg(long, default_value = "results")]
     pub results_dir: String,
+
+    /// Timeout per run in minutes (0 = no timeout)
+    #[arg(long, default_value = "0")]
+    pub timeout: u64,
+
+    /// Maximum number of runs to execute (0 = no limit)
+    #[arg(long, default_value = "0")]
+    pub limit: usize,
+
+    /// Skip runs that already have result files
+    #[arg(long)]
+    pub skip_existing: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -102,42 +140,155 @@ pub enum Parallelism {
     Fixed(usize),
 }
 
-pub async fn execute(args: RunArgs) -> Result<()> {
-    preflight::check_docker()?;
+/// A single job in the matrix: scenario + harness + agent + model + persona + mode
+#[derive(Clone, Debug)]
+struct MatrixJob {
+    scenario_id: String,
+    harness: String,
+    agent: String,
+    model: String,
+    persona: Persona,
+    mode: PlanMode,
+}
 
+const DEFAULT_AGENTS: &[(&str, &str)] = &[
+    ("claude-code", "claude-sonnet-4-6"),
+    ("claude-code", "claude-opus-4-6"),
+    ("codex", "gpt-5.4"),
+    ("cursor", "composer-2"),
+];
+
+pub async fn execute(args: RunArgs) -> Result<()> {
     if args.matrix {
-        let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
-        info!("Running full eval matrix");
-        let registry_dir = preflight::resolve_repo_path(SCENARIO_REGISTRY_DIR)?;
-        let scenarios = load_registry_scenarios(&registry_dir)?;
+        preflight::check_docker()?;
+        let docker = Docker::connect_with_local_defaults()
+            .context("Failed to connect to Docker daemon")?;
+
+        let scenarios = load_scenarios_with_harness()?;
         if scenarios.is_empty() {
-            bail!("No scenarios found in {}", registry_dir.display());
+            bail!("No scenarios found");
         }
 
-        let mut jobs: Vec<(String, Persona, PlanMode)> = vec![];
+        let agent_models: Vec<(String, String)> = if args.agent_models.is_empty() {
+            DEFAULT_AGENTS
+                .iter()
+                .map(|(a, m)| (a.to_string(), m.to_string()))
+                .collect()
+        } else {
+            args.agent_models
+                .iter()
+                .map(|am| (am.agent.clone(), am.model.clone()))
+                .collect()
+        };
+
+        let scenario_filter = args.scenario.as_deref();
+        let harness_filter = if args.harness != "base-rt" {
+            // Only filter by harness if explicitly set (not the default)
+            Some(args.harness.as_str())
+        } else {
+            None
+        };
+
+        let mut jobs: Vec<MatrixJob> = vec![];
         for scenario in &scenarios {
-            for persona in [Persona::Baseline, Persona::Informed] {
-                for mode in [PlanMode::NoPlan, PlanMode::Plan] {
-                    jobs.push((scenario.id.clone(), persona.clone(), mode.clone()));
+            if let Some(filter) = scenario_filter {
+                if scenario.id != filter {
+                    continue;
                 }
             }
+            if let Some(filter) = harness_filter {
+                if scenario.harness != filter {
+                    continue;
+                }
+            }
+            for (agent, model) in &agent_models {
+                jobs.push(MatrixJob {
+                    scenario_id: scenario.id.clone(),
+                    harness: scenario.harness.clone(),
+                    agent: agent.clone(),
+                    model: model.clone(),
+                    persona: args.persona.clone(),
+                    mode: args.mode.clone(),
+                });
+            }
+        }
+
+        // Apply --skip-existing
+        let mut skipped = 0_usize;
+        if args.skip_existing {
+            let before = jobs.len();
+            jobs.retain(|job| {
+                match has_existing_result(
+                    &args.results_dir,
+                    &job.scenario_id,
+                    &job.agent,
+                    &job.model,
+                    &job.harness,
+                ) {
+                    Some(existing) => {
+                        info!(
+                            scenario = job.scenario_id,
+                            agent = job.agent,
+                            model = job.model,
+                            "Skipping — result exists: {existing}"
+                        );
+                        false
+                    }
+                    None => true,
+                }
+            });
+            skipped = before - jobs.len();
+        }
+
+        // Apply --limit
+        if args.limit > 0 && jobs.len() > args.limit {
+            jobs.truncate(args.limit);
+        }
+
+        let total = jobs.len();
+        println!(
+            "Matrix: {} jobs to run, {} skipped (existing), {} agents, {} scenarios",
+            total,
+            skipped,
+            agent_models.len(),
+            scenarios.len()
+        );
+
+        if total == 0 {
+            println!("Nothing to run.");
+            return Ok(());
         }
 
         let parallel = resolve_parallelism(&args.parallel);
+        let mut completed = 0_usize;
+        let mut failed = 0_usize;
 
         if parallel == 1 {
-            for (scenario_id, persona, mode) in jobs {
-                run_single(&docker, &args, &scenario_id, persona, mode).await?;
+            for job in jobs {
+                completed += 1;
+                println!(
+                    "\n[{completed}/{total}] scenario={} harness={} agent={} model={}",
+                    job.scenario_id, job.harness, job.agent, job.model
+                );
+                let job_args = args_for_job(&args, &job);
+                match run_single(&docker, &job_args, &job.scenario_id, job.persona, job.mode).await
+                {
+                    Ok(()) => {}
+                    Err(err) => {
+                        failed += 1;
+                        warn!("Run failed: {err}");
+                    }
+                }
             }
         } else {
-            info!(parallel, total = jobs.len(), "Running matrix in parallel");
+            info!(parallel, total, "Running matrix in parallel");
 
             let semaphore = Arc::new(Semaphore::new(parallel));
             let mut join_set = JoinSet::new();
 
-            for (scenario_id, persona, mode) in jobs {
+            for job in jobs {
                 let docker = docker.clone();
-                let args = args.clone();
+                let job_args = args_for_job(&args, &job);
                 let permit = semaphore
                     .clone()
                     .acquire_owned()
@@ -146,37 +297,43 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
                 join_set.spawn(async move {
                     let _permit = permit;
-                    run_single(&docker, &args, &scenario_id, persona, mode).await
+                    run_single(&docker, &job_args, &job.scenario_id, job.persona, job.mode).await
                 });
             }
 
-            let mut had_failures = false;
             while let Some(joined) = join_set.join_next().await {
+                completed += 1;
                 match joined {
                     Ok(Ok(())) => {}
                     Ok(Err(err)) => {
-                        had_failures = true;
-                        warn!("Matrix run failed: {err}");
+                        failed += 1;
+                        warn!("[{completed}/{total}] Matrix run failed: {err}");
                     }
                     Err(err) => {
-                        had_failures = true;
-                        warn!("Matrix task panicked or was cancelled: {err}");
+                        failed += 1;
+                        warn!("[{completed}/{total}] Matrix task panicked: {err}");
                     }
                 }
             }
+        }
 
-            if had_failures {
-                bail!("One or more matrix runs failed");
-            }
+        println!(
+            "\nMatrix complete. Total={total} Completed={completed} Failed={failed} Skipped={skipped}"
+        );
+        if failed > 0 {
+            bail!("{failed} of {total} matrix runs failed");
         }
         return Ok(());
     }
 
+    // Single-run mode
     let scenario = args
         .scenario
         .as_deref()
         .context("--scenario is required unless --matrix is enabled")?;
-    let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
+    preflight::check_docker()?;
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
     info!(scenario, harness = %args.harness, "Starting eval run");
     run_single(
         &docker,
@@ -188,6 +345,14 @@ pub async fn execute(args: RunArgs) -> Result<()> {
     .await?;
 
     Ok(())
+}
+
+fn args_for_job(base: &RunArgs, job: &MatrixJob) -> RunArgs {
+    let mut args = base.clone();
+    args.agent = job.agent.clone();
+    args.model = job.model.clone();
+    args.harness = job.harness.clone();
+    args
 }
 
 async fn run_single(
@@ -203,7 +368,21 @@ async fn run_single(
         "{}.{}.{}.{}.{}",
         scenario_id, args.harness, args.agent, args.model, args.version
     );
-    preflight::check_image_exists(&image)?;
+    if preflight::check_image_exists(&image).is_err() {
+        println!("Image not found, building: {image}");
+        let build_args = super::build::BuildArgs {
+            scenario: scenario_id.to_string(),
+            harness: args.harness.clone(),
+            agent: args.agent.clone(),
+            model: args.model.clone(),
+            version: args.version.clone(),
+            base_image: "ghcr.io/514-labs/dec-bench:base".to_string(),
+            dry_run: false,
+        };
+        super::build::execute(build_args)
+            .await
+            .with_context(|| format!("Failed to build image '{image}'"))?;
+    }
 
     let default_run_id = make_run_id(args, scenario_id, &persona, &mode);
     let container_name = format!("dec-bench-{default_run_id}");
@@ -261,51 +440,92 @@ async fn run_single(
         .await
         .with_context(|| format!("Failed to start container '{}'", container_name))?;
 
-    let mut log_stream = docker.logs::<String>(
-        &container_name,
-        Some(LogsOptions {
-            follow: true,
-            stdout: true,
-            stderr: true,
-            timestamps: false,
-            tail: "all".to_string(),
-            ..Default::default()
-        }),
-    );
+    let timeout_duration = if args.timeout > 0 {
+        Some(Duration::from_secs(args.timeout * 60))
+    } else {
+        None
+    };
 
-    let mut stdout_buffer = String::new();
-    let mut stderr_buffer = String::new();
-    while let Some(message) = log_stream.next().await {
-        match message? {
-            LogOutput::StdOut { message } => {
-                let text = String::from_utf8_lossy(&message).to_string();
-                print!("{text}");
-                stdout_buffer.push_str(&text);
-            }
-            LogOutput::StdErr { message } => {
-                let text = String::from_utf8_lossy(&message).to_string();
-                eprint!("{text}");
-                stderr_buffer.push_str(&text);
-            }
-            LogOutput::StdIn { message } | LogOutput::Console { message } => {
-                let text = String::from_utf8_lossy(&message).to_string();
-                print!("{text}");
-                stdout_buffer.push_str(&text);
+    let container_name_clone = container_name.clone();
+    let docker_clone = docker.clone();
+
+    let run_container = async {
+        let mut log_stream = docker_clone.logs::<String>(
+            &container_name_clone,
+            Some(LogsOptions {
+                follow: true,
+                stdout: true,
+                stderr: true,
+                timestamps: false,
+                tail: "all".to_string(),
+                ..Default::default()
+            }),
+        );
+
+        let mut stdout_buffer = String::new();
+        let mut stderr_buffer = String::new();
+        while let Some(message) = log_stream.next().await {
+            match message? {
+                LogOutput::StdOut { message } => {
+                    let text = String::from_utf8_lossy(&message).to_string();
+                    print!("{text}");
+                    stdout_buffer.push_str(&text);
+                }
+                LogOutput::StdErr { message } => {
+                    let text = String::from_utf8_lossy(&message).to_string();
+                    eprint!("{text}");
+                    stderr_buffer.push_str(&text);
+                }
+                LogOutput::StdIn { message } | LogOutput::Console { message } => {
+                    let text = String::from_utf8_lossy(&message).to_string();
+                    print!("{text}");
+                    stdout_buffer.push_str(&text);
+                }
             }
         }
-    }
 
-    let mut wait_stream = docker.wait_container(
-        &container_name,
-        Some(WaitContainerOptions {
-            condition: "not-running".to_string(),
-        }),
-    );
-    let mut exit_code = 1_i64;
-    if let Some(result) = wait_stream.next().await {
-        let status = result?;
-        exit_code = status.status_code;
-    }
+        let mut wait_stream = docker_clone.wait_container(
+            &container_name_clone,
+            Some(WaitContainerOptions {
+                condition: "not-running".to_string(),
+            }),
+        );
+        let mut exit_code = 1_i64;
+        if let Some(result) = wait_stream.next().await {
+            let status = result?;
+            exit_code = status.status_code;
+        }
+
+        Ok::<(String, String, i64), anyhow::Error>((stdout_buffer, stderr_buffer, exit_code))
+    };
+
+    let (stdout_buffer, stderr_buffer, exit_code) = if let Some(duration) = timeout_duration {
+        match tokio::time::timeout(duration, run_container).await {
+            Ok(result) => result?,
+            Err(_) => {
+                warn!(
+                    scenario_id,
+                    "Run timed out after {} minutes — killing container",
+                    args.timeout
+                );
+                let _ = docker
+                    .kill_container(
+                        &container_name,
+                        Some(KillContainerOptions { signal: "SIGKILL" }),
+                    )
+                    .await;
+                // Brief pause for container cleanup
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                bail!(
+                    "Run timed out after {} minutes for scenario '{}'",
+                    args.timeout,
+                    scenario_id
+                );
+            }
+        }
+    } else {
+        run_container.await?
+    };
 
     let agent_stdout = extract_marked_block(&stdout_buffer, AGENT_STDOUT_START, AGENT_STDOUT_END);
     let agent_raw_json = extract_marked_block(&stdout_buffer, AGENT_RAW_START, AGENT_RAW_END);
@@ -611,24 +831,99 @@ fn write_result_file(results_dir: &str, default_run_id: &str, value: &mut serde_
 #[derive(Debug, Deserialize)]
 struct RegistryScenario {
     id: String,
+    #[serde(default = "default_harness")]
+    harness: String,
 }
 
-fn load_registry_scenarios(dir: &Path) -> Result<Vec<RegistryScenario>> {
+fn default_harness() -> String {
+    "base-rt".to_string()
+}
+
+const SCENARIO_IMPL_DIR: &str = "scenarios";
+
+fn load_scenarios_with_harness() -> Result<Vec<RegistryScenario>> {
+    let repo_root = preflight::resolve_repo_root()?;
+    let impl_dir = repo_root.join(SCENARIO_IMPL_DIR);
+
     let mut scenarios = vec![];
-    for entry in fs::read_dir(dir).with_context(|| format!("Failed to read {}", dir.display()))? {
-        let entry = entry?;
-        let path = entry.path();
-        if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("json") {
-            continue;
+
+    // Prefer scenarios/*/scenario.json (has harness field)
+    if impl_dir.exists() {
+        for entry in fs::read_dir(&impl_dir)
+            .with_context(|| format!("Failed to read {}", impl_dir.display()))?
+        {
+            let entry = entry?;
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let scenario_json = path.join("scenario.json");
+            if !scenario_json.exists() {
+                continue;
+            }
+            let raw = fs::read_to_string(&scenario_json)
+                .with_context(|| format!("Failed to read {}", scenario_json.display()))?;
+            let scenario: RegistryScenario = serde_json::from_str(&raw)
+                .with_context(|| format!("Invalid scenario JSON: {}", scenario_json.display()))?;
+            scenarios.push(scenario);
         }
-        let raw = fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-        let scenario: RegistryScenario = serde_json::from_str(&raw)
-            .with_context(|| format!("Invalid registry JSON: {}", path.display()))?;
-        scenarios.push(scenario);
     }
+
+    // Fall back to registry if no impl dirs found
+    if scenarios.is_empty() {
+        let registry_dir = preflight::resolve_repo_path(SCENARIO_REGISTRY_DIR)?;
+        for entry in fs::read_dir(&registry_dir)
+            .with_context(|| format!("Failed to read {}", registry_dir.display()))?
+        {
+            let entry = entry?;
+            let path = entry.path();
+            if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+                continue;
+            }
+            let raw = fs::read_to_string(&path)
+                .with_context(|| format!("Failed to read {}", path.display()))?;
+            let scenario: RegistryScenario = serde_json::from_str(&raw)
+                .with_context(|| format!("Invalid registry JSON: {}", path.display()))?;
+            scenarios.push(scenario);
+        }
+    }
+
     scenarios.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(scenarios)
+}
+
+fn has_existing_result(results_dir: &str, scenario: &str, agent: &str, model: &str, harness: &str) -> Option<String> {
+    let dir = Path::new(results_dir);
+    let prefix = format!("{}-{}-{}-{}-", scenario, agent, model, harness);
+
+    // Search top-level results dir and one level of subdirectories
+    let mut dirs_to_check = vec![dir.to_path_buf()];
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                dirs_to_check.push(entry.path());
+            }
+        }
+    }
+
+    for check_dir in dirs_to_check {
+        if let Ok(entries) = fs::read_dir(&check_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with(&prefix)
+                    && name.ends_with(".json")
+                    && !name.contains(".assertion-log.")
+                    && !name.contains(".agent-raw.")
+                    && !name.contains(".run-meta.")
+                    && !name.contains(".trace.")
+                {
+                    return Some(name);
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn unix_timestamp_millis() -> u128 {
@@ -765,24 +1060,38 @@ mod tests {
     }
 
     #[test]
-    fn load_registry_scenarios_reads_and_sorts_json_files() {
+    fn has_existing_result_finds_matching_file() {
         let temp = tempfile::tempdir().expect("temp dir");
         fs::write(
-            temp.path().join("b.json"),
-            "{\"id\":\"b\"}\n",
+            temp.path().join("foo-bar-test-codex-gpt-5.4-base-rt-baseline-no-plan-123.json"),
+            "{}\n",
         )
         .expect("write file");
+        // Sidecar files should not match
         fs::write(
-            temp.path().join("a.json"),
-            "{\"id\":\"a\"}\n",
+            temp.path().join("foo-bar-test-codex-gpt-5.4-base-rt-baseline-no-plan-123.trace.json"),
+            "{}\n",
         )
         .expect("write file");
-        fs::write(temp.path().join("ignore.txt"), "nope").expect("write file");
 
-        let scenarios = load_registry_scenarios(temp.path()).expect("loads scenarios");
-        assert_eq!(scenarios.len(), 2);
-        assert_eq!(scenarios[0].id, "a");
-        assert_eq!(scenarios[1].id, "b");
+        let found = has_existing_result(
+            temp.path().to_str().unwrap(),
+            "foo-bar-test",
+            "codex",
+            "gpt-5.4",
+            "base-rt",
+        );
+        assert!(found.is_some());
+        assert!(found.unwrap().contains("foo-bar-test-codex-gpt-5.4-base-rt"));
+
+        let not_found = has_existing_result(
+            temp.path().to_str().unwrap(),
+            "foo-bar-test",
+            "cursor",
+            "composer-2",
+            "base-rt",
+        );
+        assert!(not_found.is_none());
     }
 
     #[test]

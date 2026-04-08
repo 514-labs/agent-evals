@@ -1,0 +1,372 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "api_server_responds": {
+        "passed": true,
+        "durationMs": 26,
+        "message": "API server responds.",
+        "details": {
+          "status": 200
+        }
+      },
+      "events_table_exists": {
+        "passed": true,
+        "durationMs": 11,
+        "message": "Events table exists.",
+        "details": {
+          "count": 1
+        }
+      },
+      "events_table_has_rows": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Events table has rows.",
+        "details": {
+          "count": 30
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "all_thirty_events_ingested": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "All 30 events ingested.",
+        "details": {
+          "count": 30
+        }
+      },
+      "event_types_preserved": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Event types preserved.",
+        "details": {
+          "types": [
+            "cart",
+            "purchase",
+            "view"
+          ]
+        }
+      },
+      "funnel_counts_are_monotonic": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "Funnel counts are monotonic.",
+        "details": {
+          "views": 12,
+          "carts": 8,
+          "purchases": 4
+        }
+      },
+      "funnel_has_three_steps": {
+        "passed": true,
+        "durationMs": 7,
+        "message": "Funnel has view, cart, and purchase steps.",
+        "details": {
+          "steps": [
+            "view",
+            "cart",
+            "purchase"
+          ]
+        }
+      },
+      "hourly_returns_data": {
+        "passed": true,
+        "durationMs": 10,
+        "message": "Hourly API returns data.",
+        "details": {
+          "length": 26
+        }
+      },
+      "revenue_checksum": {
+        "passed": true,
+        "durationMs": 14,
+        "message": "Revenue checksum matches.",
+        "details": {
+          "pgTotal": 332.47,
+          "apiTotal": 332.47
+        }
+      },
+      "top_products_returns_data": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Top products API returns data.",
+        "details": {
+          "length": 4
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No idempotency failure markers found; session log contains rerun-safety signals.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            "- Creates `analytics.product_events` as `MergeTree` with `ORDER BY (event_type, product_id, event_ts)`.",
+            "- **`analytics.hourly_activity`** + **`mv_hourly`** – `toStartOfHour(event_ts)`, `event_type`, `event_count` (`SummingMergeTree`)."
+          ],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "api_handles_unknown_route": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "API handles unknown route.",
+        "details": {
+          "status": 404
+        }
+      },
+      "api_returns_valid_json_content_type": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "API returns valid JSON content-type.",
+        "details": {
+          "contentType": "application/json; charset=utf-8"
+        }
+      },
+      "no_duplicate_products_in_top": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "No duplicate products in top.",
+        "details": {
+          "uniqueCount": 4,
+          "totalCount": 4
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "funnel_under_200ms": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Funnel under 200ms.",
+        "details": {
+          "elapsedMs": 5
+        }
+      },
+      "hourly_under_200ms": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Hourly under 200ms.",
+        "details": {
+          "elapsedMs": 3
+        }
+      },
+      "top_products_under_200ms": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Top products under 200ms.",
+        "details": {
+          "elapsedMs": 4
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Required data store environment variables are available.",
+        "details": {
+          "hasPostgresUrl": true,
+          "hasClickhouseUrl": true
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 10,
+        "message": "No hardcoded secrets detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 5,
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "output_line_count_reasonable": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "Workspace output stays within the hard 438-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "reasonable",
+          "totalLines": 173,
+          "maxExpectedLines": 350,
+          "maxLines": 438,
+          "scannedFiles": 2,
+          "largestFiles": [
+            {
+              "file": "package-lock.json",
+              "lineCount": 160
+            },
+            {
+              "file": "package.json",
+              "lineCount": 13
+            }
+          ]
+        }
+      },
+      "output_line_count_disciplined": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace output stays within the target 350-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "disciplined",
+          "totalLines": 173,
+          "maxExpectedLines": 350,
+          "maxLines": 350,
+          "scannedFiles": 2,
+          "largestFiles": [
+            {
+              "file": "package-lock.json",
+              "lineCount": 160
+            },
+            {
+              "file": "package.json",
+              "lineCount": 13
+            }
+          ]
+        }
+      },
+      "no_dead_code_markers": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No dead-code markers detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "files_are_reasonably_sized": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No workspace file exceeds 250 lines.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "maxFileLines": 250,
+          "offenders": []
+        }
+      },
+      "no_debug_artifacts": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No obvious debug artifacts detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "zero_compiler_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported compiler target detected; compiler check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 350,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "zero_lint_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported lint configuration detected; lint check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 350,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "has_type_safety": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No TypeScript sources detected; type-safety check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 0
+        }
+      },
+      "functions_are_focused": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No oversized functions detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      },
+      "no_deep_nesting": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No deeply nested control flow detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      }
+    },
+    "scenario": {
+      "api_does_not_hardcode_credentials": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No hardcoded credentials found."
+      },
+      "connection_env_vars_available": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Connection env vars available.",
+        "details": {
+          "hasPostgres": true,
+          "hasClickHouse": true
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  }
+}

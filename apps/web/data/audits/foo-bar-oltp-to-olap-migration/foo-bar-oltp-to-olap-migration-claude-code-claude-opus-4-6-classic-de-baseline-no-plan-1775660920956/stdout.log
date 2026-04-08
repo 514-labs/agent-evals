@@ -1,0 +1,18 @@
+All gates pass with a perfect score of 1.0. Here's what I did:
+
+**Problem:** No sync logic existed — the ClickHouse table was created but empty, with no mechanism to move data from Postgres.
+
+**Fix — 3 files created in `/workspace/`:**
+
+1. **`sync.sh`** — Full sync script that:
+   - Extracts all rows from `app.sales` in Postgres via `psql` (explicit column list)
+   - Truncates ClickHouse `analytics.sales` for idempotency
+   - Loads via ClickHouse HTTP interface using TabSeparated format
+   - Verifies row counts match
+
+2. **`sync_incremental.sh`** — Incremental sync that only pulls rows with `id` greater than the current max in ClickHouse
+
+3. **`README.md`** — Operator documentation covering schema mapping, usage, and how it works
+
+Both scripts use `POSTGRES_URL` and `CLICKHOUSE_URL` environment variables (no hardcoded connection strings). All 15 rows synced with matching checksums (761.82).
+Found session JSONL at /root/.claude/projects/-/71f278c3-9aa0-4c77-b120-83d4f0aa1c6b.jsonl

@@ -1,0 +1,11 @@
+Implemented a reproducible backfill fix in [README.md](/workspace/README.md), [backfill_events.sql](/workspace/backfill_events.sql), and [run_backfill.sh](/workspace/run_backfill.sh).
+
+The fix rebuilds `analytics.events` as `MergeTree PARTITION BY toDate(event_ts) ORDER BY (event_ts, event_id)`, bulk-loads from `staging.historical_events`, and swaps the corrected table into place. I also added `SET max_partitions_per_insert_block = 0` so the historical insert can span daily partitions without failing.
+
+Verification succeeded:
+- `staging.historical_events`: `5000` rows
+- `analytics.events`: `5000` rows
+- table metadata: `partition_key = toDate(event_ts)`, `sorting_key = event_ts, event_id`
+- date-filter query `SELECT count() ... WHERE event_ts >= '2025-06-01' AND event_ts < '2025-07-01'`: `0.006s`
+
+The workspace files do not contain hardcoded connection strings, and the backfill can be rerun with `/workspace/run_backfill.sh`.

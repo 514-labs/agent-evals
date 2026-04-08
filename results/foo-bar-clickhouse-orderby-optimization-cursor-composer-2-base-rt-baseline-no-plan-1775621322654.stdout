@@ -1,0 +1,114 @@
+
+Exploring the codebase for ClickHouse table definitions and query patterns to fix sort order for region and date filters.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Identifying the issue: `analytics.events` uses `ORDER BY tuple()`, preventing primary-key pruning for `region` and `event_ts`. Updating the setup to `ORDER BY (region, event_ts)` and applying it to ClickHouse.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Making the init script idempotent so re-runs after a schema change don't fail on `CREATE TABLE`.
+
+
+
+
+
+
+
+
+
+
+
+Here is what was wrong and what we changed.
+
+## Cause
+
+`analytics.events` was defined with `ORDER BY tuple()`, so the MergeTree had **no real primary key**. ClickHouse could not use the primary index to skip granules for predicates like `region = 'us-west'` and `event_ts >= '2026-01-01'`, so reads tended toward **full scans** and slow latency.
+
+## Change
+
+In `/scenario/init/clickhouse-setup.sql`:
+
+1. **`ORDER BY (region, event_ts)`** — aligns the physical sort key with the usual filters so granules can be pruned by `region` and then by time.
+2. **`DROP TABLE IF EXISTS analytics.events`** before `CREATE` — makes init safe to run again (e.g. when the harness reapplies `/scenario/init/*.sql` against an existing instance).
+
+```3:11:/scenario/init/clickhouse-setup.sql
+DROP TABLE IF EXISTS analytics.events;
+
+CREATE TABLE analytics.events (
+  event_id String,
+  region String,
+  event_ts DateTime,
+  amount Float64
+) ENGINE = MergeTree()
+ORDER BY (region, event_ts);
+```
+
+## Verification
+
+- Applied the script with `clickhouse-client`; **2,000,000** rows loaded.
+- `SHOW CREATE TABLE` shows **`ORDER BY (region, event_ts)`**.
+- The benchmark query is fast: native client **~5–13 ms**; HTTP client **~19 ms** wall time, under the **100 ms** threshold in `performant.ts`.
+
+No long-lived servers were started; the existing ClickHouse instance was used.

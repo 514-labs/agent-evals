@@ -1,0 +1,19 @@
+All good. Here's what was built:
+
+**Three-layer pipeline** (`/workspace/pipeline.sh`):
+
+1. **Staging** (`staging.events`) — Extracts JSONB payload fields from Postgres into typed ClickHouse columns, preserving NULLs for `session_id` and `value`
+
+2. **Intermediate** (`intermediate.sessions`) — Sessionizes events: one row per session with `event_count` and `revenue`, filtering out NULL session IDs
+
+3. **Mart** (`analytics.daily_sessions`) — Daily aggregation with `day`, `session_count`, `total_events`, `total_revenue`
+
+**Verified results:**
+| day | session_count | total_events | total_revenue |
+|---|---|---|---|
+| 2026-01-15 | 2 | 5 | 49.99 |
+| 2026-01-16 | 2 | 3 | 120.00 |
+| 2026-01-17 | 1 | 1 | 0.00 |
+
+Session count (5) and revenue checksum (169.99) both match the Postgres source. NULL handling works correctly — the event with no session_id is excluded from session aggregation.
+Found session JSONL at /root/.claude/projects/-/9969e781-9589-446c-aeeb-b58a13caa57e.jsonl

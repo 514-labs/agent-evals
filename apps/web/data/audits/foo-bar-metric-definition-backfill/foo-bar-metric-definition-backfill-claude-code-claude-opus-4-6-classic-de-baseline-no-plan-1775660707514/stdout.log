@@ -1,0 +1,17 @@
+All checks pass:
+
+- **No duplicates** - empty result from duplicate check
+- **Total values match** - Postgres 75.00 = ClickHouse 75
+- **All 3 days backfilled** - 2026-01-10, 2026-01-11, 2026-01-12
+
+Here's what was wrong and what I fixed:
+
+1. **Problem**: The backfill had only partially run - it inserted 2026-01-10 twice (duplicates) and missed 2026-01-11 and 2026-01-12 entirely.
+
+2. **Fix**: Created an idempotent `backfill.sh` script that:
+   - Truncates `analytics.metric_daily` to clear any corrupt/partial data
+   - Queries `raw.events` in Postgres, aggregating by day (`COUNT(DISTINCT user_id)`, `SUM(value)`)
+   - Inserts the correct rows into ClickHouse - one per day, no duplicates
+   - Uses environment variables (`POSTGRES_URL`, `CLICKHOUSE_URL`) instead of hardcoded connection strings
+   - Is safe to re-run anytime (idempotent via truncate-and-reload)
+Found session JSONL at /root/.claude/projects/-/fccf400a-aab4-4f72-8466-2c5d64eb2313.jsonl

@@ -1,0 +1,14 @@
+Both endpoints are now responding in ~8ms, down from 2+ seconds. Here's what was done:
+
+**Root cause:** Both `/api/metrics` and `/api/breakdown` were running full aggregations over 5M rows on every request.
+
+**Fix:**
+
+1. Created two pre-aggregated tables in ClickHouse:
+   - `analytics.metrics_summary` — stores total events, unique users, and total revenue (1 row)
+   - `analytics.breakdown_summary` — stores per-region/per-day event counts (270 rows)
+
+2. Updated `server.py` to query these tiny summary tables instead of the raw `analytics.events` table.
+
+**Result:** ~8ms response time vs. 2000ms+ baseline — well under the 200ms target.
+Found session JSONL at /root/.claude/projects/-/4ef880ce-67d2-4bb3-a11b-48dbccf71d3e.jsonl

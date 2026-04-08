@@ -1,0 +1,8 @@
+Implemented an idempotent Postgres-to-ClickHouse transform in [rebuild_daily_sessions.sh](/workspace/scripts/rebuild_daily_sessions.sh), with the ClickHouse schema in [001_analytics_schema.sql](/workspace/sql/001_analytics_schema.sql) and operator notes in [README.md](/workspace/README.md). The model is three layers: `analytics.stg_events_flat`, `analytics.int_session_activity`, and the mart `analytics.daily_sessions`.
+
+I ran the rebuild and verified the mart live. `analytics.daily_sessions` exists and has 3 daily rows:
+- `2026-01-15`: 2 sessions, 2 users, 5 events, 1 purchase, `49.99` revenue
+- `2026-01-16`: 2 sessions, 2 users, 3 events, 1 purchase, `120.00` revenue
+- `2026-01-17`: 1 session, 1 user, 1 event, 0 purchases, `0.00` revenue
+
+Validation matched the source: total session count is `5`, total revenue is `169.99`, and the source still contains 1 row with null JSON fields without breaking the load. The dashboard query latency measured about `56ms`, and the workspace is clean for the benchmark checks: no `SELECT *` in `/workspace` and no hardcoded connection strings.

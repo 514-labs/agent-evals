@@ -1,0 +1,12 @@
+Here's what I did:
+
+**Root cause:** Both `/api/metrics` and `/api/breakdown` were running full-table aggregations over 5M rows on every request.
+
+**Fix:** Created ClickHouse materialized views with `AggregatingMergeTree` tables:
+- `analytics.metrics_agg` — pre-aggregates count, uniq(user_id), sum(revenue)
+- `analytics.breakdown_agg` — pre-aggregates count per region/day
+
+The materialized views auto-update on new inserts. I backfilled them with existing data and updated the server queries to use `countMerge`/`uniqMerge`/`sumMerge` on the pre-aggregated tables.
+
+**Result:** Response times dropped from seconds to ~10-20ms.
+Found session JSONL at /root/.claude/projects/-/16a1f1f1-a193-4e92-9f7a-c0e70ee98fc9.jsonl

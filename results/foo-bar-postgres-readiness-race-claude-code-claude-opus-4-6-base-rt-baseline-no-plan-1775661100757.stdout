@@ -1,0 +1,12 @@
+The fix is working. Here's what I changed in `/workspace/start_app.py`:
+
+**Problem:** The app tried to connect to Postgres once with no retry logic. If Postgres wasn't fully ready to accept connections yet, the app would immediately crash with "connection refused."
+
+**Fix:** Added a retry loop that:
+- Attempts to connect up to **30 times** with a **1-second delay** between attempts
+- Prints a status message on each failed attempt
+- Only raises the error if all retries are exhausted
+- Succeeds immediately once Postgres is ready
+
+This is a standard "wait-for-dependency" pattern for services that start concurrently with their databases.
+Found session JSONL at /root/.claude/projects/-/efccf1ad-a31d-4cde-b9e6-8446b80de57f.jsonl

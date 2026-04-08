@@ -1,0 +1,6 @@
+Created a deterministic reload pipeline in [run_orders_daily_pipeline.sh](/workspace/run_orders_daily_pipeline.sh) and added operator notes in [README.md](/workspace/README.md). The script reads `POSTGRES_URL` and `CLICKHOUSE_URL`, creates `analytics.fct_orders_daily` if needed, truncates it, and reloads one row per `order_day`, so reruns stay idempotent.
+
+I ran the pipeline twice and verified the target table is present and stable. Current ClickHouse results are 3 daily rows, `sum(order_count) = 5`, `sum(daily_revenue) = 682.69`, with no invalid grain or negative values. Querying `analytics.fct_orders_daily` now returns:
+- `2026-01-01 | 2 | 230.20`
+- `2026-01-02 | 2 | 142.49`
+- `2026-01-03 | 1 | 310.00`

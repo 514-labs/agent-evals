@@ -1,0 +1,10 @@
+All queries now run in **20-50ms** range. Here's what I did:
+
+**Table-level optimizations:**
+1. **Added a proper `ORDER BY (event_type, event_ts, user_id)`** — the original table had `ORDER BY tuple()` (no sort key), meaning every query scanned all 10M rows. Now ClickHouse can skip granules for the most common filter patterns.
+2. **Changed `event_type` to `LowCardinality(String)`** — this column has very few distinct values (purchase, click, pageview, etc.), so LowCardinality gives dictionary encoding for faster filtering and less memory.
+3. **Added bloom filter skip indexes** on `user_id` and `page_url` — these help q5 (user_id filter) and q3 (page_url grouping) skip irrelevant granules.
+
+**Query-level optimizations:**
+4. **Added `PREWHERE`** clauses — PREWHERE reads only the filter columns first, then loads remaining columns only for matching granules. This reduces I/O significantly compared to WHERE.
+Found session JSONL at /root/.claude/projects/-/340577cf-e3ec-45a3-8a27-f3e9eedff27e.jsonl

@@ -1,0 +1,411 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "api_server_responds": {
+        "passed": true,
+        "durationMs": 23,
+        "message": "API server responds.",
+        "details": {
+          "status": 200
+        }
+      },
+      "events_table_exists": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "Events table exists.",
+        "details": {
+          "count": 1
+        }
+      },
+      "events_table_has_rows": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Events table has rows.",
+        "details": {
+          "count": 30
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "all_thirty_events_ingested": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "All 30 events ingested.",
+        "details": {
+          "count": 30
+        }
+      },
+      "event_types_preserved": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "Event types preserved.",
+        "details": {
+          "types": [
+            "cart",
+            "purchase",
+            "view"
+          ]
+        }
+      },
+      "funnel_counts_are_monotonic": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Funnel counts are monotonic.",
+        "details": {
+          "views": 12,
+          "carts": 8,
+          "purchases": 4
+        }
+      },
+      "funnel_has_three_steps": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "Funnel has view, cart, and purchase steps.",
+        "details": {
+          "steps": [
+            "view",
+            "cart",
+            "purchase"
+          ]
+        }
+      },
+      "hourly_returns_data": {
+        "passed": true,
+        "durationMs": 7,
+        "message": "Hourly API returns data.",
+        "details": {
+          "length": 26
+        }
+      },
+      "revenue_checksum": {
+        "passed": true,
+        "durationMs": 13,
+        "message": "Revenue checksum matches.",
+        "details": {
+          "pgTotal": 332.47,
+          "apiTotal": 332.47
+        }
+      },
+      "top_products_returns_data": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Top products API returns data.",
+        "details": {
+          "length": 4
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found; session log contains rerun-safety signals.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            "- Loads into ClickHouse `analytics.product_events` with proper types (MergeTree, LowCardinality for event_type)"
+          ],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "api_handles_unknown_route": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "API handles unknown route.",
+        "details": {
+          "status": 404
+        }
+      },
+      "api_returns_valid_json_content_type": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "API returns valid JSON content-type.",
+        "details": {
+          "contentType": "application/json; charset=utf-8"
+        }
+      },
+      "no_duplicate_products_in_top": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "No duplicate products in top.",
+        "details": {
+          "uniqueCount": 4,
+          "totalCount": 4
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "funnel_under_200ms": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "Funnel under 200ms.",
+        "details": {
+          "elapsedMs": 5
+        }
+      },
+      "hourly_under_200ms": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Hourly under 200ms.",
+        "details": {
+          "elapsedMs": 3
+        }
+      },
+      "top_products_under_200ms": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Top products under 200ms.",
+        "details": {
+          "elapsedMs": 3
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Required data store environment variables are available.",
+        "details": {
+          "hasPostgresUrl": true,
+          "hasClickhouseUrl": true
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 12,
+        "message": "No hardcoded secrets detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 5,
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "output_line_count_reasonable": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Workspace output exceeds the hard 438-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "reasonable",
+          "totalLines": 1223,
+          "maxExpectedLines": 350,
+          "maxLines": 438,
+          "scannedFiles": 4,
+          "largestFiles": [
+            {
+              "file": "package-lock.json",
+              "lineCount": 994
+            },
+            {
+              "file": "ingest.js",
+              "lineCount": 144
+            },
+            {
+              "file": "server.js",
+              "lineCount": 67
+            },
+            {
+              "file": "package.json",
+              "lineCount": 18
+            }
+          ]
+        }
+      },
+      "output_line_count_disciplined": {
+        "passed": false,
+        "durationMs": 0,
+        "message": "Workspace output exceeds the target 350-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "disciplined",
+          "totalLines": 1223,
+          "maxExpectedLines": 350,
+          "maxLines": 350,
+          "scannedFiles": 4,
+          "largestFiles": [
+            {
+              "file": "package-lock.json",
+              "lineCount": 994
+            },
+            {
+              "file": "ingest.js",
+              "lineCount": 144
+            },
+            {
+              "file": "server.js",
+              "lineCount": 67
+            },
+            {
+              "file": "package.json",
+              "lineCount": 18
+            }
+          ]
+        }
+      },
+      "no_dead_code_markers": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "No dead-code markers detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "files_are_reasonably_sized": {
+        "passed": false,
+        "durationMs": 0,
+        "message": "One or more workspace files exceed 250 lines.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "maxFileLines": 250,
+          "offenders": [
+            {
+              "file": "package-lock.json",
+              "lineCount": 994
+            }
+          ]
+        }
+      },
+      "no_debug_artifacts": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Debug artifacts detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 2,
+          "findings": [
+            {
+              "file": "ingest.js",
+              "line": 134,
+              "kind": "console_log",
+              "excerpt": "console.log(`Ingested ${count[0].n} events into ClickHouse`);"
+            },
+            {
+              "file": "server.js",
+              "line": 65,
+              "kind": "console_log",
+              "excerpt": "console.log(`API server listening on port ${port}`);"
+            }
+          ]
+        }
+      },
+      "zero_compiler_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported compiler target detected; compiler check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 350,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "zero_lint_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported lint configuration detected; lint check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 350,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "has_type_safety": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "No TypeScript sources detected; type-safety check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 0
+        }
+      },
+      "functions_are_focused": {
+        "passed": false,
+        "durationMs": 0,
+        "message": "Oversized functions detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": [
+            {
+              "file": "ingest.js",
+              "kind": "long_function",
+              "excerpt": "async function main() { (135 lines)"
+            }
+          ]
+        }
+      },
+      "no_deep_nesting": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No deeply nested control flow detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      }
+    },
+    "scenario": {
+      "api_does_not_hardcode_credentials": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No hardcoded credentials found."
+      },
+      "connection_env_vars_available": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Connection env vars available.",
+        "details": {
+          "hasPostgres": true,
+          "hasClickHouse": true
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  }
+}

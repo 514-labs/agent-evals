@@ -1,0 +1,14 @@
+All filters work correctly. The API:
+
+- **No filter**: `total_value: 75.5, event_count: 5` (matches all 5 source rows: 10.5+20+15+5+25)
+- **`region_id=1`**: `35.5` (rows with region 1: 10.5+20+5)
+- **`date_from/to=2026-01-15`**: `30.5` (two events on Jan 15)
+- **`region_id=1&product_id=1`**: `15.5` (10.5+5)
+
+Key design decisions:
+- **Pure ClickHouse** — all filtering/aggregation happens in `analytics.events` directly; Postgres dimension tables aren't needed since region/product filters are IDs already stored in the fact table
+- **Parameterized queries** — uses ClickHouse's `{name: Type}` syntax to prevent injection
+- **No SELECT \*** — only selects `sum(value)` and `count()`
+- **Env vars** — `CLICKHOUSE_URL` and `PORT` from environment, no hardcoded strings
+- **Zero dependencies beyond the ClickHouse client** — uses Node's built-in `http` module
+Found session JSONL at /root/.claude/projects/-/b2633349-d707-4285-8b87-1359ec1732ac.jsonl

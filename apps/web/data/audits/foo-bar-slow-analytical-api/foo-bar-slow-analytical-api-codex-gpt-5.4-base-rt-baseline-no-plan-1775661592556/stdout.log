@@ -1,0 +1,14 @@
+Implemented the optimization in [server.py](/workspace/server.py) and added operator notes in [README.md](/workspace/README.md).
+
+The API no longer runs ad hoc aggregations over `analytics.events` on each request. It now:
+- creates `analytics.metrics_rollup` and `analytics.breakdown_rollup`,
+- keeps them current with materialized views,
+- backfills them once on startup if empty,
+- serves `/api/metrics` and `/api/breakdown` from the rollups,
+- uses `ThreadingHTTPServer` and returns explicit JSON response lengths.
+
+Verification:
+- Rollup results match the raw source queries.
+- `/api/metrics` timings over 5 requests: `5.42ms, 4.29ms, 4.42ms, 5.65ms, 3.86ms`
+- `/api/breakdown` timings over 5 requests: `6.46ms, 5.12ms, 38.79ms, 4.03ms, 4.00ms`
+- The API is running detached in the background as `python3 /workspace/server.py` on port `3000`.

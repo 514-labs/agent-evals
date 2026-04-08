@@ -1,0 +1,13 @@
+All checks pass:
+
+- **Sum**: 75.00 (matches Postgres source)
+- **Days**: 3 distinct days (2026-01-10, 2026-01-11, 2026-01-12)
+- **Duplicates**: none
+
+The fix involved:
+1. **Truncating** `analytics.metric_daily` to remove the duplicate 2026-01-10 rows
+2. **Re-aggregating** all days from `raw.events` in Postgres (distinct users + sum of values per day)
+3. **Inserting** clean data for all 3 days
+
+The backfill script at `/workspace/backfill.py` is idempotent (truncate + re-insert), uses env vars for connections, and is documented in `/workspace/README.md`.
+Found session JSONL at /root/.claude/projects/-/8dda2332-9ca5-4e82-a68d-c40bb80e1563.jsonl

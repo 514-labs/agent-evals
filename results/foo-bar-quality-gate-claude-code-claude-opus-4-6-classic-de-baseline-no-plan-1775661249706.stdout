@@ -1,0 +1,23 @@
+My `run_checks.sh` uses `$POSTGRES_URL` which contains `localhost:5432` — that line also has `POSTGRES_URL` env token so it's fine. But let me double-check.
+
+The line `DB_URL="${POSTGRES_URL:?Set POSTGRES_URL env var}"` contains `POSTGRES_URL` token, so it won't be flagged. And `psql "$DB_URL"` doesn't contain any literal. Good.
+
+Everything looks clean. Here's a summary of what I found and built:
+
+## Issues Found in `raw.events`
+
+| Issue | Count | Impact |
+|-------|-------|--------|
+| **NULL event_ids** | 5 rows | Breaks joins/dedup, causes gaps in reports |
+| **Duplicate rows** | 5 events duplicated | Inflates dashboard counts (page views, clicks, purchases) |
+| **Schema drift** | 3 rows with unexpected `device_type` in properties JSON | Signals upstream schema change, may break downstream transforms |
+| **Stale timestamps** | 5 rows from 2020 mixed with 2026 data | Skews time-series reports and aggregations |
+
+## What I Built
+
+- **`/workspace/run_quality_checks.sql`** — Creates a `data_quality_checks` table and runs 4 targeted checks that detect each issue type and record the count + sample IDs
+- **`/workspace/run_checks.sh`** — Runner script using `POSTGRES_URL` env var (no hardcoded connections)
+- **`/workspace/README.md`** — Documents the checks and usage
+
+All 4 checks pass correctly: 5 null PKs, 5 duplicate event groups, 3 schema drift rows, 5 stale timestamps. Results are persisted in `public.data_quality_checks` for dashboards or alerting to query.
+Found session JSONL at /root/.claude/projects/-/061aa68f-6372-4709-957a-83854ce0fc96.jsonl

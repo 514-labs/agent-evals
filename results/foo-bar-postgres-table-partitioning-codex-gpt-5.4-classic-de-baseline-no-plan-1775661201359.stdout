@@ -1,0 +1,7 @@
+`app.events` is now partitioned by `created_at` with daily range partitions and a default partition. I applied the live migration from [migrate_events_partitioning.sql](/workspace/migrate_events_partitioning.sql), added operator notes in [README.md](/workspace/README.md), and updated the bootstrap schema in [postgres-setup.sql](/scenario/init/postgres-setup.sql) so fresh environments start partitioned.
+
+Verification on the running database:
+- `app.events` now has `relkind = 'p'` and `130` child partitions.
+- Row count is preserved at `720`, with the same `2026-01-01` to `2026-01-30` data range.
+- `EXPLAIN ANALYZE` for `created_at >= '2026-01-15' AND created_at < '2026-01-16'` prunes to `events_p20260115` only, with `Execution Time: 0.035 ms`.
+- A transactional insert for `2026-06-15` routed successfully to `app.events_default`, then rolled back.

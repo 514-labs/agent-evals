@@ -1,0 +1,3 @@
+Added an idempotent ClickHouse migration at [migrations/001_add_region_to_events.sql](/workspace/migrations/001_add_region_to_events.sql) and operator notes at [README.md](/workspace/README.md). The migration uses `ADD COLUMN IF NOT EXISTS` with a deterministic `DEFAULT` expression for `region`, then runs `MATERIALIZE COLUMN region` so existing parts are backfilled without taking the table offline.
+
+I applied the migration directly to `analytics.events` and verified it. `DESCRIBE TABLE` now shows `region LowCardinality(String)`, all 5 existing rows have non-empty region values, the materialization mutation completed with `is_done = 1`, and the benchmark-style query `SELECT event_id, region FROM analytics.events LIMIT 10` completed in `0.001s`.

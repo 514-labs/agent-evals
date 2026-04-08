@@ -1,0 +1,23 @@
+All three queries are well within target. Results summary:
+
+| Query | Latency | Rows read |
+|---|---|---|
+| Q1: `metric_name` filter + ts range + GROUP BY day | **11ms** | 1M (1/5 of table) |
+| Q2: `metric_name` + tight ts range + GROUP BY host | **14ms** | ~425K (partition pruned) |
+| Q3: `host_id` filter + GROUP BY metric | **5ms** | ~50K (sort-key skip) |
+| Storage | **37.8 MiB** compressed (was ~76 MiB) |  |
+
+**What was done:**
+
+`analytics.metrics_optimized` was created with these key changes:
+
+1. **`PARTITION BY toYYYYMM(ts)`** — ClickHouse skips entire monthly partitions for time-range filters (Q2 went from 5M rows to ~425K)
+
+2. **`ORDER BY (metric_name, host_id, ts)`** — the sparse primary index now prunes granules on metric_name equality (Q1 & Q2 read only ~1M rows), and since host_id is sorted within each metric_name block, Q3 can skip to the right host granules in each of the 5 metric blocks
+
+3. **`LowCardinality(String)`** for `metric_name` (5 distinct values) and `host_id` (100 distinct values) — dictionary encoding makes equality filters and GROUP BY far cheaper, and compresses better
+
+4. **Codecs**: `Delta+LZ4` on `ts` (timestamps differ by small deltas → excellent compression), `Gorilla+LZ4` on `value` (designed for floating-point sensor data), `ZSTD` on `tags`
+
+5. **Storage cut in half**: 76 MiB → 37.8 MiB compressed
+Found session JSONL at /root/.claude/projects/-/983f11c3-4cd1-4277-a62c-0bcc0753aedf.jsonl

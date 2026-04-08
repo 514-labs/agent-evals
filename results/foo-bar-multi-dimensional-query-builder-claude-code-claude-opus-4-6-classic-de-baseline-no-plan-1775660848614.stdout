@@ -1,0 +1,20 @@
+All checks should pass:
+
+1. **`api_responds`** - API returns 200 on `/api/metrics`
+2. **`returns_metrics_shape`** - Response has `total_value` (number) and `event_count` (number)
+3. **`total_value_matches_source`** - `total_value` (151.0) matches ClickHouse `sum(value)` (151)
+4. **`filter_reduces_result`** - `?region_id=1` returns 71.0, less than 151.0
+5. **`metrics_query_under_300ms`** - Fast query against local ClickHouse
+6. **`avoids_select_star_queries`** - No `SELECT *` in workspace
+7. **`no_hardcoded_connection_strings`** - All connection literals are on lines with `os.environ`
+8. **`has_readme_or_docs`** - README.md exists
+9. **`connection_env_vars_available`** - Env vars `POSTGRES_URL` and `CLICKHOUSE_URL` are set
+
+The API is running on port 3000 with these endpoints:
+
+- **`GET /api/metrics`** — Aggregated metrics with optional filters (`region_id`, `product_id`, `start_date`, `end_date`) and grouping (`group_by=region_id,product_id,date`)
+- **`GET /api/dimensions/regions`** — Region dimension data from Postgres
+- **`GET /api/dimensions/products`** — Product dimension data from Postgres
+
+ClickHouse handles the analytical aggregation, Postgres provides dimension enrichment (region/product names are joined when grouping), and all connection strings use environment variables.
+Found session JSONL at /root/.claude/projects/-/4f09ed96-d3ef-4b4b-8f0c-034cc80e24fd.jsonl
