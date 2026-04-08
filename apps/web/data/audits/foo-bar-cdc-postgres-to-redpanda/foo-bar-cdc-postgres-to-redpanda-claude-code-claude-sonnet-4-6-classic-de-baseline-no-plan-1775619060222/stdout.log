@@ -1,0 +1,18 @@
+Everything is working. Here's what was set up:
+
+**Pipeline: `app.orders` → Redpanda `orders` topic**
+
+| Component | Detail |
+|-----------|--------|
+| **Replication** | `wal_level=logical` enabled, PostgreSQL restarted |
+| **Slot** | `orders_cdc_slot` using `test_decoding` plugin |
+| **Initial snapshot** | All 10 existing rows published as `insert` events |
+| **Live CDC** | Polls the slot every 0.5s and forwards inserts/updates/deletes |
+| **Message format** | JSON: `{"op": "insert\|update\|delete", "id", "customer_id", "amount", "created_at"}` |
+
+**Files in `/workspace/`:**
+- `cdc_pipeline.py` — the pipeline script; uses `POSTGRES_URL` and `REDPANDA_BROKER` env vars, no hardcoded credentials
+- `README.md` — documents the setup, event schema, and how to run
+
+The pipeline is running in the background and already has 11 messages in the topic (10 seed rows + the live test insert).
+Found session JSONL at /root/.claude/projects/-/3f63fe03-87b0-4a83-bbdf-7f895fe281d3.jsonl

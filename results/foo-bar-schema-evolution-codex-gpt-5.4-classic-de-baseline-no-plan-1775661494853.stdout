@@ -1,0 +1,12 @@
+Added `weight_kg` end to end and applied it live in both databases.
+
+Postgres now has `app.products.weight_kg NUMERIC(10,3)` with all 20 existing rows left as `NULL`, and I added `public.products_with_weight` as a compatibility view. ClickHouse now has `analytics.products.weight_kg Nullable(Decimal(10,3))`, and I added `analytics.products_unified`, which combines the local ClickHouse table with the Postgres compatibility view and exposes a `sync_status` column so consumers can query the expanded shape from one place.
+
+The migration artifacts and operator notes are in [README.md](/workspace/README.md), [001_add_weight_kg_postgres.sql](/workspace/migrations/001_add_weight_kg_postgres.sql), and [001_add_weight_kg_clickhouse.sql](/workspace/migrations/001_add_weight_kg_clickhouse.sql).
+
+Verification passed on the live system:
+- `\d+ app.products` shows `weight_kg`
+- `DESCRIBE TABLE analytics.products` shows `weight_kg`
+- Existing `SELECT id, name, price, category ... ORDER BY id` queries still match across Postgres and ClickHouse
+- `analytics.products_unified` reports all 20 rows as `in_sync`
+- Full benchmark assertions pass with `highest_gate: 5` and `normalized_score: 1`

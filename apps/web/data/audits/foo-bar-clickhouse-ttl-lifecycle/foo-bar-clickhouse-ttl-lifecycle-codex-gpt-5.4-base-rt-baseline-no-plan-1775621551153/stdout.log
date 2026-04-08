@@ -1,0 +1,15 @@
+Configured 90-day retention for ClickHouse raw events.
+
+The live ClickHouse instance now has `analytics.raw_events` created as a `MergeTree` table with `event_ts` and a TTL of `event_ts + INTERVAL 90 DAY`. I also saved the DDL in [clickhouse-setup.sql](/scenario/init/clickhouse-setup.sql) and [setup-clickhouse-retention.sql](/workspace/setup-clickhouse-retention.sql), plus a short operator note in [README.md](/workspace/README.md).
+
+Verification:
+- Ran `clickhouse-client --multiquery < /scenario/init/clickhouse-setup.sql`
+- Ran `clickhouse-client --multiquery < /workspace/setup-clickhouse-retention.sql`
+- Confirmed `SHOW CREATE TABLE analytics.raw_events` returns a schema with `TTL event_ts + toIntervalDay(90)`
+- Confirmed `system.columns` includes `event_ts`
+- Confirmed `/workspace` has no `SELECT *` usage and no hardcoded connection strings
+
+Current table definition in ClickHouse includes:
+```sql
+TTL event_ts + INTERVAL 90 DAY
+```

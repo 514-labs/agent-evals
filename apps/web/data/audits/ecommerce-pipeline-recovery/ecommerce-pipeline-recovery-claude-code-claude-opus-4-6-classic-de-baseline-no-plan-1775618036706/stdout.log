@@ -1,0 +1,17 @@
+Everything is working. Here's what was done:
+
+1. **Created ClickHouse table** `analytics.fct_orders_daily` with columns `order_day` (Date), `order_count` (UInt32), `daily_revenue` (Decimal) using a MergeTree engine ordered by day.
+
+2. **Built an idempotent ETL script** (`/pipeline/load_daily_orders.sh`) that:
+   - **Deduplicates** orders by doing `SELECT DISTINCT` on all columns, so the duplicate `ord_002` is counted only once
+   - **Aggregates** to daily grain (one row per day with count + revenue sum)
+   - **Truncates before loading** so reruns don't create duplicate rows
+
+3. **Results** — 3 days, 5 distinct orders, $627.59 total revenue:
+
+| order_day  | order_count | daily_revenue |
+|------------|-------------|---------------|
+| 2026-01-01 | 2           | 175.10        |
+| 2026-01-02 | 2           | 142.49        |
+| 2026-01-03 | 1           | 310.00        |
+Found session JSONL at /root/.claude/projects/-/4893c874-2f65-4836-848a-7cb17856110a.jsonl

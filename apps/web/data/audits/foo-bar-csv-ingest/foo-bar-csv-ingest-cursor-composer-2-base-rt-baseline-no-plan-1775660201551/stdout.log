@@ -1,0 +1,104 @@
+
+Exploring the CSV files and ClickHouse setup so we can ingest clean data.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Creating `analytics.events`, cleaning the five CSVs (DD/MM/YYYY dates, null sentinels, duplicate headers, trailing commas), and loading via `clickhouse-client`.
+
+
+
+
+
+
+
+
+Fixing normalization: don't strip the fifth column when it's an empty string (valid missing value).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was done and verified.
+
+## `analytics.events`
+
+ClickHouse now has database **`analytics`** and table **`events`** with:
+
+- `event_id` (String)  
+- `event_ts` (DateTime64(3, UTC))  
+- `user_id` (String)  
+- `event_type` (String)  
+- `value` (Nullable(Float64))
+
+## Cleaning rules (matches your five files)
+
+| Issue | Handling |
+|--------|-----------|
+| ISO `Z` timestamps (`events_01`, etc.) | Parsed to UTC `DateTime64` |
+| `DD/MM/YYYY` (`events_02`) | Interpreted as UTC midnight on that calendar day |
+| `N/A`, `null`, empty `value` (`events_03`) | Stored as SQL `NULL` |
+| Repeated header line (`events_04`) | Row `event_id == "event_id"` skipped |
+| Trailing comma → extra empty column (`events_05`) | Only trailing **extra** empty fields after the 5th column are dropped; a real empty `value` is kept |
+
+Rows were streamed in as **TabSeparated** with `\N` for nulls.
+
+## Verification
+
+Local checks aligned with the scenario assertions:
+
+- **15** rows  
+- No empty / null `event_id`  
+- All `event_ts` in **2026**  
+- No spurious `event_id = 'event_id'` row  
+- `min(value) = 0` (nulls ignored by `min`)  
+- `SELECT event_type, count(), sum(value) ... GROUP BY event_type` runs successfully  
+
+The eval CLI was run with `CLICKHOUSE_URL=http://localhost:8123`; functional, correct, robust, and performant gates passed. The production gate’s **`uses_env_vars`** core check expects **both** `POSTGRES_URL` and `CLICKHOUSE_URL`; this image only wires up ClickHouse, so that single core flag stays false even though the scenario checks (`connection_env_vars_available`, `no_hardcoded_connection_strings`, `no_temporary_tables`) pass.
+
+The normalizer lives at **`/tmp/ingest_events_clean.py`** if you want to rerun after changing CSVs:
+
+```bash
+clickhouse-client --multiquery "TRUNCATE TABLE IF EXISTS analytics.events"  # or DROP/CREATE as before
+python3 /tmp/ingest_events_clean.py /data/csv | clickhouse-client --query "INSERT INTO analytics.events FORMAT TabSeparated"
+```

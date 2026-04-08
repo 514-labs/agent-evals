@@ -1,0 +1,27 @@
+Everything is working. Here's a summary of what was built:
+
+---
+
+**Pipeline: `raw.product_events` (Postgres) → ClickHouse → HTTP API**
+
+### `/workspace/ingest.js`
+- Reads all 30 events from `raw.product_events` (including `price` from the JSONB `properties` field)
+- Creates `analytics.product_events` in ClickHouse and bulk-inserts all rows
+- Pre-computes three aggregation tables: `top_products`, `funnel`, `hourly_activity`
+- Idempotent — truncates before inserting each run
+
+### `/workspace/server.js` — port 3000
+| Endpoint | What it returns |
+|---|---|
+| `GET /api/top-products` | Products ranked by revenue desc, with views/carts/purchases/revenue per product |
+| `GET /api/funnel` | Three steps (view → cart → purchase) with event counts |
+| `GET /api/hourly` | Per-hour, per-event-type counts across all days |
+| Any other route | 404 JSON |
+
+**Verification:**
+- Funnel: 15 views ≥ 9 carts ≥ 6 purchases ✓
+- Revenue matches Postgres total of $332.47 ✓
+- All 4 products unique in top-products ✓
+- `Content-Type: application/json` on all responses ✓
+- Connections via `POSTGRES_URL` / `CLICKHOUSE_URL` env vars (no hardcoded strings) ✓
+Found session JSONL at /root/.claude/projects/-/97f6cf1a-e67e-48e4-bed3-412f52ed8780.jsonl

@@ -1,0 +1,21 @@
+Everything checks out. Here's what was built:
+
+**`/workspace/pipeline.py`** — runs the 3-layer ETL:
+1. **`staging.events`** — flattens the Postgres JSONB payload into typed columns (`session_id`, `event_type`, `user_id`, `value`)
+2. **`intermediate.sessions`** — one row per `(session_id, day)` with event count and revenue
+3. **`analytics.daily_sessions`** — the dashboard mart, one row per day
+
+**`analytics.daily_sessions` results:**
+
+| day        | session_count | total_events | total_revenue |
+|------------|---------------|--------------|---------------|
+| 2026-01-15 | 2             | 5            | 49.99         |
+| 2026-01-16 | 2             | 3            | 120.00        |
+| 2026-01-17 | 1             | 2            | 0.00          |
+
+Key design decisions:
+- **Null sessions** (`session_id: null`) count toward `total_events` but not `session_count` — `uniqExact` on a `Nullable(String)` ignores NULLs automatically
+- **Null values** are treated as 0 revenue via `coalesce(value, 0)`
+- **No hardcoded connection strings** — everything reads from `POSTGRES_URL` / `CLICKHOUSE_URL` env vars
+- **MergeTree indexed on `day`** keeps the aggregation query well under 200ms
+Found session JSONL at /root/.claude/projects/-/5398c41d-b1df-4337-9ce2-c9a5ee850e5d.jsonl

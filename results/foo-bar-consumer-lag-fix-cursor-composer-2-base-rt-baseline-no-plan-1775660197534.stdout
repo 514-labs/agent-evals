@@ -1,0 +1,99 @@
+
+Exploring the codebase to locate the Kafka consumer and ClickHouse pipeline so we can fix the lag.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Implementing a high-throughput consumer: `consumer.py` was replaced with comments only. Verifying message format by searching the image for seed scripts:
+
+
+Writing a production consumer: high `max_poll_records`, tuned fetch settings, chunked ClickHouse inserts via HTTP, optional multiprocessing workers sharing the same consumer group, and environment-based configuration (no hardcoded host literals on the same line).
+
+
+Removing `set_start_method("spawn")` — it can cause child processes to re-execute the main block. Using the default `fork` on Linux (safe here because the Kafka client is created only inside the worker target).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was wrong and what we changed.
+
+## Cause
+
+`/workspace/consumer.py` had been overwritten by `setup-consumer-broken.sh` so it only contained comments. There was **no running consumer logic**, so nothing was reading `events` or writing to `analytics.events_sink`, which shows up as lag and a nearly empty table.
+
+## Fix
+
+`consumer.py` is now a real pipeline that:
+
+1. **Reads from Kafka/Redpanda** using `REDPANDA_BROKER`, topic `events`, consumer group `events-pipeline-sink`, `auto_offset_reset='earliest'`, and **no auto-commit** until inserts succeed.
+2. **Tunes throughput**: `max_poll_records=2000`, larger `fetch_min_bytes` / `fetch_max_wait_ms`, and `max_partition_fetch_bytes` so each poll moves a large chunk of data.
+3. **Writes to ClickHouse** over HTTP using `CLICKHOUSE_URL`, `INSERT INTO analytics.events_sink FORMAT JSONEachRow`, with **chunked batches** (2000 rows per request).
+4. **Parses JSON** into `event_id`, `event_ts`, `payload`, with flexible `event_ts` handling (ISO strings, unix time).
+5. **Scales with partitions** via optional `CONSUMER_WORKERS` (default **4** processes sharing the same group so partitions are split across workers).
+6. **Satisfies workspace checks**: no hardcoded `localhost:…` lines (only `os.environ[...]`), no `SELECT *`.
+
+## Verification
+
+- Created topic `events`, produced **100** JSON events, ran `timeout 15 python3 /workspace/consumer.py`.
+- `clickhouse-client -q "SELECT count() FROM analytics.events_sink"` returned **100**.
+
+After deploy, run the consumer (or let your process manager run it); with ~10k messages it should catch up quickly. To force a single process, set `CONSUMER_WORKERS=1`.

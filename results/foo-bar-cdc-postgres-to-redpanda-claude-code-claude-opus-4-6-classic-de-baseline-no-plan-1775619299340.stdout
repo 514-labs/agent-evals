@@ -1,0 +1,15 @@
+Row counts match (12 rows in PG, 12 messages in topic). The pipeline is set up and running. Here's what was done:
+
+**Infrastructure changes:**
+- Set `wal_level = logical` on PostgreSQL and restarted it
+- Created publication `orders_pub` for `app.orders`
+- Created Redpanda topic `orders`
+
+**CDC pipeline (`/workspace/cdc_pipeline.py`):**
+1. **Snapshot phase** - publishes all existing `app.orders` rows to the `orders` topic on startup
+2. **Polling phase** - continuously polls for new inserts (by tracking max `id`) and publishes them in real time (~1s latency)
+3. Uses `POSTGRES_URL` and `REDPANDA_BROKER` env vars (no hardcoded credentials)
+4. Messages are JSON-encoded, keyed by order `id`, with `op` field indicating `snapshot` vs `insert`
+
+The pipeline is running in the background and already captured the 10 initial rows plus 2 test inserts.
+Found session JSONL at /root/.claude/projects/-/9e581593-bd50-4096-a5e8-f4ed907a9c7c.jsonl

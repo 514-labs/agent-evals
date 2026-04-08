@@ -1,0 +1,12 @@
+Done. Here's what was fixed:
+
+**Problem:** `analytics.events` had `ORDER BY tuple()` — ClickHouse with no sort key stores data unsorted, making range scans full-table scans and bulk inserts very slow.
+
+**Fix:**
+- Dropped and recreated `analytics.events` with:
+  - `PARTITION BY toYYYYMM(event_ts)` — data split into monthly partitions so date-range queries skip irrelevant partitions entirely
+  - `ORDER BY (event_ts, event_id)` — data sorted within each partition for fast range lookups
+- Backfilled all 5,000 rows from `staging.historical_events`
+
+**Result:** Date filter query now runs in ~2ms (was slow/failing before), row count matches staging exactly.
+Found session JSONL at /root/.claude/projects/-/1b72ce56-ff90-47fc-9359-e0dfb2ef705f.jsonl

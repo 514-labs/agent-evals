@@ -1,0 +1,99 @@
+
+Exploring the codebase to locate the metrics API and identify concurrency issues.
+
+
+
+
+
+Checking for a local ClickHouse client and test scripts:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Removing the module-level `cachedResult` that races under concurrency (setup script documents this). Using a per-request variable for the query result.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Default pool is 10 — sufficient for five concurrent requests. Removing the extra config to keep the change minimal.
+
+
+
+
+
+
+
+
+## What was wrong
+
+The handler stored every query result in a **single module-level** `cachedResult`. Under concurrent requests, one request could finish `await r.json()` and then, before it read `cachedResult[0]`, another request could overwrite `cachedResult`, so responses could show the wrong `total` or behave inconsistently. The scenario setup script calls this out explicitly as a shared mutable result buffer.
+
+## What we changed
+
+Query results are kept **per request** in a local `rows` variable, so each response is driven only by that request’s ClickHouse result:
+
+```11:16:/workspace/server.js
+  try {
+    const r = await client.query({ query: "SELECT sum(value) AS total FROM analytics.metrics", format: "JSONEachRow" });
+    const rows = await r.json();
+    const total = rows[0]?.total ?? 0;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ total }));
+```
+
+## Verification
+
+- `curl http://localhost:3000/api/metrics` → `{"total":458}` matching `SELECT sum(value) FROM analytics.metrics` on ClickHouse.
+- 30 parallel `curl` calls → **30× HTTP 200**, same JSON payload.
+
+The API process was restarted in the background after the change; ClickHouse’s default client pool (`max_open_connections: 10`) is already enough for the benchmark’s 5-way concurrency.

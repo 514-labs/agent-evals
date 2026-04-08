@@ -1,0 +1,8 @@
+The raw count is 300 (3 inserts), but with `FINAL` it's 100 — exactly matching the source. The `ReplacingMergeTree` engine handles deduplication by `order_id`, keeping the row with the latest `updated_at`.
+
+Here's what was set up:
+
+1. **ClickHouse table** `analytics.orders` using `ReplacingMergeTree(updated_at)` with `ORDER BY order_id` — this engine deduplicates rows with the same `order_id`, keeping the one with the newest `updated_at`
+2. **Pipeline script** `/workspace/pipeline.py` — reads all orders from Postgres and inserts them into ClickHouse. Uses `POSTGRES_URL` and `CLICKHOUSE_URL` env vars (no hardcoded credentials)
+3. **Idempotency** — queries using `FINAL` (which the analytics layer uses) always see exactly 100 unique rows, regardless of how many times the pipeline runs
+Found session JSONL at /root/.claude/projects/-/1cd6f8e6-4f37-475c-a853-514a5f4f5628.jsonl

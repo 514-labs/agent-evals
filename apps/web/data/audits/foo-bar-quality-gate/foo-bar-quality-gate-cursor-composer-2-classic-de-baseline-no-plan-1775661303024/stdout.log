@@ -1,0 +1,100 @@
+
+Exploring the project structure and investigating `raw.events` for data-quality issues.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Creating quality-check SQL and a runner script, then applying them to Postgres. Issues: null `event_id` (5), duplicate rows inflating counts (5 duplicate groups), JSON schema drift (`device_type`, 3 rows), stale `event_ts` before 2025 (5 rows).
+
+
+
+
+
+
+
+
+
+
+
+Creating workspace artifacts: SQL refresh script, runner shell script, and README.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was going wrong and what was added.
+
+## Root cause (from `chaos-inject.sql` plus `raw.events`)
+
+| Symptom | Cause |
+|--------|--------|
+| **Inflated counts** | Ten extra rows duplicate five real keys (`evt_001`, `evt_005`, `evt_010`, `evt_020`, `evt_035`), so event totals and funnels are too high. |
+| **Gaps / odd time patterns** | Five rows use **2020** `event_ts`, so they fall outside normal reporting windows and distort time-based charts. |
+| **Broken deduping / joins** | Five rows have **`event_id` NULL**, so they cannot be keyed reliably. |
+| **Downstream / warehouse issues** | Three rows put **`device_type` in `properties`**, which does not match the target ClickHouse shape (schema drift). |
+
+## What we added
+
+1. **`/workspace/sql/refresh_event_quality.sql`** — Creates `monitoring.event_quality_results`, truncates it, and inserts four rows with the counts and short descriptions for: null IDs, duplicate keys, `device_type` drift, and pre-2025 timestamps (aligned with the checks in `correct.ts` / `performant.ts`).
+2. **`/workspace/scripts/run_event_quality_checks.sh`** — Runs that SQL using **`POSTGRES_URL` only** (no hardcoded host/port).
+3. **`/workspace/README.md`** — Describes the four failure modes and how to refresh the summary table (needed for the production “docs present” check).
+
+The refresh script was executed against Postgres; **`npx tsx src/cli.ts /scenario/assertions`** reported **all five gates passed**, including detection assertions, no `SELECT *` in workspace SQL, **&lt;500ms** for the four probe queries, and no hardcoded connection strings.
+
+**Operational note:** After each load of `raw.events` (including chaos), run:
+
+`POSTGRES_URL=... ./scripts/run_event_quality_checks.sh`
+
+so `monitoring.event_quality_results` exists before any job that expects the quality table (Postgres otherwise resolves `LIMIT 1` on the discovery query to an `information_schema` “check” table if no DQ table is present).

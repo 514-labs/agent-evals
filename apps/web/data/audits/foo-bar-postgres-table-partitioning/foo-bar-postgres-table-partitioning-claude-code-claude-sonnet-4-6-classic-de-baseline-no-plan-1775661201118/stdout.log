@@ -1,0 +1,16 @@
+Everything looks great. Here's what was done:
+
+**Migration summary:**
+
+1. **Renamed** `app.events` → `app.events_old` (preserves data during migration)
+2. **Created** a new `app.events` partitioned by `RANGE (created_at)`
+3. **Re-wired** the existing `events_id_seq` sequence to the new table
+4. **Created 13 monthly partitions** covering Dec 2025 through Dec 2026
+5. **Added a `created_at` index** on the parent (auto-propagated to all partitions)
+6. **Copied all 720 rows** with a count-check guard before committing
+7. **Dropped** the old unpartitioned table
+
+**Key results:**
+- `relkind = 'p'` confirms the table is a partitioned parent
+- Date-range query now hits only `events_2026_01` via `Bitmap Index Scan` — Postgres prunes all other 12 partitions automatically, which is exactly what makes these queries fast
+Found session JSONL at /root/.claude/projects/-/e43a98dd-cf8b-48ec-ad80-3466259a49a7.jsonl

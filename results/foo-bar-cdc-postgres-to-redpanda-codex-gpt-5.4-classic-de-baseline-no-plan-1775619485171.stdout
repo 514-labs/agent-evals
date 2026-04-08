@@ -1,0 +1,10 @@
+The Postgres-to-Redpanda pipeline is set up and running. I added an idempotent trigger/outbox bootstrap in [setup_orders_cdc.sql](/workspace/setup_orders_cdc.sql), a detached Python publisher in [orders_cdc.py](/workspace/orders_cdc.py), a launcher in [bootstrap_orders_cdc.sh](/workspace/bootstrap_orders_cdc.sh), and operator notes in [README.md](/workspace/README.md).
+
+The flow is: `app.orders` `AFTER INSERT OR UPDATE` trigger writes JSON events into `app.orders_cdc_outbox`, and the background worker publishes unpublished rows to the Kafka topic `orders` using `POSTGRES_URL` and `REDPANDA_BROKER` from the environment. The launcher now starts the worker with full detachment and checks that it stays up.
+
+Verification passed. The worker is running from `/workspace/orders_cdc.pid`, `app.orders` currently has 11 rows, and the `orders` topic has 13 valid order events after replay plus live updates, so topic count is at least source count. I also verified live CDC by:
+- inserting a new order, which produced an `INSERT` event for `id=11`
+- updating `app.orders.id=3`, which produced an `UPDATE` event
+- updating `app.orders.id=2`, which produced the latest `UPDATE` event
+
+Those verification writes remain in the database: `id=11` was added, `id=3.amount` is now `77.77`, and `id=2.amount` is now `60.60`.

@@ -1,0 +1,6 @@
+Both stores now return identical values. Here's what was wrong and what I fixed:
+
+**Root cause:** `/scenario/init/clickhouse-setup.sql` used `count()` to compute DAU, which counted every event row. Postgres used `COUNT(DISTINCT user_id)`, which counts unique users. For 2026-01-15 (3 events from 2 users), Postgres returned 2 while ClickHouse returned 3.
+
+**Fix:** Changed the ClickHouse insert from `count() AS dau` to `uniqExact(user_id) AS dau` — the ClickHouse equivalent of `COUNT(DISTINCT user_id)` — and repopulated the `daily_metrics` table. Both stores now report DAU = 2 for each day.
+Found session JSONL at /root/.claude/projects/-/40ffb122-7f3d-4f6d-b887-51d1b0ea4ef3.jsonl

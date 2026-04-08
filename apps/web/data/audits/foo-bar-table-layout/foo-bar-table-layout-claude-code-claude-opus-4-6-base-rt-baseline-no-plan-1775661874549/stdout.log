@@ -1,0 +1,29 @@
+Done. Here's a summary of what changed and the results:
+
+## Changes Made
+
+| Aspect | Before | After |
+|---|---|---|
+| **ORDER BY** | `tuple()` (no ordering) | `(metric_name, host_id, ts)` |
+| **PARTITION BY** | none | `toYYYYMMDD(ts)` |
+| **host_id** | `String` | `LowCardinality(String)` |
+| **metric_name** | `String` | `LowCardinality(String)` |
+| **ts codec** | default | `DoubleDelta, LZ4` |
+| **value codec** | default | `Gorilla, LZ4` |
+| **tags column** | always empty | dropped |
+| **Disk size** | **76.2 MiB** | **37.6 MiB** (51% smaller) |
+
+## Query Performance (rows scanned)
+
+| Query | Old | New | Improvement |
+|---|---|---|---|
+| Hourly avg CPU for 1 host, 1 day | 5,000,000 | 40,960 | **~122x fewer rows** |
+| Max per metric/host for 1 day | 5,000,000 | 161,411 | **~31x fewer rows** |
+| Daily avg memory_usage (full month) | 5,000,000 | 2,285,568 | **~2.2x fewer rows** |
+
+**Why it's faster:**
+- **`ORDER BY (metric_name, host_id, ts)`** — ClickHouse can skip granules that don't match filters on metric_name/host_id, avoiding full scans
+- **`PARTITION BY toYYYYMMDD(ts)`** — date-range queries skip entire partitions (days) of data
+- **`LowCardinality`** — dictionary-encodes the 5 metric names and 100 host IDs, reducing memory and I/O
+- **Specialized codecs** — `DoubleDelta` for timestamps and `Gorilla` for float values compress sorted time-series data much better
+Found session JSONL at /root/.claude/projects/-/f9cda724-71c5-4054-985b-23e19df7b14f.jsonl

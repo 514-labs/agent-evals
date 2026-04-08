@@ -1,0 +1,3 @@
+Implemented an idempotent repair script at [backfill_metric_daily.sh](/workspace/backfill_metric_daily.sh) and operator notes at [README.md](/workspace/README.md). The script rebuilds `analytics.metric_daily` from `raw.events` by aggregating in Postgres, truncating the ClickHouse target, inserting one row per day, and verifying totals, day count, and duplicate-day count.
+
+I ran the script twice to verify rerun safety. Final state is correct: ClickHouse now has `2026-01-10 = 30`, `2026-01-11 = 20`, `2026-01-12 = 25`; duplicate-day count is `0`; distinct day count is `3` in both systems; source total is `75.00` and ClickHouse total is `75`.

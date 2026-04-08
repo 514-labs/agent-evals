@@ -1,0 +1,85 @@
+
+Exploring the codebase to find how daily active users are defined in Postgres and ClickHouse so we can align them.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Identifying the issue: ClickHouse used `count()` (event rows) while Postgres uses `count(DISTINCT user_id)`. Replacing it with `uniqExact(user_id)` to match Postgres semantics.
+
+
+
+
+
+
+
+
+
+
+
+Refreshing ClickHouse data (init ran at startup with the old definition) and running the evaluation CLI to verify assertions.
+
+
+
+
+
+
+
+
+
+
+
+Simplifying the SQL: `uniqExact` already returns `UInt64`.
+
+
+
+
+
+
+
+
+
+
+
+## Cause
+
+Postgres defines daily active users as **distinct `user_id` per day** (`count(DISTINCT user_id)` in `correct.ts`). ClickHouse was filling `analytics.daily_metrics.dau` with **`count()`**, i.e. **event rows per day**. On 2026-01-15 that is 3 events vs 2 users (`u1` twice, `u2` once), so the dashboards disagreed.
+
+## Change
+
+In `/scenario/init/clickhouse-setup.sql`, DAU is now computed with **`uniqExact(user_id)`** per day, which matches `count(DISTINCT user_id)` in Postgres. Revenue stayed **`sum(value)`** per day (unchanged and still aligned with Postgres totals).
+
+```26:31:/scenario/init/clickhouse-setup.sql
+INSERT INTO analytics.daily_metrics
+SELECT
+  toDate(event_ts) AS day,
+  uniqExact(user_id) AS dau,
+  sum(value) AS revenue
+FROM analytics.events
+GROUP BY day;
+```
+
+## Verification
+
+- Compared Postgres vs ClickHouse for those days: both show DAU **2** on 2026-01-15 and **2** on 2026-01-16, with matching daily revenue.
+- Ran `/opt/dec-bench/eval-core/src/cli.ts` against `/scenario/assertions`: **`dau_matches_postgres`**, **`revenue_matches_postgres`**, and **`dau_is_distinct_users`** all pass.
+
+*(This environment’s ClickHouse had already been loaded with the old definition; I truncated `analytics.daily_metrics` and re-ran the new `INSERT` to validate. A new container run will pick up the fixed init script automatically.)*

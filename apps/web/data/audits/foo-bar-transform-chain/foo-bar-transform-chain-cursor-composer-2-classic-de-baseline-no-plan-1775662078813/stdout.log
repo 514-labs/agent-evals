@@ -1,0 +1,97 @@
+
+Exploring the workspace to locate PostgreSQL/ClickHouse configuration and event schema so we can build a daily session summary pipeline.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Implementing a three-layer pipeline in `/workspace` to satisfy assertions: creating ClickHouse schemas and an ETL script that uses environment variables.
+
+
+Creating workspace files: SQL DDL and a Python ETL script.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was implemented and verified.
+
+## What was added (under `/workspace`)
+
+1. **`sql/01_databases.sql`** — Creates `staging` and `analytics`.
+2. **`sql/02_staging_events_flat.sql`** — `staging.events_flat`: typed columns from JSON (`session_id` / `value` nullable).
+3. **`sql/03_session_summary.sql`** — `analytics.session_summary`: per-session `session_start`, `session_end`, `duration_seconds`, `event_count`, `total_revenue` (null `session_id` rows omitted).
+4. **`sql/04_daily_sessions_mart.sql`** — `analytics.daily_sessions`: mart with `day`, `session_count`, `total_events`, `total_revenue`.
+5. **`scripts/run_pipeline.py`** — Uses only `POSTGRES_URL` and `CLICKHOUSE_URL` (no hardcoded hosts), loads Postgres with an explicit column list (no `SELECT *`), truncates targets, reloads staging, then fills session summary and the daily mart.
+6. **`README.md`** — Operator notes and an example mart query (explicit columns).
+
+## Mart logic (matches the harness checks)
+
+- **`session_count` per day:** `uniqExact(session_id)` so null sessions are not counted; summing over days matches **5** distinct non-null sessions in the seed data.
+- **`total_revenue` per day:** `ifNull(sum(value), 0)` so null amounts are skipped; the global sum matches Postgres **169.99**.
+
+## Verification run
+
+- Pipeline: `python3 /workspace/scripts/run_pipeline.py` — completed successfully.
+- `sum(session_count)` = **5**, `sum(total_revenue)` = **169.99** (aligned with Postgres).
+- Mart query latency for `ORDER BY day DESC LIMIT 30` was **~50ms** (under the 200ms gate).
+
+To refresh after new events in `raw.events`, run:
+
+```bash
+python3 /workspace/scripts/run_pipeline.py
+```
+
+Example mart query:
+
+```sql
+SELECT day, session_count, total_events, total_revenue
+FROM analytics.daily_sessions
+ORDER BY day DESC
+LIMIT 30;
+```

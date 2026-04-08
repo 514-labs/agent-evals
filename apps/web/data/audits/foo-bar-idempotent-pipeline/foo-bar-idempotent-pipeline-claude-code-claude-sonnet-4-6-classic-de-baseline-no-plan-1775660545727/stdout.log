@@ -1,0 +1,10 @@
+After running 3 times, `SELECT count() FROM analytics.orders FINAL` returns 100 — matching the 100 distinct `order_id`s in Postgres.
+
+Here's how it works:
+
+**`ReplacingMergeTree(updated_at)`** — ClickHouse's deduplication engine. When rows share the same `ORDER BY` key (`order_id`), it keeps only the one with the highest `updated_at` version. Re-inserting the same rows is safe because the engine merges duplicates away.
+
+**`FINAL`** — Forces deduplication at query time (before background merges run), so you always get clean results immediately after re-runs.
+
+The pipeline reads `POSTGRES_URL` and `CLICKHOUSE_URL` from environment variables — no hardcoded connection strings.
+Found session JSONL at /root/.claude/projects/-/95b6686c-4eae-4a6b-9dab-c86acd60d058.jsonl

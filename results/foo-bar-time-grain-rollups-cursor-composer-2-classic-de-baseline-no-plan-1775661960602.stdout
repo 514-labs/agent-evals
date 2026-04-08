@@ -1,0 +1,59 @@
+
+Exploring the codebase to locate ClickHouse schemas, rollup definitions, and how metrics are aggregated.
+
+
+
+
+
+
+
+
+
+
+
+Replacing the broken daily INSERT (per-row zeros) with grouped aggregations and populating hourly and monthly rollups. Updating the setup SQL and applying it to the running ClickHouse instance.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+All rollup-related assertions passed. Simplifying monthly grouping: `toStartOfMonth(event_ts)` is sufficient for `DateTime`.
+
+
+
+Here is what was wrong and what we changed.
+
+### Root cause
+- **Daily:** Rows were inserted with `0 AS event_count` (one row per raw row), so `SummingMergeTree` still summed to **0** and did not match `raw_events`.
+- **Hourly / monthly:** Tables existed but were **never filled**.
+
+### Fix (in `/scenario/init/clickhouse-setup.sql`)
+1. **Hourly:** `INSERT … SELECT toStartOfHour(event_ts), count() … GROUP BY hour`
+2. **Daily:** `INSERT … SELECT toDate(event_ts), count() … GROUP BY day`
+3. **Monthly:** `INSERT … SELECT toStartOfMonth(event_ts), count() … GROUP BY month`
+
+`SummingMergeTree` is appropriate here: each grain is one row per bucket with `event_count` as the summable measure.
+
+### Live database
+The same `TRUNCATE` + three `INSERT`s were applied with `clickhouse-client` so the running instance matches the script.
+
+### Checks
+- `sum(event_count)` over each rollup **equals** `count()` on `raw_events` (6), with sensible per-bucket splits (e.g. daily: 3 / 2 / 1).
+- Eval CLI: **functional**, **correct**, **robust**, and **performant** scenario assertions all **passed** (including `daily_total_matches_source`, `rollups_have_rows`, `hourly_or_monthly_exists`, and `daily_rollup_query_under_100ms`).
+
+**Optional next step:** For ongoing ingest, you could add `MATERIALIZED VIEW`s from `raw_events` into these rollups so new events roll up automatically; the benchmark only required correct backfilled aggregates from the seed data. I can add those if you want.

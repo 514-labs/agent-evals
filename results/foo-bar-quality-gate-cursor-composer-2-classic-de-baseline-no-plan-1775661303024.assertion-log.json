@@ -1,0 +1,120 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "quality_results_stored": {
+        "passed": true,
+        "durationMs": 37,
+        "message": "Quality results stored.",
+        "details": {
+          "pgCount": 3
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "detects_duplicates": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "Detects duplicates.",
+        "details": {
+          "dupCount": 5,
+          "table": "monitoring.event_quality_results"
+        }
+      },
+      "detects_null_event_ids": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "Detects null event IDs.",
+        "details": {
+          "nullCount": 5,
+          "table": "monitoring.event_quality_results"
+        }
+      },
+      "detects_schema_drift": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "Detects schema drift.",
+        "details": {
+          "driftCount": 3,
+          "table": "monitoring.event_quality_results"
+        }
+      },
+      "detects_stale_timestamps": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Detects stale timestamps.",
+        "details": {
+          "staleCount": 5,
+          "table": "monitoring.event_quality_results"
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": false,
+        "durationMs": 0,
+        "message": "Idempotency risk markers found in session log.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            "| **Broken deduping / joins** | Five rows have **`event_id` NULL**, so they cannot be keyed reliably. |",
+            "1. **`/workspace/sql/refresh_event_quality.sql`** — Creates `monitoring.event_quality_results`, truncates it, and inserts four rows with the counts and short..."
+          ],
+          "failureMarkers": [
+            "Creating quality-check SQL and a runner script, then applying them to Postgres. Issues: null `event_id` (5), duplicate rows inflating counts (5 duplicate gro...",
+            "1. **`/workspace/sql/refresh_event_quality.sql`** — Creates `monitoring.event_quality_results`, truncates it, and inserts four rows with the counts and short..."
+          ]
+        }
+      }
+    },
+    "scenario": {
+      "no_false_positives_on_clean_data": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No false positives on clean data.",
+        "details": {
+          "cleanCount": 50
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {}
+  },
+  "production": {
+    "core": {},
+    "scenario": {}
+  }
+}

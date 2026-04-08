@@ -1,0 +1,3 @@
+Added a replay-safe sync at [scripts/sync_orders.sh](/workspace/scripts/sync_orders.sh) and documented it in [README.md](/workspace/README.md). The script creates `analytics.orders` as a `ReplacingMergeTree(updated_at)` ordered by `order_id`, then does a full refresh from `raw.orders` on every run, so rerunning the copy does not accumulate duplicates.
+
+I verified it directly: running the sync multiple times kept ClickHouse at 100 physical rows and 100 deduplicated `FINAL` rows, a point lookup on `order_id` completed in about 57.78ms, and a source-row update propagated correctly after a rerun. I also restored the test row to its original seeded value before finishing.

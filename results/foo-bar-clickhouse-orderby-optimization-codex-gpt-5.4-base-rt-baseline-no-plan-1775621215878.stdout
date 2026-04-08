@@ -1,0 +1,8 @@
+Updated the ClickHouse bootstrap so `analytics.events` is created with `ORDER BY (region, event_ts, event_id)` in [clickhouse-setup.sql](/scenario/init/clickhouse-setup.sql#L3). That aligns the MergeTree sort key with the actual filter pattern and lets ClickHouse prune granules instead of scanning the whole table. I also added operator-facing rebuild notes in [README.md](/workspace/README.md#L1).
+
+I rebuilt the live table in-place with a swap (`events_v2` -> `events`) so the running ClickHouse instance now matches the fix. Verification passed:
+- `SHOW CREATE TABLE analytics.events` now reports `ORDER BY (region, event_ts, event_id)`.
+- `SELECT count() FROM analytics.events` returned `2000000`.
+- `EXPLAIN indexes = 1 ... WHERE region = 'us-west' AND event_ts >= '2026-01-01'` shows primary-key filtering on `region` and `event_ts`.
+- Timed query results were well under target: `clickhouse-client --time` reported `0.008s`, and the Node HTTP-client version of the benchmark query completed in `15-22ms`.
+- I also ran a Node verification script mirroring the scenario assertions; all relevant checks passed.

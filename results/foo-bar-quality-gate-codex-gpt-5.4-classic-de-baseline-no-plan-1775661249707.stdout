@@ -1,0 +1,11 @@
+The source issues are the four injected classes you suspected: `5` rows with `NULL event_id`, `10` excess duplicate rows across `5` duplicate event groups, `3` schema-drift rows carrying unexpected `device_type` JSON keys, and `5` stale rows with `event_ts` from 2020.
+
+I added an idempotent Postgres quality gate in [raw_events_quality_checks.sql](/workspace/sql/raw_events_quality_checks.sql), a runner in [run_raw_events_quality_checks.sh](/workspace/bin/run_raw_events_quality_checks.sh), and operator docs in [README.md](/workspace/README.md). The check persists results to `dq.raw_events_quality_checks` with `check_name`, `category`, `issue_count`, `status`, `details`, and `checked_at`.
+
+I executed the scenario corruption script in this container to reproduce the bad source data, ran the quality gate twice to confirm idempotence, and verified the stored results:
+- `null_event_id = 5`
+- `duplicate_event = 10`
+- `schema_drift = 3`
+- `stale_timestamp = 5`
+
+I also verified the benchmark hygiene conditions: `/workspace` has a README, the workspace files contain no `SELECT *`, and the 50 clean current-era `evt_*` rows remain unflagged by the source-data baseline query.

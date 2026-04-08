@@ -1,0 +1,10 @@
+All fixed. Here's what was wrong and what I did:
+
+**Problem:** `analytics.events` had `ORDER BY tuple()` and no partitioning, making backfill inserts slow and date-range queries inefficient (full table scans).
+
+**Fix:**
+- Recreated the table with `PARTITION BY toYYYYMM(event_ts)` for monthly partition pruning
+- Set `ORDER BY (event_ts, event_id)` for efficient time-series sorting
+- Backfilled all 5,000 rows from `staging.historical_events`
+- Date-range query now runs in ~175ms (well under the 500ms target)
+Found session JSONL at /root/.claude/projects/-/8aebb3cd-1c61-40d0-b9ca-70c89ffdca8a.jsonl

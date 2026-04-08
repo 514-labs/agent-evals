@@ -1,0 +1,14 @@
+All five queries now run in under 100ms. Here's what was done and why each query is fast:
+
+**Root cause**: The table had `ORDER BY tuple()` — no sort key — so ClickHouse couldn't skip any data and did full 10M-row scans for every query.
+
+**Fix**: Rebuilt the table with:
+
+| Optimization | Covers |
+|---|---|
+| `ORDER BY (event_type, event_ts)` | Q1, Q2, Q3 — all filter on `event_type`, Q2 also on `event_ts` range |
+| `PROJECTION proj_by_ts ORDER BY (event_ts)` | Q4 — filters on `event_ts` only, no `event_type` |
+| `PROJECTION proj_by_user ORDER BY (user_id, event_ts)` | Q5 — filters on `user_id` only |
+
+The queries themselves didn't need to change — ClickHouse automatically selects the best projection for each query.
+Found session JSONL at /root/.claude/projects/-/a4d974e4-8639-44b6-9118-32be5da12ad8.jsonl

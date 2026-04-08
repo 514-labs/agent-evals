@@ -1,0 +1,15 @@
+11ms — well under the 200ms requirement. Here's a summary of what was done:
+
+**Root cause**: No consumer existed to move data from Redpanda into ClickHouse.
+
+**Fix**: Used ClickHouse's native Kafka engine integration:
+
+1. **`analytics.metrics_queue`** — a Kafka-engine table that connects to `REDPANDA_BROKER` (`localhost:9092`), subscribes to the `metrics` topic, and reads JSON messages
+2. **`analytics.metrics_mv`** — a materialized view that streams rows from the Kafka table into `analytics.realtime_metrics`, parsing the ISO timestamp string via `parseDateTime64BestEffort()`
+3. **`/workspace/setup-pipeline.ts`** — idempotent setup script using env vars (`process.env.CLICKHOUSE_URL`, `process.env.REDPANDA_BROKER`) so it can be re-run in any environment
+
+Results:
+- 6 aggregation groups across 3 hosts (host_a, host_b, host_c)
+- Checksum: 569 (matches seeded data exactly)
+- Query latency: ~11ms (< 200ms threshold)
+Found session JSONL at /root/.claude/projects/-/98ea4196-4209-4e02-8c79-867b4dbba758.jsonl

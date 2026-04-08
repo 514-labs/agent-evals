@@ -1,0 +1,76 @@
+This is a classic race condition. The fix is to make your app wait for Postgres to be ready before starting. Here are the common approaches:
+
+## Option 1: `wait-for-it.sh` or `dockerize` (Recommended for Docker)
+
+Add a startup script that polls until Postgres accepts connections:
+
+```bash
+# Download wait-for-it.sh
+curl -o wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
+chmod +x wait-for-it.sh
+```
+
+In your `docker-compose.yml`:
+```yaml
+services:
+  app:
+    command: ["./wait-for-it.sh", "db:5432", "--", "your-start-command"]
+    depends_on:
+      - db
+  db:
+    image: postgres
+```
+
+## Option 2: `depends_on` with healthcheck (Docker Compose v2+)
+
+```yaml
+services:
+  app:
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+```
+
+`depends_on` alone only waits for the container to *start*, not for Postgres to be *ready* — the healthcheck condition fixes that.
+
+## Option 3: Retry logic in the app itself (most resilient)
+
+Build retry logic into your connection code so the app handles transient failures gracefully regardless of orchestration:
+
+**Node.js example:**
+```js
+async function connectWithRetry(retries = 5, delay = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await pool.connect();
+      return;
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+```
+
+**Python (SQLAlchemy) example:**
+```python
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+@retry(stop=stop_after_attempt(5), wait=wait_fixed(2))
+def connect():
+    engine.connect()
+```
+
+## Recommendation
+
+Use **Option 2** (healthcheck) as your primary guard in Docker Compose, and also add **Option 3** (app-level retry) as a fallback. Relying solely on orchestration timing is fragile — databases can become temporarily unavailable after startup too (e.g., after a crash recovery).
+
+If you share your `docker-compose.yml` or startup code, I can apply the fix directly.
+Found session JSONL at /root/.claude/projects/-/8e853cce-8e87-433d-b740-eaf200f3765c.jsonl

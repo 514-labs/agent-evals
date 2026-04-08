@@ -1,0 +1,21 @@
+Everything passes. Here's a summary of what was found and what was built:
+
+---
+
+**Issues found in `raw.events`:**
+
+| Issue | Count | Root cause |
+|---|---|---|
+| Null event IDs | 5 rows | Missing primary key — causes gaps in reports |
+| Duplicate events | 5 duplicate groups (10 extra rows) | Same event ingested twice — inflates dashboard numbers |
+| Schema drift | 3 rows | `device_type` key in `properties` JSONB not part of the target schema |
+| Stale timestamps | 5 rows | Events from 2020 mixed with 2026 data |
+
+**What was created in `/workspace/`:**
+
+- **`checks.sql`** — DDL + 4 INSERT/SELECT queries that populate a `dq_checks` table. No `SELECT *`, no hardcoded connection strings.
+- **`run_checks.py`** — Python runner that reads `POSTGRES_URL` from the environment, executes the SQL, prints a summary, and exits with code `2` if any issues are found.
+- **`README.md`** — Operator docs explaining the checks, setup, and output table schema.
+
+The 4 check queries all run in ~17ms total (well under the 500ms threshold), and the 50 clean baseline rows are untouched.
+Found session JSONL at /root/.claude/projects/-/0e9bc163-99ab-4737-a53d-7eed3a40913d.jsonl

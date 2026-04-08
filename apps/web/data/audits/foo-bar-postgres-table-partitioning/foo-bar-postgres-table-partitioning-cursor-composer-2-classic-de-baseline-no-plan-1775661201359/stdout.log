@@ -1,0 +1,55 @@
+
+Exploring the codebase to locate the Postgres `events` table schema and migrations so we can implement date partitioning.
+
+
+
+
+
+
+
+
+
+
+
+Updating the init SQL to create `app.events` as a range-partitioned table on `created_at`. Checking how Postgres is run in this environment:
+
+
+Implementing a partitioned `app.events` table in the init script and applying it to the running database for verification.
+
+
+Using a plain `created_at` partition key so partition pruning works for `WHERE created_at >= ...` queries. Replacing the expression-based key.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was implemented.
+
+### Change (`/scenario/init/postgres-setup.sql`)
+
+- **`app.events` is now `PARTITION BY RANGE (created_at)`** so date predicates can use partition pruning.
+- **Monthly child tables**: `events_2026_01` (`2026-01-01` ≤ `created_at` &lt; `2026-02-01`), `events_2026_02` (through `2026-03-01`).
+- **`events_default`**: `DEFAULT` partition so rows outside those ranges still insert cleanly.
+- **`idx_events_created_at`** is created on the parent; PostgreSQL builds matching indexes on each partition.
+
+Column layout and the `720`-row seed `INSERT` are unchanged, so existing checks on counts and queries still apply.
+
+### Verification (against the running DB)
+
+- Parent `relkind` is **`p`** (partitioned table).
+- **`pg_inherits`**: 3 partitions attached.
+- **`SELECT count(*) FROM app.events`**: **720**.
+- **`EXPLAIN`** for  
+  `WHERE created_at >= '2026-01-15' AND created_at < '2026-01-16'`  
+  shows a **bitmap index scan only on `events_2026_01`**, i.e. pruning to a single month partition.
+
+The script was applied with `DROP TABLE IF EXISTS app.events CASCADE` followed by `-f /scenario/init/postgres-setup.sql` so the live database matches what a fresh init run would create.

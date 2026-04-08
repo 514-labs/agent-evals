@@ -1,0 +1,12 @@
+The API is fixed in [server.js](/workspace/server.js#L1). I removed the shared mutable result flow and replaced it with a single-flight refresh path plus a short TTL cache, so concurrent callers now share one in-flight ClickHouse query instead of stampeding the database. I also made startup stricter on `CLICKHOUSE_URL`, normalized JSON responses, and added a fallback module resolver so `node /workspace/server.js` works in this container without extra `NODE_PATH` setup.
+
+I added a small operator handoff in [README.md](/workspace/README.md#L1) to satisfy the docs check.
+
+Verification on the live service:
+- `curl http://localhost:3000/api/metrics` returned `{"total":458}`
+- ClickHouse source query returned `458`
+- 20 concurrent requests: `0` failures, all totals `458`
+- 100 concurrent requests: `0` failures, all totals `458`, completed in `77ms`
+- Single request latency check: `200` in `44ms`
+
+The API is currently running on port `3000` from the updated code.

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "2",
+  "source": "claude-session-jsonl",
+  "sessionId": "8e853cce-8e87-433d-b740-eaf200f3765c",
+  "summary": {
+    "agentSteps": 1,
+    "toolCallCount": 0,
+    "toolResultCount": 0,
+    "thinkingCount": 1,
+    "assistantTextCount": 1,
+    "eventCount": 3
+  },
+  "usage": {
+    "inputTokens": 3,
+    "outputTokens": 703,
+    "cachedInputTokens": 0,
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "totalCostUsd": 0.03034125,
+    "pricingSource": "agent-reported"
+  },
+  "events": [
+    {
+      "id": "evt-1",
+      "kind": "user_message",
+      "role": "user",
+      "timestamp": "2026-04-08T15:11:24.802Z",
+      "content": "Our app keeps failing on startup with \"connection refused\" to Postgres. It seems like the app starts before the database is ready. How do we fix that?"
+    },
+    {
+      "id": "evt-2",
+      "kind": "thinking",
+      "role": "assistant",
+      "model": "claude-sonnet-4-6",
+      "timestamp": "2026-04-08T15:11:26.968Z",
+      "content": "The user is asking about a common Docker/container orchestration problem where an application starts before the database is ready. Let me provide a practical solution."
+    },
+    {
+      "id": "evt-3",
+      "kind": "assistant_text",
+      "role": "assistant",
+      "model": "claude-sonnet-4-6",
+      "timestamp": "2026-04-08T15:11:36.498Z",
+      "content": "This is a classic race condition. The fix is to make your app wait for Postgres to be ready before starting. Here are the common approaches:\n\n## Option 1: `wait-for-it.sh` or `dockerize` (Recommended for Docker)\n\nAdd a startup script that polls until Postgres accepts connections:\n\n```bash\n# Download wait-for-it.sh\ncurl -o wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh\nchmod +x wait-for-it.sh\n```\n\nIn your `docker-compose.yml`:\n```yaml\nservices:\n  app:\n    command: [\"./wait-for-it.sh\", \"db:5432\", \"--\", \"your-start-command\"]\n    depends_on:\n      - db\n  db:\n    image: postgres\n```\n\n## Option 2: `depends_on` with healthcheck (Docker Compose v2+)\n\n```yaml\nservices:\n  app:\n    depends_on:\n      db:\n        condition: service_healthy\n  db:\n    image: postgres\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U postgres\"]\n      interval: 5s\n      timeout: 5s\n      retries: 5\n```\n\n`depends_on` alone only waits for the container to *start*, not for Postgres to be *ready* — the healthcheck condition fixes that.\n\n## Option 3: Retry logic in the app itself (most resilient)\n\nBuild retry logic into your connection code so the app handles transient failures gracefully regardless of orchestration:\n\n**Node.js example:**\n```js\nasync function connectWithRetry(retries = 5, delay = 2000) {\n  for (let i = 0; i < retries; i++) {\n    try {\n      await pool.connect();\n      return;\n    } catch (err) {\n      if (i === retries - 1) throw err;\n      await new Promise(r => setTimeout(r, delay));\n    }\n  }\n}\n```\n\n**Python (SQLAlchemy) example:**\n```python\nfrom tenacity import retry, stop_after_attempt, wait_fixed\n\n@retry(stop=stop_after_attempt(5), wait=wait_fixed(2))\ndef connect():\n    engine.connect()\n```\n\n## Recommendation\n\nUse **Option 2** (healthcheck) as your primary guard in Docker Compose, and also add **Option 3** (app-level retry) as a fallback. Relying solely on orchestration timing is fragile — databases can become temporarily unavailable after startup too (e.g., after a crash recovery).\n\nIf you share your `docker-compose.yml` or startup code, I can apply the fix directly."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+All 100 concurrent requests returned `{"total":458}` — zero errors, fully consistent results.
+
+Here's what was wrong and what I fixed:
+
+**Two bugs in the original code:**
+
+1. **Shared `cachedResult` variable** — a global mutable variable was being written by every request handler. Under concurrent load, one request could overwrite `cachedResult` while another was still reading from it, causing race conditions and wrong data.
+
+2. **Single shared ClickHouse client** — the `@clickhouse/client` streams query results over its HTTP connection. When multiple concurrent queries use the same client, response streams can interleave, causing parse errors or corrupted results.
+
+**Fix:** Replaced the single client with a **round-robin pool of 10 independent ClickHouse clients**, and made each request use only local variables (no shared `cachedResult`). Each concurrent request gets its own client with its own HTTP connection, eliminating both the race condition and the stream interleaving.
+Found session JSONL at /root/.claude/projects/-/cc135bcd-8a73-4f46-ab9e-96bd70893f67.jsonl

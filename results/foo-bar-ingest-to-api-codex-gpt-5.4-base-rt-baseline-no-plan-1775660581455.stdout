@@ -1,0 +1,16 @@
+Built the pipeline in `/workspace` and loaded the data into ClickHouse. The bootstrap at [bootstrap.sh](/workspace/bootstrap.sh) creates `analytics.product_events`, `analytics.top_products`, `analytics.funnel`, and `analytics.hourly_activity`, then copies all 30 rows from `raw.product_events` in Postgres into ClickHouse and refreshes the aggregate tables.
+
+The API at [server.js](/workspace/server.js) is live on port `3000` and serves:
+- `GET /api/top-products`
+- `GET /api/funnel`
+- `GET /api/hourly`
+
+I also added [package.json](/workspace/package.json) and a short handoff doc at [README.md](/workspace/README.md).
+
+Verification passed locally:
+- ClickHouse `analytics.product_events` has `30` rows and preserved `cart`, `purchase`, `view`
+- `curl http://localhost:3000/api/top-products` returns product metrics with total revenue `332.47`
+- `curl http://localhost:3000/api/funnel` returns `view`, `cart`, `purchase` with monotonic user counts `12 >= 8 >= 4`
+- `curl http://localhost:3000/api/hourly` returns hourly activity rows
+- Unknown routes return `404` JSON
+- Endpoint latencies were about `3-5ms` locally

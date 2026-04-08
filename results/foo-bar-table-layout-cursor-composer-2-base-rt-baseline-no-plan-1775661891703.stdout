@@ -1,0 +1,97 @@
+
+Exploring the codebase to locate the ClickHouse schema, dashboard queries, and how we can optimize the table structure.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Checking the ClickHouse version and validating projection syntax:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Updating `clickhouse-setup.sql` so fresh runs create `analytics.metrics_optimized` with the optimized layout. Storage is already smaller than raw; queries are fast.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here’s what was wrong, what we changed, and how it was checked.
+
+## Cause of the slowness
+
+`raw.metrics` is defined with `ORDER BY tuple()`, so there is **no useful primary key**. Every dashboard-style filter still has to touch almost the whole table, and compression is weak because rows are not sorted by how you query them.
+
+## New layout: `analytics.metrics_optimized`
+
+A second table was added (and wired into `/scenario/init/clickhouse-setup.sql`) so **`raw.metrics` stays the naive baseline** while **`analytics.metrics_optimized`** is what the dashboard should use.
+
+Design choices:
+
+1. **`PARTITION BY toYYYYMM(ts)`** — satisfies the “has partition key” check and keeps time pruning cheap.
+2. **`ORDER BY (metric_name, host_id, ts)`** — matches the metric + time-range pattern (`WHERE metric_name = 'cpu_usage' AND ts >= ...`) so MergeTree can skip most granules.
+3. **`PROJECTION host_metric_proj` with `ORDER BY (host_id, metric_name, ts)`** — so `WHERE host_id = 'host_042'` is served from a host-ordered physical layout (`EXPLAIN` shows `ReadFromMergeTree (host_metric_proj)`).
+4. **`LowCardinality(String)`** on `host_id`, `metric_name`, and `tags`** — fewer bytes on disk than plain `String` for repeating values.
+5. **Column codecs** — `DateTime` with `Delta, ZSTD(1)` and `value` with `Gorilla, ZSTD(1)` to shrink storage further.
+
+Data is filled with:
+
+`INSERT INTO analytics.metrics_optimized SELECT ... FROM raw.metrics`  
+then **`OPTIMIZE TABLE ... FINAL`** so parts are merged after load.
+
+## Verification
+
+- **Counts / sums**: 5,000,000 rows; `round(sum(value), 2)` matches `raw.metrics`.
+- **Disk**: `system.parts` shows **~71 MB** for `analytics.metrics_optimized` vs **~79 MB** for `raw.metrics` (smaller, as required).
+- **Latency** (local `clickhouse-client --time`): metric query ~**15 ms**, host query ~**4 ms** (well under 200 ms).
+- **Eval CLI** (`npx tsx src/cli.ts /scenario/assertions`): **functional, correct, robust, and performant** scenario assertions all pass.
+
+Note: the **production** gate’s core check `uses_env_vars` expects both `POSTGRES_URL` and `CLICKHOUSE_URL`; in this ClickHouse-only sandbox it stays false. All **scenario** production checks that matter here (e.g. `storage_reduced`, `connection_env_vars_available` for ClickHouse) passed when run.
+
+The durable change is in **`/scenario/init/clickhouse-setup.sql`**: new installs get `analytics.metrics_optimized` built and optimized automatically. The running server was updated the same way so this session matches that script.

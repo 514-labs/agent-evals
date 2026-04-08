@@ -1,0 +1,12 @@
+Migration is fixed and verified. Here's what was wrong and what was done:
+
+**Root cause:** No sync script existed — the ClickHouse table was created but never populated.
+
+**What was built (`/workspace/sync.py`):**
+- Reads all rows from `app.sales` in PostgreSQL using explicit column names (no `SELECT *`)
+- Converts `NUMERIC(10,2)` → `float` and maps all types to their ClickHouse equivalents
+- Truncates then inserts into `analytics.sales` using `clickhouse_connect` (HTTP-based, since `CLICKHOUSE_URL` is an HTTP endpoint)
+- Reads connection strings from `POSTGRES_URL` / `CLICKHOUSE_URL` env vars — no hardcoded addresses
+
+**Result:** 15 rows synced, sum(amount) = 761.82 matches PostgreSQL exactly.
+Found session JSONL at /root/.claude/projects/-/9dfc5597-c9f2-4145-a061-821e663b3ee3.jsonl

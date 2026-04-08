@@ -1,0 +1,9 @@
+Built a dependency-free Node API in [server.js](/workspace/server.js) with `GET /api/events?limit=<n>&offset=<n>` on port `3000`. It reads `CLICKHOUSE_URL` from the environment, queries explicit columns from `analytics.events`, orders consistently by `event_ts, event_id`, returns `{ data, total, limit, offset }`, and validates pagination inputs. I also added [package.json](/workspace/package.json) and a short [README.md](/workspace/README.md).
+
+The service is running at `localhost:3000`. I verified it with direct requests and ClickHouse queries:
+- `curl http://localhost:3000/api/events?limit=3&offset=0` returned the first 3 events and `total: 15000`
+- `curl http://localhost:3000/api/events?limit=5&offset=5` returned a different first `event_id` than offset `0`
+- `SELECT count() FROM analytics.events` matched the API’s `total` exactly at `15000`
+- first-page latency was about `4-6ms` in repeated local checks
+
+If you want, I can also extend this to cursor pagination or add filtering by `event_type` / date range.

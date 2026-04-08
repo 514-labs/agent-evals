@@ -1,0 +1,13 @@
+All 5 rows have the correct region. Here's what the migration does:
+
+**Step 1 — `ADD COLUMN` with a DEFAULT expression** (metadata-only, ~instant, non-blocking). ClickHouse immediately serves the correct derived value for all existing rows without touching any data files.
+
+**Step 2 — `ALTER TABLE … UPDATE` mutation** (runs in the background, non-blocking to live traffic). `mutations_sync=1` makes the script wait until materialisation is done before exiting.
+
+**Backfill result:**
+- `u1_*` → `us-east`
+- `u2_*` → `eu-west`
+- `u3_*` → `unknown`
+
+New rows inserted without an explicit `region` will inherit the same DEFAULT expression automatically.
+Found session JSONL at /root/.claude/projects/-/ff772f69-b1d3-46c3-b64b-44600efed821.jsonl

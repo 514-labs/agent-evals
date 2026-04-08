@@ -1,0 +1,12 @@
+The table is fixed and the query runs correctly. Here's what changed:
+
+**Before:** `ORDER BY tuple()` — no sort key, every query does a full scan of all 2M rows.
+
+**After:** `ORDER BY (region, event_ts)` — rows are physically sorted by region first, then by date. ClickHouse can now skip granules that don't match the filter, dramatically reducing I/O for queries like:
+
+```sql
+WHERE region = 'us-east' AND event_ts >= '...' AND event_ts < '...'
+```
+
+`region` is first because it has low cardinality (3 values), making it an effective coarse filter. `event_ts` is second so date-range filtering within a region is also index-accelerated.
+Found session JSONL at /root/.claude/projects/-/0a9a641b-5b44-40e2-83f6-08c7309885ff.jsonl
