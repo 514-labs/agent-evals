@@ -5,6 +5,8 @@ const MODEL_ALIASES = new Map([
   ["composer", "composer-1.5"],
   ["composer-1.5", "composer-1.5"],
   ["composer 1.5", "composer-1.5"],
+  ["composer-2", "composer-2"],
+  ["composer 2", "composer-2"],
   ["gpt-5.1-codex-mini", "gpt-5.1-codex-mini"],
   ["gpt-5.1 codex mini", "gpt-5.1-codex-mini"],
   ["gpt-5 mini", "gpt-5-mini"],
@@ -17,6 +19,11 @@ const MODEL_PRICING = {
     inputPerMillion: 3.5,
     cachedInputPerMillion: 0.35,
     outputPerMillion: 17.5,
+  },
+  "composer-2": {
+    inputPerMillion: 4,
+    cachedInputPerMillion: 0.4,
+    outputPerMillion: 20,
   },
   "gpt-5-mini": {
     inputPerMillion: 0.25,

@@ -46,7 +46,6 @@ struct BuildPlan {
 }
 
 pub async fn execute(args: BuildArgs) -> Result<()> {
-    preflight::check_docker()?;
     let plan = build_plan(&args)?;
 
     if args.dry_run {
@@ -60,6 +59,8 @@ pub async fn execute(args: BuildArgs) -> Result<()> {
         );
         return Ok(());
     }
+
+    preflight::check_docker()?;
 
     println!(
         "Building scenario={} harness={} agent={} model={} version={}",

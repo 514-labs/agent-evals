@@ -159,9 +159,8 @@ const DEFAULT_AGENTS: &[(&str, &str)] = &[
 ];
 
 pub async fn execute(args: RunArgs) -> Result<()> {
-    preflight::check_docker()?;
-
     if args.matrix {
+        preflight::check_docker()?;
         let docker = Docker::connect_with_local_defaults()
             .context("Failed to connect to Docker daemon")?;
 
@@ -332,6 +331,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         .scenario
         .as_deref()
         .context("--scenario is required unless --matrix is enabled")?;
+    preflight::check_docker()?;
     let docker =
         Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
     info!(scenario, harness = %args.harness, "Starting eval run");
