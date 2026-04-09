@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -10,9 +11,21 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import type { LeaderboardEntry } from "../../data/results";
+import { cn } from "@workspace/ui/lib/utils";
+import type { LeaderboardEntry } from "../../data/results-core";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
+import { FilterSelect } from "../../components/leaderboard/filter-select";
+import { GatePips } from "../../components/leaderboard/gate-pips";
+import { GateLegend } from "../../components/leaderboard/gate-legend";
+import { MetadataBar } from "../../components/leaderboard/metadata-bar";
+import { StepsRow } from "../../components/leaderboard/steps-row";
 
-const gateNames = [
+const GATE_NAMES = [
   "NO GATES",
   "FUNCTIONAL",
   "CORRECT",
@@ -20,21 +33,6 @@ const gateNames = [
   "PERFORMANT",
   "PRODUCTION",
 ];
-
-function GatePips({ gate }: { gate: number }) {
-  return (
-    <div className="flex gap-[3px]">
-      {[1, 2, 3, 4, 5].map((g) => (
-        <div
-          key={g}
-          className={`w-[14px] h-[14px] border-[2px] border-black ${
-            g <= gate ? "bg-[#B91C1C]" : "bg-transparent"
-          }`}
-        />
-      ))}
-    </div>
-  );
-}
 
 function formatScenarioName(id: string): string {
   const words = id.replace(/^foo-bar-/, "").split("-");
@@ -44,12 +42,12 @@ function formatScenarioName(id: string): string {
 }
 
 function formatScore(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return "—";
+  if (value == null || Number.isNaN(value)) return "\u2014";
   return value.toFixed(2);
 }
 
 function formatTime(seconds: number | null | undefined): string {
-  if (seconds == null || seconds === 0) return "—";
+  if (seconds == null || seconds === 0) return "\u2014";
   if (seconds < 60) return `${seconds}s`;
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -57,7 +55,7 @@ function formatTime(seconds: number | null | undefined): string {
 }
 
 function formatCost(usd: number | null | undefined): string {
-  if (usd == null || usd === 0) return "—";
+  if (usd == null || usd === 0) return "\u2014";
   return `$${usd.toFixed(2)}`;
 }
 
@@ -70,27 +68,29 @@ function getLeaderboardEntryKey(entry: {
   return `${entry.scenario}-${entry.run_id ?? entry.result_file ?? entry.rank}`;
 }
 
-function FilterChip({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function RunIdCell({ runId }: { runId: string | undefined }) {
+  if (!runId) {
+    return (
+      <span className="font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground">
+        {"\u2014"}
+      </span>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`text-xs uppercase tracking-[0.15em] px-3 py-1.5 border-[2px] transition-colors cursor-pointer ${
-        active
-          ? "border-black bg-black text-white"
-          : "border-black/30 text-black/50 hover:border-black hover:text-black"
-      }`}
-    >
-      {label}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground block max-w-[100px] truncate cursor-default">
+          {runId}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="font-[family-name:var(--font-mono)] text-xs"
+      >
+        {runId}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -98,65 +98,126 @@ type LeaderboardClientProps = {
   allEntries: LeaderboardEntry[];
   scenarios: string[];
   harnesses: string[];
+  models: string[];
+  personas: string[];
   agents: string[];
   auditRunIds: Record<string, string[]>;
-  initialFilters: {
-    scenario?: string;
-    agent?: string;
-    harness?: string;
-  };
 };
 
-export function LeaderboardClient({
+function LeaderboardClientInner({
   allEntries,
   scenarios,
   harnesses,
+  models,
+  personas,
   agents,
   auditRunIds,
-  initialFilters,
 }: LeaderboardClientProps) {
-  const [scenarioFilter, setScenarioFilter] = useState(initialFilters.scenario);
-  const [agentFilter, setAgentFilter] = useState(initialFilters.agent);
-  const [harnessFilter, setHarnessFilter] = useState(initialFilters.harness);
+  const searchParams = useSearchParams();
+  const [scenarioFilter, setScenarioFilter] = useState(
+    searchParams.get("scenario") ?? "__all__",
+  );
+  const [agentFilter, setAgentFilter] = useState(
+    searchParams.get("agent") ?? "__all__",
+  );
+  const [harnessFilter, setHarnessFilter] = useState(
+    searchParams.get("harness") ?? "__all__",
+  );
+  const [modelFilter, setModelFilter] = useState("__all__");
+  const [personaFilter, setPersonaFilter] = useState("__all__");
+  const [minGateFilter, setMinGateFilter] = useState("__all__");
 
   const updateUrl = useCallback(
-    (filters: { scenario?: string; agent?: string; harness?: string }) => {
+    (filters: {
+      scenario?: string;
+      agent?: string;
+      harness?: string;
+    }) => {
       const params = new URLSearchParams();
-      if (filters.scenario) params.set("scenario", filters.scenario);
-      if (filters.agent) params.set("agent", filters.agent);
-      if (filters.harness) params.set("harness", filters.harness);
+      if (filters.scenario && filters.scenario !== "__all__")
+        params.set("scenario", filters.scenario);
+      if (filters.agent && filters.agent !== "__all__")
+        params.set("agent", filters.agent);
+      if (filters.harness && filters.harness !== "__all__")
+        params.set("harness", filters.harness);
       const qs = params.toString();
-      window.history.replaceState(null, "", qs ? `/leaderboard?${qs}` : "/leaderboard");
+      window.history.replaceState(
+        null,
+        "",
+        qs ? `/leaderboard?${qs}` : "/leaderboard",
+      );
     },
     [],
   );
 
   const setFilter = useCallback(
-    (key: "scenario" | "agent" | "harness", value: string | undefined) => {
-      const updated = { scenario: scenarioFilter, agent: agentFilter, harness: harnessFilter, [key]: value };
-      if (key === "scenario") setScenarioFilter(value);
-      if (key === "agent") setAgentFilter(value);
-      if (key === "harness") setHarnessFilter(value);
-      updateUrl(updated);
+    (
+      key:
+        | "scenario"
+        | "agent"
+        | "harness"
+        | "model"
+        | "persona"
+        | "minGate",
+      value: string,
+    ) => {
+      const v = value === "__all__" ? "__all__" : value;
+      if (key === "scenario") setScenarioFilter(v);
+      if (key === "agent") setAgentFilter(v);
+      if (key === "harness") setHarnessFilter(v);
+      if (key === "model") setModelFilter(v);
+      if (key === "persona") setPersonaFilter(v);
+      if (key === "minGate") setMinGateFilter(v);
+
+      if (key === "scenario" || key === "agent" || key === "harness") {
+        const updated = {
+          scenario: key === "scenario" ? v : scenarioFilter,
+          agent: key === "agent" ? v : agentFilter,
+          harness: key === "harness" ? v : harnessFilter,
+        };
+        updateUrl(updated);
+      }
     },
     [scenarioFilter, agentFilter, harnessFilter, updateUrl],
   );
 
   const entries = useMemo(() => {
-    const hasFilter = scenarioFilter || agentFilter || harnessFilter;
+    const isActive = (v: string) => v !== "__all__";
+    const hasFilter =
+      isActive(scenarioFilter) ||
+      isActive(agentFilter) ||
+      isActive(harnessFilter) ||
+      isActive(modelFilter) ||
+      isActive(personaFilter) ||
+      isActive(minGateFilter);
+
     if (!hasFilter) return allEntries;
+
+    const minGate = isActive(minGateFilter)
+      ? parseInt(minGateFilter, 10)
+      : 0;
+
     return allEntries
       .filter(
         (e) =>
-          (!scenarioFilter || e.scenario === scenarioFilter) &&
-          (!agentFilter || e.agent === agentFilter) &&
-          (!harnessFilter || e.harness === harnessFilter),
+          (!isActive(scenarioFilter) || e.scenario === scenarioFilter) &&
+          (!isActive(agentFilter) || e.agent === agentFilter) &&
+          (!isActive(harnessFilter) || e.harness === harnessFilter) &&
+          (!isActive(modelFilter) || e.model === modelFilter) &&
+          (!isActive(personaFilter) ||
+            e.run_metadata?.persona === personaFilter) &&
+          e.highest_gate >= minGate,
       )
       .map((e, i) => ({ ...e, rank: i + 1 }));
-  }, [allEntries, scenarioFilter, agentFilter, harnessFilter]);
-
-  const top3 = entries.slice(0, 3);
-  const hasFilter = scenarioFilter || agentFilter || harnessFilter;
+  }, [
+    allEntries,
+    scenarioFilter,
+    agentFilter,
+    harnessFilter,
+    modelFilter,
+    personaFilter,
+    minGateFilter,
+  ]);
 
   function auditHref(entry: LeaderboardEntry): string {
     const runId = entry.run_id ?? "";
@@ -166,200 +227,198 @@ export function LeaderboardClient({
       : `/audit/${entry.scenario}`;
   }
 
+  const metadataLabel = `All Rankings \u00B7 ${entries.length} runs`;
+
   return (
-    <div className="py-12">
-      <div className="mb-12">
-        <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[7rem] tracking-tight uppercase leading-[0.85]">
-          LEADER
-          <br />
-          BOARD
+    <div className="py-12 flex flex-col gap-5">
+      {/* Hero */}
+      <div className="pt-12 flex flex-col gap-5">
+        <h1 className="font-[family-name:var(--font-display)] text-[44px] font-semibold leading-[51px] text-foreground">
+          Leaderboard
         </h1>
-        <p className="mt-4 text-xs uppercase tracking-wider text-black/50 max-w-md leading-relaxed">
-          Ranked by highest gate cleared, then gated score within the reached gate
-          based on passed core and scenario assertions.
-          {hasFilter
-            ? ` Showing ${entries.length} runs.`
-            : ` ${entries.length} runs across ${scenarios.length} scenarios.`}
+        <p className="font-[family-name:var(--font-display)] text-lg leading-7 text-muted-foreground">
+          All benchmark runs across agents, scenarios, harnesses, and prompt
+          variants. Sort and filter to compare quality, cost, and efficiency
+          across configurations. Click on a run to see full results.
         </p>
       </div>
 
-      <div className="mb-8 space-y-3">
-        {agents.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/40 w-20">Agent</span>
-            <FilterChip onClick={() => setFilter("agent", undefined)} active={!agentFilter} label="ALL" />
-            {agents.map((a) => (
-              <FilterChip key={a} onClick={() => setFilter("agent", a)} active={agentFilter === a} label={a} />
-            ))}
-          </div>
-        )}
-        {harnesses.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/40 w-20">Harness</span>
-            <FilterChip onClick={() => setFilter("harness", undefined)} active={!harnessFilter} label="ALL" />
-            {harnesses.map((h) => (
-              <FilterChip key={h} onClick={() => setFilter("harness", h)} active={harnessFilter === h} label={h} />
-            ))}
-          </div>
-        )}
-        {scenarios.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-black/40 w-20">Scenario</span>
-            <FilterChip onClick={() => setFilter("scenario", undefined)} active={!scenarioFilter} label="ALL" />
-            {scenarios.map((s) => (
-              <FilterChip key={s} onClick={() => setFilter("scenario", s)} active={scenarioFilter === s} label={formatScenarioName(s)} />
-            ))}
-          </div>
-        )}
+      {/* Metadata bar + Filters */}
+      <div className="flex flex-col gap-5">
+        <MetadataBar label={metadataLabel} />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterSelect
+            label="AGENT"
+            value={agentFilter}
+            options={agents.map((a) => ({ value: a, label: a }))}
+            onValueChange={(v) => setFilter("agent", v)}
+          />
+          {personas.length > 0 && (
+            <FilterSelect
+              label="PERSONA"
+              value={personaFilter}
+              options={personas.map((p) => ({ value: p, label: p }))}
+              onValueChange={(v) => setFilter("persona", v)}
+            />
+          )}
+          <FilterSelect
+            label="HARNESS"
+            value={harnessFilter}
+            options={harnesses.map((h) => ({ value: h, label: h }))}
+            onValueChange={(v) => setFilter("harness", v)}
+          />
+          <FilterSelect
+            label="SCENARIO"
+            value={scenarioFilter}
+            options={scenarios.map((s) => ({
+              value: s,
+              label: formatScenarioName(s),
+            }))}
+            onValueChange={(v) => setFilter("scenario", v)}
+          />
+          {models.length > 1 && (
+            <FilterSelect
+              label="MODEL"
+              value={modelFilter}
+              options={models.map((m) => ({ value: m, label: m }))}
+              onValueChange={(v) => setFilter("model", v)}
+            />
+          )}
+          <FilterSelect
+            label="MIN GATE"
+            value={minGateFilter}
+            options={[1, 2, 3, 4, 5].map((g) => ({
+              value: String(g),
+              label: GATE_NAMES[g] ?? `GATE ${g}`,
+            }))}
+            onValueChange={(v) => setFilter("minGate", v)}
+          />
+        </div>
       </div>
 
-      {top3.length >= 3 && (
-        <div className="grid md:grid-cols-3 gap-0 mb-16">
-          {top3.map((entry, i) => (
-            <div
-              key={getLeaderboardEntryKey(entry)}
-              className={`border-[3px] border-black p-6 ${
-                i === 0
-                  ? "bg-[#B91C1C] md:row-start-1"
-                  : i === 1
-                    ? "border-t-0 md:border-t-[3px] md:border-l-0 bg-black text-white"
-                    : "border-t-0 md:border-t-[3px] md:border-l-0"
-              }`}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <span
-                  className={`font-[family-name:var(--font-display)] text-6xl lg:text-7xl tracking-tight ${
-                    i === 0
-                      ? "text-black/40"
-                      : i === 1
-                        ? "text-white/40"
-                        : "text-black/30"
-                  }`}
-                >
-                  #{entry.rank}
-                </span>
-                <span
-                  className={`text-xs font-bold uppercase tracking-[0.2em] border-[2px] px-2 py-0.5 mt-2 ${
-                    i === 1
-                      ? "border-white text-white"
-                      : "border-black text-black"
-                  }`}
-                >
-                  {gateNames[entry.highest_gate]}
-                </span>
-              </div>
-              <h3 className="font-[family-name:var(--font-display)] text-xl lg:text-2xl uppercase tracking-tight leading-[0.9]">
-                <Link href={auditHref(entry)} className="hover:underline">
-                  {formatScenarioName(entry.scenario)}
-                </Link>
-              </h3>
-              <p
-                className={`mt-1 text-xs uppercase tracking-wider ${
-                  i === 1 ? "text-white/50" : "text-black/40"
-                }`}
-              >
-                {entry.agent} · {entry.harness}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="border-[3px] border-black">
-        <div className="px-6 py-3 bg-black text-white flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-[0.3em]">ALL RANKINGS</span>
-          <span className="text-xs uppercase tracking-[0.2em] text-white/70">{entries.length} RUNS</span>
-        </div>
+      {/* Gate legend + Table */}
+      <TooltipProvider>
+      <div className="flex flex-col gap-5">
+        <GateLegend />
 
         <Table>
           <TableHeader>
-            <TableRow className="border-b-[2px] border-black/15 hover:bg-transparent">
-              <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50 w-12 pl-6">#</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">SCENARIO</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">HARNESS</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">GATE</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">GATED SCORE</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50">TIME</TableHead>
-              <TableHead className="text-xs font-bold uppercase tracking-[0.2em] text-black/50 pr-6">COST</TableHead>
+            <TableRow className="border-b border-muted-foreground hover:bg-transparent">
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[44px] px-3 py-2">
+                #
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[240px] px-3 py-2">
+                Scenario
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[130px] px-3 py-2">
+                Agent
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[130px] px-3 py-2">
+                Model
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[110px] px-3 py-2">
+                Harness
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[130px] px-3 py-2">
+                Gates ▼
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[88px] px-3 py-2">
+                Score ▼
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[88px] px-3 py-2">
+                Time
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[76px] px-3 py-2">
+                Cost
+              </TableHead>
+              <TableHead className="font-[family-name:var(--font-display)] text-[10px] font-bold text-muted-foreground tracking-[1.5px] bg-background w-[100px] px-3 py-2">
+                Run ID
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry) => (
-              <TableRow
-                key={getLeaderboardEntryKey(entry)}
-                className={`border-b border-black/10 hover:bg-[#B91C1C]/5 transition-colors ${
-                  entry.rank === 1 ? "bg-[#B91C1C]/3" : ""
-                }`}
-              >
-                <TableCell className="pl-6">
-                  <span
-                    className={`font-[family-name:var(--font-display)] text-xl ${
-                      entry.rank === 1 ? "text-[#B91C1C]" : "text-black/25"
-                    }`}
-                  >
-                    {String(entry.rank).padStart(2, "0")}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Link href={auditHref(entry)} className="text-xs font-bold uppercase tracking-[0.1em] hover:underline">
-                    {formatScenarioName(entry.scenario)}
-                  </Link>
-                  <span className="block text-xs text-black/40 mt-0.5">
-                    {entry.agent} · {entry.model.replace("claude-", "").replace("-20250514", "")}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-xs text-black/50">{entry.harness}</span>
-                </TableCell>
-                <TableCell>
-                  <GatePips gate={entry.highest_gate} />
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`font-[family-name:var(--font-display)] text-2xl tracking-tight ${
-                      entry.rank === 1 ? "text-[#B91C1C]" : ""
-                    }`}
-                  >
-                    {formatScore(entry.normalized_score)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-xs tabular-nums text-black/50">
-                    {formatTime(entry.efficiency?.wallClockSeconds)}
-                  </span>
-                </TableCell>
-                <TableCell className="pr-6">
-                  <span className="text-xs tabular-nums text-black/50">
-                    {formatCost(entry.efficiency?.llmApiCostUsd)}
-                  </span>
-                </TableCell>
-              </TableRow>
-            ))}
+            {entries.map((entry) => {
+              const isLowScore = entry.normalized_score < 0.5;
+              return (
+                <TableRow
+                  key={getLeaderboardEntryKey(entry)}
+                  className="border-b border-muted-foreground h-14 hover:bg-secondary/50 transition-colors"
+                >
+                  <TableCell className="bg-background px-3 py-3">
+                    <span className="font-[family-name:var(--font-display)] text-base text-muted-foreground">
+                      {String(entry.rank).padStart(2, "0")}
+                    </span>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <Link
+                      href={auditHref(entry)}
+                      className="font-[family-name:var(--font-display)] text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {formatScenarioName(entry.scenario)}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground">
+                      {entry.agent}
+                    </span>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground">
+                      {entry.model}
+                    </span>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] text-muted-foreground bg-background px-1.5 py-0.5 rounded-sm">
+                      {entry.harness}
+                    </span>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <GatePips gate={entry.highest_gate} />
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <span
+                      className={cn(
+                        "font-[family-name:var(--font-display)] text-xl",
+                        isLowScore
+                          ? "text-accent"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {formatScore(entry.normalized_score)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <span className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground">
+                      {formatTime(entry.efficiency?.wallClockSeconds)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <span className="font-[family-name:var(--font-mono)] text-[11px] text-muted-foreground">
+                      {formatCost(entry.efficiency?.llmApiCostUsd)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="bg-background px-3 py-3">
+                    <RunIdCell runId={entry.run_id} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
+      </TooltipProvider>
 
-      <div className="mt-12 flex flex-wrap items-center justify-between gap-6">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-black/50">
-            Want to benchmark your agent or collaborate on the preview?
-          </p>
-        </div>
-        <div className="flex gap-4">
-          <Link
-            href="/docs/running-evals"
-            className="brutal-btn bg-[#B91C1C] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
-          >
-            RUN THE PREVIEW →
-          </Link>
-          <Link
-            href="/docs/add-eval/getting-started"
-            className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
-          >
-            ADD AN EVAL →
-          </Link>
-        </div>
-      </div>
+      {/* How it works */}
+      <StepsRow />
     </div>
+  );
+}
+
+export function LeaderboardClient(props: LeaderboardClientProps) {
+  return (
+    <Suspense>
+      <LeaderboardClientInner {...props} />
+    </Suspense>
   );
 }

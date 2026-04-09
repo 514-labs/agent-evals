@@ -3,32 +3,34 @@ import {
   getLeaderboardEntries,
   getUniqueScenarios,
   getUniqueHarnesses,
+  getUniqueModels,
+  getUniquePersonas,
 } from "../../data/results";
 import { getScenarioAuditRunIds } from "../../data/audits";
 import { LeaderboardClient } from "./leaderboard-client";
 
+export const dynamic = "force-static";
+
 function EmptyState() {
   return (
     <div className="py-24 text-center">
-      <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[7rem] tracking-tight uppercase leading-[0.85]">
-        LEADER
-        <br />
-        BOARD
+      <h1 className="font-[family-name:var(--font-display)] text-5xl md:text-[44px] tracking-tight leading-[51px] font-semibold">
+        Leaderboard
       </h1>
-      <p className="mt-8 text-sm uppercase tracking-wider text-black/50 max-w-md mx-auto">
+      <p className="mt-5 text-lg text-muted-foreground max-w-2xl mx-auto font-[family-name:var(--font-display)]">
         No eval results found yet. Run the research preview or help expand it
         with a new eval.
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-4">
         <Link
           href="/docs/running-evals"
-          className="brutal-btn bg-[#B91C1C] text-black border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
+          className="paper-btn paper-btn-primary px-8 py-3 text-sm font-bold uppercase tracking-[0.15em] font-[family-name:var(--font-mono)]"
         >
           RUN THE PREVIEW →
         </Link>
         <Link
           href="/docs/add-eval/getting-started"
-          className="brutal-btn bg-black text-white border-[3px] border-black px-8 py-3 text-sm font-bold uppercase tracking-[0.15em]"
+          className="paper-btn paper-btn-ghost px-8 py-3 text-sm font-bold uppercase tracking-[0.15em] font-[family-name:var(--font-mono)]"
         >
           ADD AN EVAL →
         </Link>
@@ -37,12 +39,7 @@ function EmptyState() {
   );
 }
 
-export default async function LeaderboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ scenario?: string; agent?: string; harness?: string }>;
-}) {
-  const { scenario, agent, harness } = await searchParams;
+export default function LeaderboardPage() {
   const allEntries = getLeaderboardEntries();
 
   if (allEntries.length === 0) {
@@ -51,6 +48,8 @@ export default async function LeaderboardPage({
 
   const scenarios = getUniqueScenarios();
   const harnesses = getUniqueHarnesses();
+  const models = getUniqueModels();
+  const personas = getUniquePersonas();
   const agents = [...new Set(allEntries.map((e) => e.agent))].sort();
 
   const auditRunIds: Record<string, string[]> = {};
@@ -64,9 +63,10 @@ export default async function LeaderboardPage({
       allEntries={allEntries}
       scenarios={scenarios}
       harnesses={harnesses}
+      models={models}
+      personas={personas}
       agents={agents}
       auditRunIds={auditRunIds}
-      initialFilters={{ scenario, agent, harness }}
     />
   );
 }
