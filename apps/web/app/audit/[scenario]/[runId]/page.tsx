@@ -10,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
+import { DecTag } from "@workspace/ui/components/dec-tag";
+import { DataTable } from "@workspace/ui/components/data-table";
 
 import {
   SectionHeading,
@@ -240,12 +242,7 @@ export default async function RunDetailPage({
               ]
                 .filter((v): v is string => Boolean(v))
                 .map((label) => (
-                  <span
-                    key={label}
-                    className="bg-card border border-secondary px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase text-chart-4 tracking-[1px] whitespace-nowrap"
-                  >
-                    {label}
-                  </span>
+                  <DecTag key={label}>{label}</DecTag>
                 ))}
             </div>
 
@@ -377,46 +374,23 @@ export default async function RunDetailPage({
           <section>
             <SectionHeading id="run-metrics">Run Metrics</SectionHeading>
 
-            <div className="mt-5">
-              {/* Header */}
-              <div className="flex border-b border-secondary h-[37px] items-center">
-                {["Runtime", "Steps", "Tokens", "Cost", "Assertions"].map((col) => (
-                  <div key={col} className="flex-1 px-[18px] py-3">
-                    <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-foreground">
-                      {col}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              {/* Row */}
-              <div className="flex border-b border-secondary h-[39px] items-center">
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground">
-                    {formatDuration(manifest.efficiency.wallClockSeconds)}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground">
-                    {manifest.efficiency.agentSteps}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground tabular-nums">
-                    {manifest.efficiency.tokensUsed.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground">
-                    ${manifest.efficiency.llmApiCostUsd.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground tabular-nums">
-                    {passedAssertions}/{totalAssertions}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <DataTable
+              className="mt-5"
+              columns={[
+                { key: "runtime", label: "Runtime" },
+                { key: "steps", label: "Steps" },
+                { key: "tokens", label: "Tokens" },
+                { key: "cost", label: "Cost" },
+                { key: "assertions", label: "Assertions" },
+              ]}
+              rows={[{
+                runtime: formatDuration(manifest.efficiency.wallClockSeconds),
+                steps: String(manifest.efficiency.agentSteps),
+                tokens: manifest.efficiency.tokensUsed.toLocaleString(),
+                cost: `$${manifest.efficiency.llmApiCostUsd.toFixed(2)}`,
+                assertions: `${passedAssertions}/${totalAssertions}`,
+              }]}
+            />
           </section>
 
           {/* ── Agent Trajectory ── */}
@@ -448,9 +422,7 @@ export default async function RunDetailPage({
                 </p>
                 <div className="flex flex-wrap gap-2.5 mt-2">
                   {context.infrastructure.services.map((svc) => (
-                    <span key={svc} className="bg-card border border-secondary px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase text-chart-4 tracking-[1px] whitespace-nowrap">
-                      {svc}
-                    </span>
+                    <DecTag key={svc}>{svc}</DecTag>
                   ))}
                 </div>
               </div>
@@ -498,19 +470,15 @@ export default async function RunDetailPage({
             <SectionHeading id="prompt">Prompt</SectionHeading>
             <div className="flex flex-wrap gap-2.5 mt-2">
               {runMeta?.persona && (
-                <span className="bg-card border border-secondary px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase text-chart-4 tracking-[1px] whitespace-nowrap">
-                  {runMeta.persona}
-                </span>
+                <DecTag>{runMeta.persona}</DecTag>
               )}
               {runMeta?.planMode && (
-                <span className="bg-card border border-secondary px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase text-chart-4 tracking-[1px] whitespace-nowrap">
-                  plan: {runMeta.planMode}
-                </span>
+                <DecTag>plan: {runMeta.planMode}</DecTag>
               )}
               {promptMatchesCurrent !== null && (
-                <span className="bg-card border border-secondary px-3 py-1.5 font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase text-chart-4 tracking-[1px] whitespace-nowrap">
+                <DecTag>
                   {promptMatchesCurrent ? "matches current" : "differs from current"}
-                </span>
+                </DecTag>
               )}
             </div>
             <div className="mt-3 border border-border overflow-hidden">
@@ -561,66 +529,33 @@ export default async function RunDetailPage({
               The hashes below let you verify this run used the exact image and prompt claimed.
             </SectionDescription>
 
-            {/* Table 1: Hashes */}
-            <div className="mt-5">
-              <div className="flex border-b border-secondary h-[37px] items-center">
-                {["Prompt SHA-256", "Run ID", "Harness"].map((col) => (
-                  <div key={col} className="flex-1 px-[18px] py-3">
-                    <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-foreground">
-                      {col}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex border-b border-secondary min-h-[39px] items-center">
-                <div className="flex-1 px-[18px] py-3 min-w-0">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground break-all">
-                    {runMeta?.promptSha256 ? `${runMeta.promptSha256.slice(0, 12)}…` : "—"}
-                    {promptMatchesCurrent === true && " matches current"}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3 min-w-0">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground break-all">
-                    {manifest.runId}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground">
-                    {manifest.harness}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <DataTable
+              className="mt-5"
+              columns={[
+                { key: "promptSha", label: "Prompt SHA-256" },
+                { key: "runId", label: "Run ID" },
+                { key: "harness", label: "Harness" },
+              ]}
+              rows={[{
+                promptSha: `${runMeta?.promptSha256?.slice(0, 12) ?? "—"}…${promptMatchesCurrent === true ? " matches current" : ""}`,
+                runId: manifest.runId,
+                harness: manifest.harness,
+              }]}
+            />
 
-            {/* Table 2: Versions */}
-            <div className="mt-5">
-              <div className="flex border-b border-secondary h-[37px] items-center">
-                {["Timestamp", "Agent · Model", "Version"].map((col) => (
-                  <div key={col} className="flex-1 px-[18px] py-3">
-                    <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-foreground">
-                      {col}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex border-b border-secondary min-h-[39px] items-center">
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground">
-                    {new Date(manifest.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground">
-                    {manifest.agent} · {manifest.model}
-                  </span>
-                </div>
-                <div className="flex-1 px-[18px] py-3">
-                  <span className="font-[family-name:var(--font-display)] text-xs text-muted-foreground">
-                    {manifest.version}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <DataTable
+              className="mt-5"
+              columns={[
+                { key: "timestamp", label: "Timestamp" },
+                { key: "agentModel", label: "Agent · Model" },
+                { key: "version", label: "Version" },
+              ]}
+              rows={[{
+                timestamp: new Date(manifest.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+                agentModel: `${manifest.agent} · ${manifest.model}`,
+                version: manifest.version,
+              }]}
+            />
           </section>
 
           {/* ── Debugging output ── */}
