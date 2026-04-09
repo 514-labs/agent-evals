@@ -1,4 +1,5 @@
 import { Nav } from "@/components/nav";
+import { Footer } from "@/components/footer";
 
 export default function AuditLayout({
   children,
@@ -6,9 +7,10 @@ export default function AuditLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white text-black font-[family-name:var(--font-display)] overflow-x-hidden">
-      <Nav showLeaderboard sticky fullWidth activeItem="audit" />
+    <div className="min-h-screen bg-background text-foreground font-[family-name:var(--font-display)] overflow-x-hidden">
+      <Nav variant="paper" />
       <div className="w-full">{children}</div>
+      <Footer />
     </div>
   );
 }
