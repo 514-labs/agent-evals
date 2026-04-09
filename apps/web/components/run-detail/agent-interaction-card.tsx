@@ -143,9 +143,9 @@ export function AgentInteractionCard({ trace }: AgentInteractionCardProps) {
               )}
             </div>
             {/* Content */}
-            {(event.content || event.input) && (
+            {(event.content ?? event["input"]) != null && (
               <p className="font-[family-name:var(--font-display)] text-[11px] leading-[16px] text-muted-foreground min-w-0 break-words">
-                {previewValue(event.content ?? event.input ?? "")}
+                {previewValue(event.content ?? event["input"] ?? "")}
               </p>
             )}
           </div>
