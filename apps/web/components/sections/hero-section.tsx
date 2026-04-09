@@ -25,7 +25,7 @@ export function HeroSection() {
         </span>
       </div>
 
-      <h1 className="font-[family-name:var(--font-display)] text-[44px] font-semibold leading-[51px] text-[color:var(--foreground)]">
+      <h1 className="font-[family-name:var(--font-display)] text-[28px] leading-[34px] sm:text-[36px] sm:leading-[42px] md:text-[44px] md:leading-[51px] font-semibold text-[color:var(--foreground)]">
         DEC Bench: A multi-gate evaluation framework for AI coding agents on
         data engineering tasks.
       </h1>
