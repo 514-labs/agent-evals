@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AnimatedLogo } from "./animated-logo";
+import { MobileMenu } from "./mobile-menu";
 
 interface NavProps {
   showLeaderboard?: boolean;
@@ -82,13 +83,19 @@ export function Nav({
                 href="https://github.com/514-labs/agent-evals"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors px-1.5 py-1 font-[family-name:var(--font-mono)]"
+                className="hidden lg:inline text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors px-1.5 py-1 font-[family-name:var(--font-mono)]"
               >
                 GitHub
               </a>
               <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--accent)] border border-[color:var(--secondary)] px-2 py-0.5 font-[family-name:var(--font-mono)]">
                 V0.1
               </span>
+              <MobileMenu
+                links={[
+                  ...sectionAnchors,
+                  { href: "https://github.com/514-labs/agent-evals", label: "GitHub" },
+                ]}
+              />
             </>
           ) : (
             <>
