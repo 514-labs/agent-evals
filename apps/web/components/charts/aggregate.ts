@@ -44,8 +44,15 @@ export function computeGateAttrition(entries: EvalResult[]): GateAttritionPoint[
   });
 }
 
+const AGENT_ORDER = ["Claude-Code", "Codex", "Cursor"];
+
 export function getAgentNames(entries: EvalResult[]): string[] {
-  return [...new Set(entries.map((e) => formatAgent(e.agent)))];
+  const names = [...new Set(entries.map((e) => formatAgent(e.agent)))];
+  return names.sort((a, b) => {
+    const ai = AGENT_ORDER.indexOf(a);
+    const bi = AGENT_ORDER.indexOf(b);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
 }
 
 // Cost vs Score scatter

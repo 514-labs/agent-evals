@@ -66,10 +66,10 @@ export function ScenariosSection() {
       </div>
 
       <div className="mt-4 relative">
-        <span className="font-[family-name:var(--font-display)] text-sm font-bold text-[color:var(--foreground)]">
-          Gate Attrition by Agent
-        </span>
-        <div className="mt-2 border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+        <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-3">
+            Gate Attrition by Agent
+          </span>
           <GateAttritionChart data={gateAttritionData} agents={agents} />
         </div>
         <SideNote>
@@ -97,6 +97,7 @@ export function ScenariosSection() {
         <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
           <LiftChart data={liftData} />
         </div>
+
         <SideNote>
           Lift is the median score delta between the two conditions (e.g. base
           infrastructure median to classic DE median) across all scenarios
@@ -170,6 +171,9 @@ export function ScenariosSection() {
 
       <div className="mt-4 relative">
         <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-3">
+            Cost vs Score
+          </span>
           <CostScoreChart allData={costScoreData} agents={agents} />
         </div>
         <SideNote>

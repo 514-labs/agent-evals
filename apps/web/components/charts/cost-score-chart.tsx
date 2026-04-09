@@ -89,7 +89,7 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
           </p>
         </div>
       ) : (
-        <ChartContainer config={config} className="h-[320px] w-full">
+        <ChartContainer config={config} className="aspect-auto h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 10, right: 10, bottom: 30, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />

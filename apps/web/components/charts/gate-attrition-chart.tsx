@@ -46,7 +46,7 @@ export function GateAttritionChart({ data, agents }: GateAttritionChartProps) {
 
   return (
     <div>
-      <ChartContainer config={config} className="h-[300px] w-full">
+      <ChartContainer config={config} className="aspect-auto h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />

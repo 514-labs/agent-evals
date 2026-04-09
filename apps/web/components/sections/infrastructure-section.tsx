@@ -27,7 +27,8 @@ export function InfrastructureSection() {
         All scenarios run against real databases, fully containerized.
       </p>
 
-      <div className="mt-6 border-b border-[color:var(--secondary)]">
+      {/* Desktop: horizontal 3-column table */}
+      <div className="mt-6 border-b border-[color:var(--secondary)] hidden sm:block">
         <div className="flex border-b border-[color:var(--secondary)]">
           {infrastructure.map((item) => (
             <div
@@ -35,13 +36,7 @@ export function InfrastructureSection() {
               className="flex-1 flex items-center gap-2.5 px-4 py-3"
             >
               <div className="size-6 flex items-center justify-center bg-white/95 border border-white rounded-sm overflow-hidden">
-                <img
-                  src={item.logo}
-                  alt={item.name}
-                  width={18}
-                  height={18}
-                  className="object-contain"
-                />
+                <img src={item.logo} alt={item.name} width={18} height={18} className="object-contain" />
               </div>
               <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)]">
                 {item.name}
@@ -51,16 +46,32 @@ export function InfrastructureSection() {
         </div>
         <div className="flex">
           {infrastructure.map((item) => (
-            <div
-              key={item.name}
-              className="flex-1 px-4 py-3"
-            >
+            <div key={item.name} className="flex-1 px-4 py-3">
               <p className="font-[family-name:var(--font-display)] text-xs leading-normal text-[color:var(--muted-foreground)]">
                 {item.description}
               </p>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Mobile: vertical stack */}
+      <div className="mt-6 sm:hidden">
+        {infrastructure.map((item) => (
+          <div key={item.name} className="border-b border-[color:var(--secondary)] py-4">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="size-6 flex items-center justify-center bg-white/95 border border-white rounded-sm overflow-hidden">
+                <img src={item.logo} alt={item.name} width={18} height={18} className="object-contain" />
+              </div>
+              <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)]">
+                {item.name}
+              </span>
+            </div>
+            <p className="font-[family-name:var(--font-display)] text-xs leading-normal text-[color:var(--muted-foreground)]">
+              {item.description}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   );

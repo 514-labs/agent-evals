@@ -37,7 +37,7 @@ export function HeroSection() {
           href="/docs/running-evals"
           className="paper-btn paper-btn-primary px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold"
         >
-          Run the evaluation
+          Run the Evaluation
         </Link>
         <a
           href="https://github.com/514-labs/agent-evals"
@@ -51,7 +51,7 @@ export function HeroSection() {
           href="/leaderboard"
           className="paper-btn paper-btn-ghost px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold text-[color:var(--chart-4)]"
         >
-          View results
+          View Results
         </Link>
       </div>
     </header>
