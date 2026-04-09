@@ -42,22 +42,7 @@ export function ResultsSection() {
 
   return (
     <div className="pt-6">
-
-      <p className="mt-6 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
-        We report initial results from the v0.1 evaluation for Codex, Claude
-        Code, and Cursor across 37 data engineering scenarios. All evaluation
-        runs were executed in identical containerized environments; complete run
-        data is available in the{" "}
-        <Link
-          href="/leaderboard"
-          className="underline decoration-[color:var(--accent)] underline-offset-2 hover:text-[color:var(--foreground)] transition-colors"
-        >
-          public leaderboard
-        </Link>
-        .
-      </p>
-
-      <div className="mt-6 overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b-2 border-[color:var(--foreground)]">

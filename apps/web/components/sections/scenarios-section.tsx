@@ -1,15 +1,46 @@
+import Link from "next/link";
 import { SectionHeading } from "../marketing/section-heading";
 import { SideNote } from "../marketing/side-note";
+import { GateAttritionChart } from "../charts/gate-attrition-chart";
+import { CostScoreChart } from "../charts/cost-score-chart";
+import { LiftChart } from "../charts/lift-chart";
+import { HarnessLiftChart } from "../charts/harness-lift-chart";
+import {
+  computeGateAttrition,
+  computeCostScore,
+  computeLiftData,
+  computeHarnessLift,
+  computePersonaLift,
+  computeEfficiency,
+  getAgentNames,
+} from "../charts/aggregate";
+import { getLeaderboardEntries } from "@/data/results";
 
-const gateThresholds = ["G1", "G2", "G3", "G4", "G5"];
+function formatCost(v: number): string {
+  return v < 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(0)}`;
+}
 
-const efficiencyRows = [
-  { agent: "Claude Code", medianCost: "\u2014", medianTokens: "\u2014", medianTime: "\u2014" },
-  { agent: "Codex", medianCost: "\u2014", medianTokens: "\u2014", medianTime: "\u2014" },
-  { agent: "Cursor", medianCost: "\u2014", medianTokens: "\u2014", medianTime: "\u2014" },
-];
+function formatTokens(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+  return String(Math.round(v));
+}
+
+function formatTime(s: number): string {
+  if (s < 60) return `${Math.round(s)}s`;
+  return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+}
 
 export function ScenariosSection() {
+  const entries = getLeaderboardEntries();
+  const agents = getAgentNames(entries);
+  const gateAttritionData = computeGateAttrition(entries);
+  const costScoreData = computeCostScore(entries);
+  const liftData = computeLiftData(entries, "base-rt", "classic-de");
+  const harnessLiftData = computeHarnessLift(entries, "base-rt", "classic-de");
+  const personaLiftData = computePersonaLift(entries);
+  const efficiencyData = computeEfficiency(entries);
+
   return (
     <section id="comparative-results" className="pt-10">
       <SectionHeading number={4} title="Comparative Results" />
@@ -37,14 +68,8 @@ export function ScenariosSection() {
         <span className="font-[family-name:var(--font-display)] text-sm font-bold text-[color:var(--foreground)]">
           Gate Attrition by Agent
         </span>
-        <div className="mt-2 border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[280px]">
-          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] text-center">
-            FIG. 1 &mdash; Gate attrition per agent &times; harness
-            <br />
-            <span className="font-[family-name:var(--font-display)] font-normal normal-case tracking-normal italic">
-              Chart visualization renders with evaluation data
-            </span>
-          </p>
+        <div className="mt-2 border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+          <GateAttritionChart data={gateAttritionData} agents={agents} />
         </div>
         <SideNote>
           This run scores 0.95. Three of four agents cluster between 0.95 and
@@ -68,14 +93,8 @@ export function ScenariosSection() {
       </div>
 
       <div className="mt-4 relative">
-        <div className="border border-[color:var(--border)] p-6 flex items-center justify-center min-h-[360px]">
-          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] text-center">
-            FIG. 2 &mdash; Gated score vs. efficiency per agent &times; harness
-            <br />
-            <span className="font-[family-name:var(--font-display)] font-normal normal-case tracking-normal italic">
-              Chart visualization renders with evaluation data
-            </span>
-          </p>
+        <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+          <LiftChart data={liftData} />
         </div>
         <SideNote>
           Lift is the median score delta between the two conditions (e.g. base
@@ -96,12 +115,6 @@ export function ScenariosSection() {
           run that fails at G1 and a $5.00 run that clears G5 are not
           comparable. The real question is: what does it cost to reach a given
           quality level?
-        </p>
-        <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
-          The table below shows the median cost, tokens, and time for each
-          agent, filtered to runs that cleared the selected gate. At G1
-          (Robust), you can see costs for production-quality results. The story
-          changes at each gate.
         </p>
       </div>
 
@@ -124,7 +137,7 @@ export function ScenariosSection() {
             </tr>
           </thead>
           <tbody>
-            {efficiencyRows.map((row) => (
+            {efficiencyData.map((row) => (
               <tr
                 key={row.agent}
                 className="border-b border-[color:var(--secondary)]"
@@ -133,13 +146,13 @@ export function ScenariosSection() {
                   {row.agent}
                 </td>
                 <td className="py-2.5 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
-                  {row.medianCost}
+                  {formatCost(row.medianCost)}
                 </td>
                 <td className="py-2.5 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
-                  {row.medianTokens}
+                  {formatTokens(row.medianTokens)}
                 </td>
                 <td className="py-2.5 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
-                  {row.medianTime}
+                  {formatTime(row.medianTime)}
                 </td>
               </tr>
             ))}
@@ -154,31 +167,9 @@ export function ScenariosSection() {
         </h3>
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
-        <span className="font-[family-name:var(--font-display)] text-sm text-[color:var(--muted-foreground)]">
-          Gate threshold selector:
-        </span>
-        <div className="flex gap-1.5">
-          {gateThresholds.map((g) => (
-            <span
-              key={g}
-              className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] border border-[color:var(--secondary)] bg-[color:var(--card)] px-3 py-1"
-            >
-              {g}
-            </span>
-          ))}
-        </div>
-      </div>
-
       <div className="mt-4 relative">
-        <div className="border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[280px]">
-          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] text-center">
-            FIG. 3 &mdash; Cost vs. score scatter plot
-            <br />
-            <span className="font-[family-name:var(--font-display)] font-normal normal-case tracking-normal italic">
-              Chart visualization renders with evaluation data
-            </span>
-          </p>
+        <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+          <CostScoreChart allData={costScoreData} agents={agents} />
         </div>
         <SideNote>
           Each dot is one benchmark run that cleared the selected gate
@@ -188,32 +179,18 @@ export function ScenariosSection() {
         </SideNote>
       </div>
 
-      <p className="mt-4 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
-        Each dot is one run at the selected gate threshold. Cost is LLM API
-        cost in USD. Score is the normalized score. The top-left region
-        represents high quality at low cost.
-      </p>
-
       {/* Harness / Prompt Lift */}
-      <div className="mt-8 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)] space-y-1">
-        <p className="font-bold text-[color:var(--foreground)]">
+      <div className="mt-8 space-y-0">
+        <p className="font-[family-name:var(--font-display)] text-[20px] font-bold text-[color:var(--muted-foreground)]">
           Harness Lift on Cost (at selected threshold)
         </p>
-        <p className="font-bold text-[color:var(--foreground)]">
+        <p className="font-[family-name:var(--font-display)] text-[20px] font-bold text-[color:var(--muted-foreground)]">
           Prompt Variant Lift on Tokens (at selected threshold)
         </p>
       </div>
 
       <div className="mt-4 relative">
-        <div className="border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[200px]">
-          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] text-center">
-            FIG. 4 &mdash; Harness &amp; prompt lift charts
-            <br />
-            <span className="font-[family-name:var(--font-display)] font-normal normal-case tracking-normal italic">
-              Chart visualization renders with evaluation data
-            </span>
-          </p>
-        </div>
+        <HarnessLiftChart harnessData={harnessLiftData} personaData={personaLiftData} />
         <SideNote>
           Same methodology as score lift, applied to cost and token metrics.
           Computed over runs at the selected gate threshold on both conditions.
@@ -221,7 +198,7 @@ export function ScenariosSection() {
         </SideNote>
       </div>
 
-      {/* Scenario-level detail */}
+      {/* Closing paragraph */}
       <div className="mt-8 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
         <p>
           Specialized tooling and domain-specific prompts both improve quality
@@ -231,25 +208,13 @@ export function ScenariosSection() {
         </p>
       </div>
 
-      <div className="mt-4 grid md:grid-cols-2 gap-0">
-        <div className="border border-[color:var(--border)] p-4 min-h-[240px] flex items-center justify-center">
-          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] text-center">
-            Where this run sits &mdash; this scenario
-            <br />
-            <span className="font-[family-name:var(--font-display)] font-normal normal-case tracking-normal italic">
-              Percentile chart
-            </span>
-          </p>
-        </div>
-        <div className="border border-[color:var(--border)] border-l-0 p-4 min-h-[240px] flex items-center justify-center">
-          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] text-center">
-            Score vs cost &mdash; this scenario
-            <br />
-            <span className="font-[family-name:var(--font-display)] font-normal normal-case tracking-normal italic">
-              Scatter plot
-            </span>
-          </p>
-        </div>
+      <div className="mt-4">
+        <Link
+          href="/leaderboard"
+          className="paper-btn paper-btn-primary px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold"
+        >
+          Explore the Leaderboard
+        </Link>
       </div>
     </section>
   );
