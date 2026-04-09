@@ -18,17 +18,17 @@ export function AccessSection() {
                 <>
                   <Link
                     href="/docs/running-evals"
-                    className="paper-btn paper-btn-primary px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold uppercase"
+                    className="paper-btn paper-btn-primary px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold"
                   >
-                    Run the Evaluation
+                    Run the evaluation
                   </Link>
                   <a
                     href="https://github.com/514-labs/agent-evals"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="paper-btn paper-btn-ghost px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold uppercase text-[color:var(--chart-4)]"
+                    className="paper-btn paper-btn-ghost px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold text-[color:var(--chart-4)]"
                   >
-                    View on GitHub
+                    View on Github
                   </a>
                 </>
               ),
@@ -41,15 +41,15 @@ export function AccessSection() {
                 <>
                   <Link
                     href="/docs/add-eval/getting-started"
-                    className="paper-btn paper-btn-ghost px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold uppercase text-[color:var(--chart-4)] border-[color:var(--muted-foreground)]"
+                    className="paper-btn paper-btn-ghost px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold text-[color:var(--chart-4)] border-[color:var(--muted-foreground)]"
                   >
-                    Contribute a Scenario
+                    Contribute a scenario
                   </Link>
                   <Link
                     href="/docs"
-                    className="paper-btn paper-btn-primary px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold uppercase"
+                    className="paper-btn paper-btn-primary px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold"
                   >
-                    Read the Docs
+                    Read the docs
                   </Link>
                 </>
               ),

@@ -74,8 +74,10 @@ export type LiftPoint = {
   agent: string;
   baseScore: number;
   baseCost: number;
+  baseTime: number;
   specScore: number;
   specCost: number;
+  specTime: number;
 };
 
 export function computeLiftData(entries: EvalResult[], baseHarness: string, specHarness: string): LiftPoint[] {
@@ -89,8 +91,10 @@ export function computeLiftData(entries: EvalResult[], baseHarness: string, spec
         agent: formatAgent(agent),
         baseScore: median(baseRuns.map((r) => r.normalized_score)),
         baseCost: median(baseRuns.map((r) => r.efficiency.llmApiCostUsd)),
+        baseTime: median(baseRuns.map((r) => r.efficiency.wallClockSeconds)),
         specScore: median(specRuns.map((r) => r.normalized_score)),
         specCost: median(specRuns.map((r) => r.efficiency.llmApiCostUsd)),
+        specTime: median(specRuns.map((r) => r.efficiency.wallClockSeconds)),
       };
     })
     .filter((p): p is LiftPoint => p !== null);

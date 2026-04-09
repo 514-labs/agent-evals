@@ -71,8 +71,8 @@ export function GateAttritionChart({ data, agents }: GateAttritionChartProps) {
                 dataKey={agent}
                 stroke={`var(--color-${agent})`}
                 strokeWidth={2}
-                dot={{ r: 5, fill: `var(--color-${agent})` }}
-                activeDot={{ r: 7 }}
+              dot={{ r: 4, fill: `var(--color-${agent})` }}
+              activeDot={{ r: 6 }}
               />
             ))}
           </LineChart>

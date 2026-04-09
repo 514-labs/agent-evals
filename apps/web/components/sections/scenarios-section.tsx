@@ -13,6 +13,7 @@ import {
   computePersonaLift,
   computeEfficiency,
   getAgentNames,
+  AGENT_LABELS,
 } from "../charts/aggregate";
 import { getLeaderboardEntries } from "@/data/results";
 
@@ -143,7 +144,7 @@ export function ScenariosSection() {
                 className="border-b border-[color:var(--secondary)]"
               >
                 <td className="py-2.5 pr-4 text-xs font-bold">
-                  {row.agent}
+                  {AGENT_LABELS[row.agent] ?? row.agent}
                 </td>
                 <td className="py-2.5 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
                   {formatCost(row.medianCost)}

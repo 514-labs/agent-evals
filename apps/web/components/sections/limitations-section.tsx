@@ -2,19 +2,19 @@ import { SectionHeading } from "../marketing/section-heading";
 
 const limitations = [
   {
-    kicker: "7.1 SAMPLE SIZE",
+    kicker: "6.1 SAMPLE SIZE",
     body: "Results are based on a limited number of runs per agent per scenario. Statistical significance claims require more data.",
   },
   {
-    kicker: "7.2 GATE BOUNDARY SUBJECTIVITY",
+    kicker: "6.2 GATE BOUNDARY SUBJECTIVITY",
     body: "The five-gate model imposes discrete quality levels. Performance within a gate is not captured by the gate label alone. The normalized score provides finer resolution.",
   },
   {
-    kicker: "7.3 VERSION SENSITIVITY",
+    kicker: "6.3 VERSION SENSITIVITY",
     body: "Agent capabilities change with model updates. Results reflect the model versions tested, not the agents in general.",
   },
   {
-    kicker: "7.4 DOMAIN COVERAGE",
+    kicker: "6.4 DOMAIN COVERAGE",
     body: "All scenarios are in the Foo Bar synthetic domain. Real-world data engineering tasks may present different challenges.",
   },
 ];
