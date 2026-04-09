@@ -8,6 +8,12 @@ interface HarnessLiftChartProps {
   personaData: LiftBarData[];
 }
 
+const AGENT_HEX: Record<string, string> = {
+  "Claude-Code": "#B91C1C",
+  Codex: "#1C1917",
+  Cursor: "#A8A29E",
+};
+
 function LiftBar({
   value,
   max,
@@ -21,14 +27,11 @@ function LiftBar({
 }) {
   const pct = max > 0 ? (value / max) * 100 : 0;
   return (
-    <div className="flex items-center gap-2 h-[18px]">
-      <div className="flex-1 relative h-[14px]">
-        <div
-          className="absolute inset-y-0 left-0 h-full"
-          style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }}
-        />
+    <div className="flex items-center h-[18px]">
+      <div className="relative h-[14px]" style={{ width: `${Math.min(pct, 100)}%` }}>
+        <div className="absolute inset-0 h-full" style={{ backgroundColor: color }} />
       </div>
-      <span className="font-[family-name:var(--font-display)] text-[11px] text-[color:var(--muted-foreground)] tabular-nums whitespace-nowrap shrink-0 w-[90px] text-right">
+      <span className="font-[family-name:var(--font-display)] text-[11px] text-[color:var(--muted-foreground)] tabular-nums whitespace-nowrap pl-2">
         {value.toFixed(2)} {label}
       </span>
     </div>
@@ -65,7 +68,7 @@ function LiftPanel({
   return (
     <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-5">
       <div className="flex items-baseline justify-between mb-5">
-        <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)]">
+        <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)]">
           {title}
         </span>
         <span className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[1px] text-[color:var(--chart-4)]">
@@ -74,25 +77,51 @@ function LiftPanel({
       </div>
 
       <div className="space-y-5">
-        {data.map((row) => (
-          <div key={row.agent}>
-            <div className="flex items-baseline justify-between mb-1.5">
-              <span className="font-[family-name:var(--font-display)] text-xs font-bold text-[color:var(--foreground)]">
-                {AGENT_LABELS[row.agent] ?? row.agent}
-              </span>
-              <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold text-[color:var(--accent)] tabular-nums">
-                {row.delta > 0 ? "+" : ""}{row.delta}%
-              </span>
+        {data.map((row) => {
+          const agentColor = AGENT_HEX[row.agent] ?? "#1C1917";
+          return (
+            <div key={row.agent}>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span
+                  className="font-[family-name:var(--font-display)] text-xs font-bold"
+                  style={{ color: agentColor }}
+                >
+                  {AGENT_LABELS[row.agent] ?? row.agent}
+                </span>
+                <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold text-[color:var(--accent)] tabular-nums">
+                  {row.delta > 0 ? "+" : ""}{row.delta}%
+                </span>
+              </div>
+              <div className="space-y-1">
+                <LiftBar value={row.before} max={maxScore} label={beforeLabel} color="var(--chart-4)" />
+                <LiftBar value={row.after} max={maxScore} label={afterLabel} color={agentColor} />
+              </div>
             </div>
-            <div className="space-y-1">
-              <LiftBar value={row.before} max={maxScore} label={beforeLabel} color="var(--chart-4)" />
-              <LiftBar value={row.after} max={maxScore} label={afterLabel} color="var(--chart-1)" />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <p className="mt-5 font-[family-name:var(--font-display)] text-[11px] italic leading-[16px] text-[color:var(--muted-foreground)]">
+      <div className="mt-3 flex justify-end">
+        <span className="font-[family-name:var(--font-mono)] text-[9px] text-[color:var(--muted-foreground)] tracking-[0.5px]">
+          Gated Score →
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4 mt-2">
+        {data.map((row) => {
+          const color = AGENT_HEX[row.agent] ?? "#999";
+          return (
+            <div key={row.agent} className="flex items-center gap-1.5">
+              <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: color }} />
+              <span className="font-[family-name:var(--font-mono)] text-[9px] text-[color:var(--muted-foreground)]">
+                {AGENT_LABELS[row.agent] ?? row.agent}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-3 font-[family-name:var(--font-display)] text-[11px] italic leading-[16px] text-[color:var(--muted-foreground)]">
         {summary}
       </p>
     </div>

@@ -17,12 +17,6 @@ export function HeroSection() {
         <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--accent)] border border-[color:var(--accent)] bg-[color:var(--card)] px-3 py-1.5">
           Research Preview
         </span>
-        <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] border border-[color:var(--secondary)] bg-[color:var(--card)] px-3 py-1.5">
-          V0.1
-        </span>
-        <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] border border-[color:var(--secondary)] bg-[color:var(--card)] px-3 py-1.5">
-          Open Access
-        </span>
       </div>
 
       <h1 className="font-[family-name:var(--font-display)] text-[28px] leading-[34px] sm:text-[36px] sm:leading-[42px] md:text-[44px] md:leading-[51px] font-semibold text-[color:var(--foreground)]">
@@ -34,10 +28,16 @@ export function HeroSection() {
 
       <div className="flex flex-wrap gap-3 paper-fade-in-delayed">
         <Link
-          href="/docs/running-evals"
+          href="/leaderboard"
           className="paper-btn paper-btn-primary px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold"
         >
-          Run the evaluation
+          View Results
+        </Link>
+        <Link
+          href="/docs/running-evals"
+          className="paper-btn paper-btn-ghost px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold text-[color:var(--chart-4)]"
+        >
+          Run the Evaluation
         </Link>
         <a
           href="https://github.com/514-labs/agent-evals"
@@ -47,12 +47,6 @@ export function HeroSection() {
         >
           View on Github
         </a>
-        <Link
-          href="/leaderboard"
-          className="paper-btn paper-btn-ghost px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold text-[color:var(--chart-4)]"
-        >
-          View results
-        </Link>
       </div>
     </header>
   );

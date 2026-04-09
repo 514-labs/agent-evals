@@ -22,7 +22,7 @@ const limitations = [
 export function LimitationsSection() {
   return (
     <section id="limitations" className="pt-10">
-      <SectionHeading number={6} title="Limitations" />
+      <SectionHeading number={7} title="Limitations" />
 
       <div className="mt-6 flex flex-col">
         {limitations.map((item) => (

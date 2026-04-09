@@ -6,7 +6,7 @@ export function AccessSection() {
   return (
     <section id="evaluation-access" className="pt-10">
       <div className="border-t border-[color:var(--secondary)] pt-8">
-        <SectionHeading number={8} title="Evaluation access" />
+        <SectionHeading number={9} title="Evaluation access" />
 
         <div className="mt-6">
           <SplitCta
@@ -20,7 +20,7 @@ export function AccessSection() {
                     href="/docs/running-evals"
                     className="paper-btn paper-btn-primary px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold"
                   >
-                    Run the evaluation
+                    Run the Evaluation
                   </Link>
                   <a
                     href="https://github.com/514-labs/agent-evals"
@@ -38,20 +38,12 @@ export function AccessSection() {
               title: "Contribute to the Benchmark",
               body: "We invite contributions across three dimensions: running the evaluation against additional agents, developing new scenarios, and extending the methodology to adjacent domains.",
               actions: (
-                <>
-                  <Link
-                    href="/docs/add-eval/getting-started"
-                    className="paper-btn paper-btn-ghost px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold text-[color:var(--chart-4)] border-[color:var(--muted-foreground)]"
-                  >
-                    Contribute a scenario
-                  </Link>
-                  <Link
-                    href="/docs"
-                    className="paper-btn paper-btn-primary px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold"
-                  >
-                    Read the docs
-                  </Link>
-                </>
+                <Link
+                  href="/docs/add-eval/getting-started"
+                  className="paper-btn paper-btn-ghost px-4 py-1.5 font-[family-name:var(--font-display)] text-[11px] font-bold text-[color:var(--chart-4)] border-[color:var(--muted-foreground)]"
+                >
+                  Contribute a Scenario
+                </Link>
               ),
             }}
           />

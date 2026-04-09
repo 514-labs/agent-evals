@@ -42,9 +42,13 @@ export function ScenariosSection() {
   const personaLiftData = computePersonaLift(entries);
   const efficiencyData = computeEfficiency(entries);
 
+  const numScenarios = new Set(entries.map((e) => e.scenario)).size;
+  const numRuns = entries.length;
+  const numAgents = agents.length;
+
   return (
     <section id="comparative-results" className="pt-10">
-      <SectionHeading number={4} title="Comparative Results" />
+      <SectionHeading number={5} title="Comparative Results" />
 
       <p className="mt-6 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
         This section presents the benchmark results in three parts. First, how
@@ -66,17 +70,17 @@ export function ScenariosSection() {
       </div>
 
       <div className="mt-4 relative">
-        <span className="font-[family-name:var(--font-display)] text-sm font-bold text-[color:var(--foreground)]">
-          Gate Attrition by Agent
-        </span>
-        <div className="mt-2 border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+        <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-3">
+            Gate Attrition by Agent
+          </span>
           <GateAttritionChart data={gateAttritionData} agents={agents} />
         </div>
         <SideNote>
-          This run scores 0.95. Three of four agents cluster between 0.95 and
-          0.99. One agent scored 0.10, suggesting a binary outcome on this
-          scenario: agents either solve the connection problem or fail entirely.
-          The shape of this distribution changes per scenario.
+          Gate completion rate per agent. For each of the five gates, the
+          percentage of that agent&rsquo;s runs that cleared that gate level.
+          Computed over {numRuns} total runs across {numScenarios} scenarios
+          and {numAgents} agents, all harnesses combined.
         </SideNote>
       </div>
 
@@ -97,12 +101,12 @@ export function ScenariosSection() {
         <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
           <LiftChart data={liftData} />
         </div>
+
         <SideNote>
-          Lift is the median score delta between the two conditions (e.g. base
-          infrastructure median to classic DE median) across all scenarios
-          attempted by that agent on both variants. Only scenarios with runs on
-          both conditions are included to avoid confounding by scenario
-          difficulty.
+          Median normalized score and median cost/time per agent under
+          base-rt and classic-de harnesses. Arrows show the shift from
+          base infrastructure to the classic DE harness. Only scenarios
+          attempted under both conditions are included, paired by agent.
         </SideNote>
       </div>
 
@@ -170,13 +174,16 @@ export function ScenariosSection() {
 
       <div className="mt-4 relative">
         <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-3">
+            Cost vs Score
+          </span>
           <CostScoreChart allData={costScoreData} agents={agents} />
         </div>
         <SideNote>
-          Each dot is one benchmark run that cleared the selected gate
-          threshold. Cost is LLM API spend (agent-reported or derived from
-          published pricing). X axis uses log scale. The top-left region
-          represents high quality at low cost.
+          Each dot is one run. Score is the DEC Bench normalized score (0–1).
+          Cost is LLM API spend (agent-reported or derived from published
+          pricing). Only runs that cleared the selected gate threshold are
+          shown. X axis is log-scaled; top-left is high quality at low cost.
         </SideNote>
       </div>
 
@@ -193,9 +200,9 @@ export function ScenariosSection() {
       <div className="mt-4 relative">
         <HarnessLiftChart harnessData={harnessLiftData} personaData={personaLiftData} />
         <SideNote>
-          Same methodology as score lift, applied to cost and token metrics.
-          Computed over runs at the selected gate threshold on both conditions.
-          A negative delta means the lever reduced cost or tokens.
+          Median normalized score per agent under each harness condition
+          (base-rt vs classic-de), paired across scenarios attempted under
+          both. Delta is the percentage change from the base condition.
         </SideNote>
       </div>
 

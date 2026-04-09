@@ -1,7 +1,8 @@
 const references = [
-  "[1] Ardent AI Labs. DE-Bench: A Benchmark for Data Engineering Tasks. 2025.",
-  "[2] dbt Labs. skill-eval: Evaluating LLM competency on dbt tasks. 2025.",
-  "[3] Jimenez, C.E., et al. SWE-bench: Can Language Models Resolve Real-World GitHub Issues? 2024.",
+  { id: "ref-1", text: "Jimenez, C.E., et al. SWE-bench: Can Language Models Resolve Real-World GitHub Issues? 2024." },
+  { id: "ref-2", text: "Ardent AI Labs. DE-Bench: A Benchmark for Data Engineering Tasks. 2025." },
+  { id: "ref-3", text: "dbt Labs. skill-eval: Evaluating LLM competency on dbt tasks. 2025." },
+  { id: "ref-4", text: "Significance tested with the Mann–Whitney U test (two-tailed), a non-parametric rank-sum test appropriate for small, non-normal samples." },
 ];
 
 export function ReferencesSection() {
@@ -12,12 +13,13 @@ export function ReferencesSection() {
           References
         </span>
         <div className="h-2 border-b border-[color:var(--border)]" />
-        {references.map((ref) => (
+        {references.map((ref, i) => (
           <p
-            key={ref}
-            className="font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]"
+            key={ref.id}
+            id={ref.id}
+            className="font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)] scroll-mt-24"
           >
-            {ref}
+            [{i + 1}] {ref.text}
           </p>
         ))}
       </div>

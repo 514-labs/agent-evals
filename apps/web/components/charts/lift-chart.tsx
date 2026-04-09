@@ -18,35 +18,61 @@ const AGENT_COLORS: Record<string, string> = {
 const AGENT_ORDER = ["Claude-Code", "Codex", "Cursor"];
 
 const W = 732;
-const H = 280;
-const PAD = { top: 20, right: 30, bottom: 50, left: 50 };
+const H = 302;
+const PAD = { top: 20, right: 30, bottom: 72, left: 50 };
 const INNER_W = W - PAD.left - PAD.right;
 const INNER_H = H - PAD.top - PAD.bottom;
 
 function formatXTick(v: number, mode: "cost" | "time"): string {
   if (mode === "cost") return v < 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(0)}`;
   if (v < 60) return `${v}s`;
-  return `${Math.round(v / 60)}m`;
+  const m = v / 60;
+  return Number.isInteger(m) ? `${m}m` : `${m.toFixed(1)}m`;
+}
+
+const TIME_BREAK = 90;
+const TIME_MAX = 195;
+const BREAK_ZONE = 40;
+const BREAK_GAP = 12;
+
+function makeTimeBrokenScale(innerW: number) {
+  const linearStart = BREAK_ZONE + BREAK_GAP;
+  const linearW = innerW - linearStart;
+  const linear = scaleLinear().domain([TIME_BREAK, TIME_MAX]).range([linearStart, innerW]);
+
+  function scale(v: number): number {
+    if (v <= TIME_BREAK) {
+      return scaleLinear().domain([0, TIME_BREAK]).range([0, BREAK_ZONE])(v);
+    }
+    return linear(Math.min(v, TIME_MAX));
+  }
+  scale.ticks = (): number[] => [120, 150, 180];
+  return { scale, linearStart };
 }
 
 function DesktopLiftChart({ data, mode }: { data: LiftPoint[]; mode: "cost" | "time" }) {
   const sorted = [...data].sort((a, b) => AGENT_ORDER.indexOf(a.agent) - AGENT_ORDER.indexOf(b.agent));
 
-  const { xScale, yScale, xTicks, yTicks } = useMemo(() => {
+  const { xScale, yScale, xTicks, yTicks, isBroken } = useMemo(() => {
     const allX = sorted.flatMap((d) =>
       mode === "cost" ? [d.baseCost, d.specCost] : [d.baseTime, d.specTime],
     ).filter((v) => v > 0);
     const allY = sorted.flatMap((d) => [d.baseScore, d.specScore]);
 
-    if (allX.length === 0) return { xScale: null, yScale: null, xTicks: [], yTicks: [] };
+    if (allX.length === 0) return { xScale: null, yScale: null, xTicks: [] as number[], yTicks: [] as number[], isBroken: false };
 
-    const xMin = Math.max(mode === "cost" ? 0.01 : 1, Math.min(...allX) * 0.5);
-    const xMax = Math.max(...allX) * 2;
     const yMin = Math.max(0, Math.min(...allY) - 0.1);
     const yMax = Math.min(1.1, Math.max(...allY) + 0.1);
-
-    const xs = scaleLog().domain([xMin, xMax]).range([0, INNER_W]).nice();
     const ys = scaleLinear().domain([yMin, yMax]).range([INNER_H, 0]).nice();
+
+    if (mode === "time") {
+      const { scale } = makeTimeBrokenScale(INNER_W);
+      return { xScale: scale, yScale: ys, xTicks: scale.ticks(), yTicks: ys.ticks(5), isBroken: true };
+    }
+
+    const xMin = Math.max(0.01, Math.min(...allX) * 0.5);
+    const xMax = Math.max(...allX) * 2;
+    const xs = scaleLog().domain([xMin, xMax]).range([0, INNER_W]).nice();
 
     const rawXTicks = xs.ticks(4);
     const filteredXTicks = rawXTicks.filter((_, i, arr) => {
@@ -56,7 +82,7 @@ function DesktopLiftChart({ data, mode }: { data: LiftPoint[]; mode: "cost" | "t
       return curr - prev > 40;
     });
 
-    return { xScale: xs, yScale: ys, xTicks: filteredXTicks, yTicks: ys.ticks(5) };
+    return { xScale: xs, yScale: ys, xTicks: filteredXTicks, yTicks: ys.ticks(5), isBroken: false };
   }, [sorted, mode]);
 
   if (!xScale || !yScale) return null;
@@ -89,16 +115,33 @@ function DesktopLiftChart({ data, mode }: { data: LiftPoint[]; mode: "cost" | "t
         <line x1={0} x2={INNER_W} y1={INNER_H} y2={INNER_H} stroke="var(--border)" />
         <line x1={0} x2={0} y1={0} y2={INNER_H} stroke="var(--border)" />
 
+        {isBroken && (
+          <g>
+            <line x1={BREAK_ZONE + 2} x2={BREAK_ZONE + 2} y1={0} y2={INNER_H} stroke="var(--background)" strokeWidth={BREAK_GAP + 2} />
+            <line x1={BREAK_ZONE - 1} x2={BREAK_ZONE + 5} y1={INNER_H - 4} y2={INNER_H + 4} stroke="var(--muted-foreground)" strokeWidth={1} />
+            <line x1={BREAK_ZONE + 5} x2={BREAK_ZONE + 11} y1={INNER_H - 4} y2={INNER_H + 4} stroke="var(--muted-foreground)" strokeWidth={1} />
+            <text x={BREAK_ZONE / 2} y={INNER_H + 16} textAnchor="middle" fontSize={9} fill="var(--muted-foreground)">
+              0–1.5m
+            </text>
+          </g>
+        )}
+
         {xTicks.map((t) => (
           <text key={`xl-${t}`} x={xScale(t)} y={INNER_H + 16} textAnchor="middle" fontSize={9} fill="var(--muted-foreground)">
             {formatXTick(t, mode)}
           </text>
         ))}
+        <text x={INNER_W / 2} y={INNER_H + 34} textAnchor="middle" fontSize={10} fill="var(--muted-foreground)" fontFamily="var(--font-mono)">
+          {mode === "cost" ? "Cost (log scale)" : "Time"}
+        </text>
         {yTicks.map((t) => (
           <text key={`yl-${t}`} x={-8} y={yScale(t) + 3} textAnchor="end" fontSize={9} fill="var(--muted-foreground)">
             {t.toFixed(1)}
           </text>
         ))}
+        <text x={0} y={0} textAnchor="middle" fontSize={10} fill="var(--muted-foreground)" fontFamily="var(--font-mono)" transform={`translate(-34,${INNER_H / 2}) rotate(-90)`}>
+          Gated Score
+        </text>
 
         {sorted.map((d) => {
           const color = AGENT_COLORS[d.agent] ?? "#999";

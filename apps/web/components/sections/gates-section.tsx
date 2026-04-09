@@ -1,12 +1,13 @@
 import { SectionHeading } from "../marketing/section-heading";
 import { FiveGates } from "../marketing/five-gates";
+import { SideNote } from "../marketing/side-note";
 
 export function GatesSection() {
   return (
     <section id="introduction" className="pt-10">
       <SectionHeading number={1} title="Five-Gate Evaluation Model" />
 
-      <div className="mt-6 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)] space-y-4">
+      <div className="mt-6 relative font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)] space-y-4">
         <p>
           The evaluation model uses five sequential quality gates. Gates are
           strictly ordered: an agent must clear each gate before the next is
@@ -21,6 +22,12 @@ export function GatesSection() {
           quality: two agents with the same final score can have very different
           failure profiles.
         </p>
+        <SideNote>
+          Gates are TypeScript assertion functions defined per scenario.
+          A gate clears when all core checks pass and at least 80% of
+          scenario checks pass. Scores combine cleared gates with
+          partial credit on the first failure.
+        </SideNote>
       </div>
 
       <div className="mt-8">

@@ -9,6 +9,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   ZAxis,
+  Label,
 } from "recharts";
 import {
   ChartContainer,
@@ -89,9 +90,9 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
           </p>
         </div>
       ) : (
-        <ChartContainer config={config} className="h-[320px] w-full">
+        <ChartContainer config={config} className="aspect-auto h-[320px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 10, right: 10, bottom: 30, left: 0 }}>
+            <ScatterChart margin={{ top: 10, right: 10, bottom: 40, left: 16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis
                 dataKey="cost"
@@ -103,7 +104,9 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
                 axisLine={{ stroke: "var(--border)" }}
                 tickFormatter={(v: number) => `$${v < 1 ? v.toFixed(2) : v.toFixed(0)}`}
                 name="Cost"
-              />
+              >
+                <Label value="Cost (log scale)" position="insideBottom" offset={-14} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }} />
+              </XAxis>
               <YAxis
                 dataKey="score"
                 type="number"
@@ -113,7 +116,9 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
                 axisLine={{ stroke: "var(--border)" }}
                 tickFormatter={(v: number) => v.toFixed(2)}
                 name="Score"
-              />
+              >
+                <Label value="Gated Score" angle={-90} position="insideLeft" offset={0} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)", textAnchor: "middle" }} />
+              </YAxis>
               <ZAxis range={[60, 60]} />
               <ChartTooltip
                 content={

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { SectionHeading } from "../marketing/section-heading";
 import { CardStack } from "../marketing/card-stack";
+import { SideNote } from "../marketing/side-note";
 
 const variables = [
   {
     number: "01",
     title: "Agent",
-    body: "The AI coding tool being evaluated. The current evaluation includes Claude Code, Codex, and Cursor.",
+    body: "The AI coding tool being evaluated. The current evaluation includes Claude Code (Opus 4.6, Sonnet 4.6), Codex (GPT-5.4), and Cursor (Composer 2).",
   },
   {
     number: "02",
@@ -43,8 +44,16 @@ export function VariablesSection() {
           taken.
         </p>
 
-        <div className="mt-8">
+        <div className="mt-8 relative">
           <CardStack items={variables} />
+          <SideNote>
+            0.1-preview includes only a basic tooling harness.
+            Integrated harnesses are planned for future releases.
+          </SideNote>
+          <SideNote>
+            0.1-preview includes only baseline prompts. Informed
+            prompt variants are planned for future releases.
+          </SideNote>
         </div>
       </div>
 
@@ -68,39 +77,50 @@ export function VariablesSection() {
           </p>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
-          <div className="flex items-center h-[37px] border-b border-[color:var(--border)] min-w-[600px]">
-            <div className="px-[18px] shrink-0">
+        <div className="mt-8 relative">
+          <h3 className="font-[family-name:var(--font-display)] text-[11px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)]">
+            Example Scenarios
+          </h3>
+          <SideNote>
+            The full benchmark includes 37 scenarios: 13 Tier 1 (single-service,
+            isolated tasks), 19 Tier 2 (multi-service or moderate design
+            decisions), and 5 Tier 3 (cross-service orchestration with
+            production-grade constraints).
+          </SideNote>
+        </div>
+        <div className="mt-3 overflow-x-auto">
+          <div className="flex items-center h-[37px] border-b border-[color:var(--border)] min-w-[540px]">
+            <div className="px-3 shrink-0">
               <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)] leading-none">#</span>
             </div>
-            <div className="px-[18px] w-[238px] shrink-0">
+            <div className="px-3 w-[200px] shrink-0">
               <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)] leading-none">Scenario</span>
             </div>
-            <div className="flex-1 px-[18px]">
-              <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)] leading-none">Difficulty Tier</span>
+            <div className="flex-1 px-3">
+              <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)] leading-none whitespace-nowrap">Difficulty Tier</span>
             </div>
-            <div className="flex-1 px-[18px]">
+            <div className="flex-1 px-3">
               <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)] leading-none">Services</span>
             </div>
-            <div className="flex-1 px-[18px]">
+            <div className="flex-1 px-3">
               <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)] leading-none">Category</span>
             </div>
           </div>
           {scenarios.map((s) => (
-            <div key={s.id} className="flex items-center border-b border-[color:var(--border)] min-w-[600px]">
-              <div className="px-[18px] py-[12px] shrink-0">
+            <div key={s.id} className="flex items-center border-b border-[color:var(--border)] min-w-[540px]">
+              <div className="px-3 py-[12px] shrink-0">
                 <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)] leading-none">{s.id}</span>
               </div>
-              <div className="px-[18px] py-[12px] w-[238px] shrink-0">
+              <div className="px-3 py-[12px] w-[200px] shrink-0">
                 <span className="font-[family-name:var(--font-display)] text-[14px] font-bold text-[color:var(--muted-foreground)] leading-normal">{s.name}</span>
               </div>
-              <div className="flex-1 px-[18px] py-[12px]">
+              <div className="flex-1 px-3 py-[12px]">
                 <span className="font-[family-name:var(--font-display)] text-[12px] text-[color:var(--muted-foreground)] leading-normal">{s.tier}</span>
               </div>
-              <div className="flex-1 px-[18px] py-[12px]">
+              <div className="flex-1 px-3 py-[12px]">
                 <span className="font-[family-name:var(--font-display)] text-[12px] text-[color:var(--muted-foreground)] leading-normal">{s.services}</span>
               </div>
-              <div className="flex-1 px-[18px] py-[12px]">
+              <div className="flex-1 px-3 py-[12px]">
                 <span className="font-[family-name:var(--font-display)] text-[12px] text-[color:var(--muted-foreground)] leading-normal">{s.category}</span>
               </div>
             </div>
@@ -112,7 +132,7 @@ export function VariablesSection() {
             href="/docs"
             className="paper-btn paper-btn-primary px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold"
           >
-            View all scenarios
+            View all Scenarios
           </Link>
         </div>
       </div>
