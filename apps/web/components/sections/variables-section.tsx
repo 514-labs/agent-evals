@@ -77,8 +77,8 @@ export function VariablesSection() {
           </p>
         </div>
 
-        <div className="mt-8 relative">
-          <h3 className="font-[family-name:var(--font-display)] text-[11px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)]">
+        <div className="mt-10 relative">
+          <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
             Example Scenarios
           </h3>
           <SideNote>
