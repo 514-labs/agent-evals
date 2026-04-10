@@ -21,7 +21,7 @@ const infrastructure = [
 export function InfrastructureSection() {
   return (
     <section id="infrastructure" className="pt-10">
-      <SectionHeading number={6} title="Infrastructure" />
+      <SectionHeading number={5} title="Infrastructure" />
 
       <p className="mt-6 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
         All scenarios run against real databases, fully containerized.

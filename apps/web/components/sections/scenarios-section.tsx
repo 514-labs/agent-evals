@@ -1,17 +1,16 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { SectionHeading } from "../marketing/section-heading";
 import { SideNote } from "../marketing/side-note";
 import { GateAttritionChart } from "../charts/gate-attrition-chart";
 import { CostScoreChart } from "../charts/cost-score-chart";
 import { LiftChart } from "../charts/lift-chart";
-import { HarnessLiftChart } from "../charts/harness-lift-chart";
 import {
   computeGateAttrition,
   computeCostScore,
   computeLiftData,
-  computeHarnessLift,
-  computePersonaLift,
   computeEfficiency,
+  computeEfficiencyByGate,
   getAgentNames,
   formatAgent,
   AGENT_LABELS,
@@ -56,11 +55,12 @@ export function ScenariosSection() {
       return [k, counts];
     }),
   ) as Record<"all" | "tier-1" | "tier-2" | "tier-3", Record<string, number>>;
-  const costScoreData = computeCostScore(entries);
-  const liftData = computeLiftData(entries, "base-rt", "classic-de");
-  const harnessLiftData = computeHarnessLift(entries, "base-rt", "classic-de");
-  const personaLiftData = computePersonaLift(entries);
+  const costScoreData = computeCostScore(entries, scenarioTiers);
+  const liftDataByTier = Object.fromEntries(
+    Object.entries(tierBuckets).map(([k, v]) => [k, computeLiftData(v, "base-rt", "classic-de")]),
+  ) as Record<"all" | "tier-1" | "tier-2" | "tier-3", ReturnType<typeof computeLiftData>>;
   const efficiencyData = computeEfficiency(entries);
+  const efficiencyByGate = computeEfficiencyByGate(entries);
 
   const numScenarios = new Set(entries.map((e) => e.scenario)).size;
   const numRuns = entries.length;
@@ -78,8 +78,8 @@ export function ScenariosSection() {
 
       {/* Task Completion */}
       <div className="mt-10">
-        <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-          Task Completion
+        <h3 id="task-completion" className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
+          5.1 Task Completion
         </h3>
         <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
           Attrition through the first four gates is gradual: 90% of runs clear
@@ -128,44 +128,96 @@ export function ScenariosSection() {
 
       {/* Harness Lift */}
       <div className="mt-10">
-        <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-          Harness Lift
+        <h3 id="harness-lift" className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
+          5.2 Harness Lift
         </h3>
         <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
-          The lift chart compares quality against efficiency for every
-          agent&times;harness pair. The question is: how much each harness
-          improves the prompt variant. This captures whether domain knowledge in
-          the prompt matters, and whether the tooling harness matters.
+          The classic-de harness does not produce a statistically significant
+          improvement in score when controlling for agent (stratified
+          p = 0.08). Per-agent results diverge: Claude Code shows a
+          significant score lift (0.973 to 0.987 median, p = 0.003) at
+          higher cost ($0.25 to $0.32, p = 0.01). Codex trends similarly
+          (0.973 to 0.987 median) with a large cost increase ($2.69 to
+          $4.11) though neither reaches significance. Cursor moves in the
+          opposite direction: slightly lower score (0.987 to 0.973) at
+          slightly lower cost ($0.20 to $0.18), neither significant. Time
+          is unaffected across all agents.
         </p>
+        <div className="mt-4 border-l-2 border-[color:var(--accent)] pl-4">
+          <p className="font-[family-name:var(--font-display)] text-[11px] font-bold uppercase tracking-[1.2px] text-[color:var(--accent)]">
+            Interpretation
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--accent)]">
+            The harness helps Claude Code and Codex but slightly hurts
+            Cursor{"\u2019"}s performance. In both directions
+            the effect is small. The cost story mirrors the score story:
+            agents that improve with the harness also spend more tokens
+            using it, while Cursor spends slightly fewer.
+          </p>
+        </div>
       </div>
 
       <div className="mt-4 relative">
         <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
-          <LiftChart data={liftData} />
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-1">
+            Harness Lift by Agent
+          </span>
+          <span className="font-[family-name:var(--font-display)] text-[12px] text-[color:var(--muted-foreground)] block mb-3">
+            Median normalized score and median cost/time per agent under
+            base-rt and classic-de harnesses. Arrows show the shift from
+            base to classic-de. Filter by scenario difficulty.
+          </span>
+          <LiftChart dataByTier={liftDataByTier} />
         </div>
 
         <SideNote>
-          Median normalized score and median cost/time per agent under
-          base-rt and classic-de harnesses. Arrows show the shift from
-          base infrastructure to the classic DE harness. Only scenarios
-          attempted under both conditions are included, paired by agent.
+          In 0.1-preview, harness coverage is uneven across tiers: T1
+          scenarios were only run with base-rt, T3 only with classic-de.
+          Only T2 and the pooled view have both harnesses represented,
+          and even there base-rt sample sizes are small (1{"\u2013"}2
+          runs per agent). Balancing coverage is a priority for the next
+          release.
         </SideNote>
       </div>
 
       {/* Cost and Efficiency */}
       <div className="mt-10">
-        <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-          Cost and Efficiency
+        <h3 id="cost-efficiency" className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
+          5.3 Cost and Efficiency
         </h3>
         <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
-          Raw cost is meaningful if the agent did not solve the problem. A $0.10
-          run that fails at G1 and a $5.00 run that clears G5 are not
-          comparable. The real question is: what does it cost to reach a given
-          quality level?
+          Three distinct price bands emerge: Cursor ($0.15{"\u2013"}$0.20
+          median), Claude Code ($0.32{"\u2013"}$0.45), and Codex
+          ($2.71{"\u2013"}$4.42). These bands hold across every gate level.
+          Within each agent, harder scenarios cost 2{"\u2013"}3{"\u00D7"} more
+          (e.g. Claude Code: $0.24 at T1 vs $0.58 at T3; Codex: $2.57 vs
+          $8.13). Time is tightly clustered: all agents take
+          2.0{"\u2013"}2.8 minutes through G4 and 2.7{"\u2013"}3.4 minutes at
+          G5, a spread of only 1.3{"\u00D7"}. On T3, Claude Code scores
+          highest (0.98) at $0.58, while Codex scores 0.58 at $8.13.
         </p>
+        <div className="mt-4 border-l-2 border-[color:var(--accent)] pl-4">
+          <p className="font-[family-name:var(--font-display)] text-[11px] font-bold uppercase tracking-[1.2px] text-[color:var(--accent)]">
+            Interpretation
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--accent)]">
+            Spending more does not buy better results. The 18{"\u00D7"} cost
+            spread between agents reflects token volume, not wall-clock effort
+            or quality. Difficulty increases cost for every agent, but the
+            between-agent price gap is the dominant factor. The scatter plot
+            makes this visible: filtering by difficulty pushes all agents
+            rightward (more expensive) and some downward (lower quality), but
+            the three price-band clusters persist.
+          </p>
+        </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto">
+      <p className="mt-4 font-[family-name:var(--font-display)] text-[11px] leading-[1.4] text-[color:var(--muted-foreground)]">
+        A cheap run that fails at G1 and an expensive run that clears G5 are
+        not comparable. The table shows median cost and time only for runs that
+        cleared at least a given gate, so each column compares like with like.
+      </p>
+      <div className="mt-2 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b-2 border-[color:var(--foreground)]">
@@ -173,92 +225,87 @@ export function ScenariosSection() {
                 Agent
               </th>
               <th className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-right py-2 pr-4 text-[color:var(--foreground)]">
-                Median Cost
+                All
               </th>
               <th className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-right py-2 pr-4 text-[color:var(--foreground)]">
-                Median Tokens
+                G1+
+              </th>
+              <th className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-right py-2 pr-4 text-[color:var(--foreground)]">
+                G4+
               </th>
               <th className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-right py-2 text-[color:var(--foreground)]">
-                Median Time
+                G5+
               </th>
             </tr>
           </thead>
           <tbody>
-            {efficiencyData.map((row) => (
-              <tr
-                key={row.agent}
-                className="border-b border-[color:var(--secondary)]"
-              >
-                <td className="py-2.5 pr-4 text-xs font-bold">
-                  {AGENT_LABELS[row.agent] ?? row.agent}
-                </td>
-                <td className="py-2.5 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
-                  {formatCost(row.medianCost)}
-                </td>
-                <td className="py-2.5 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
-                  {formatTokens(row.medianTokens)}
-                </td>
-                <td className="py-2.5 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
-                  {formatTime(row.medianTime)}
-                </td>
-              </tr>
-            ))}
+            {efficiencyByGate.map((row) => {
+              const all = row.gates[0]!;
+              const g1 = row.gates[1]!;
+              const g4 = row.gates[4]!;
+              const g5 = row.gates[5]!;
+              return (
+                <Fragment key={row.agent}>
+                  <tr className="">
+                    <td className="pt-2.5 pb-0 pr-4 text-xs font-bold" rowSpan={2}>
+                      {AGENT_LABELS[row.agent] ?? row.agent}
+                    </td>
+                    <td className="pt-2.5 pb-0 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
+                      {formatCost(all.medianCost)} <span className="text-[10px] text-[color:var(--chart-4)]">n={all.n}</span>
+                    </td>
+                    <td className="pt-2.5 pb-0 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
+                      {formatCost(g1.medianCost)} <span className="text-[10px] text-[color:var(--chart-4)]">n={g1.n}</span>
+                    </td>
+                    <td className="pt-2.5 pb-0 pr-4 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
+                      {formatCost(g4.medianCost)} <span className="text-[10px] text-[color:var(--chart-4)]">n={g4.n}</span>
+                    </td>
+                    <td className="pt-2.5 pb-0 text-xs text-right tabular-nums text-[color:var(--muted-foreground)]">
+                      {g5.n > 0 ? <>{formatCost(g5.medianCost)} <span className="text-[10px] text-[color:var(--chart-4)]">n={g5.n}</span></> : <span className="text-[10px] text-[color:var(--chart-4)]">{"\u2014"}</span>}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-[color:var(--secondary)]">
+                    <td className="pt-0 pb-2.5 pr-4 text-[10px] text-right tabular-nums text-[color:var(--chart-4)]">
+                      {formatTime(all.medianTime)}
+                    </td>
+                    <td className="pt-0 pb-2.5 pr-4 text-[10px] text-right tabular-nums text-[color:var(--chart-4)]">
+                      {formatTime(g1.medianTime)}
+                    </td>
+                    <td className="pt-0 pb-2.5 pr-4 text-[10px] text-right tabular-nums text-[color:var(--chart-4)]">
+                      {formatTime(g4.medianTime)}
+                    </td>
+                    <td className="pt-0 pb-2.5 text-[10px] text-right tabular-nums text-[color:var(--chart-4)]">
+                      {g5.n > 0 ? formatTime(g5.medianTime) : "\u2014"}
+                    </td>
+                  </tr>
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Cost vs. Score */}
-      <div className="mt-10">
-        <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-          Cost vs. Score
-        </h3>
-      </div>
-
-      <div className="mt-4 relative">
+      {/* Quality vs. Cost / Time */}
+      <div className="mt-8 relative">
         <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
-          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-3">
-            Cost vs Score
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block">
+            Quality vs. Efficiency
           </span>
+          <p className="font-[family-name:var(--font-display)] text-[11px] leading-[1.4] text-[color:var(--muted-foreground)] mt-1 mb-3">
+            Each dot is one run. Score is the normalized DEC Bench score
+            (0{"\u2013"}1) on a log-compressed axis. Cost is LLM API spend
+            (agent-reported or derived from published pricing); time is
+            wall-clock duration.
+          </p>
           <CostScoreChart allData={costScoreData} agents={agents} />
         </div>
         <SideNote>
-          Each dot is one run. Score is the DEC Bench normalized score (0–1).
-          Cost is LLM API spend (agent-reported or derived from published
-          pricing). Only runs that cleared the selected gate threshold are
-          shown. X axis is log-scaled; top-left is high quality at low cost.
+          The y-axis is log-compressed near 1.0 to visually separate runs that
+          cleared G4 (score 0.91{"\u2013"}0.99) from those that cleared G5
+          (score 1.0). Top-left is high quality at low cost/time.
         </SideNote>
       </div>
 
-      {/* Harness / Prompt Lift */}
-      <div className="mt-8 space-y-0">
-        <p className="font-[family-name:var(--font-display)] text-[20px] font-bold text-[color:var(--muted-foreground)]">
-          Harness Lift on Cost (at selected threshold)
-        </p>
-        <p className="font-[family-name:var(--font-display)] text-[20px] font-bold text-[color:var(--muted-foreground)]">
-          Prompt Variant Lift on Tokens (at selected threshold)
-        </p>
-      </div>
-
-      <div className="mt-4 relative">
-        <HarnessLiftChart harnessData={harnessLiftData} personaData={personaLiftData} />
-        <SideNote>
-          Median normalized score per agent under each harness condition
-          (base-rt vs classic-de), paired across scenarios attempted under
-          both. Delta is the percentage change from the base condition.
-        </SideNote>
-      </div>
-
-      {/* Closing paragraph */}
-      <div className="mt-8 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
-        <p>
-          Specialized tooling and domain-specific prompts both improve quality
-          and efficiency, but the effect is not uniform across all agents with
-          varying scenarios and task types. Some agents benefit more from
-          tooling; others from prompt guidance.
-        </p>
-      </div>
-
-      <div className="mt-4">
+      <div className="mt-8">
         <Link
           href="/leaderboard"
           className="paper-btn paper-btn-primary px-4 py-2 font-[family-name:var(--font-display)] text-[11px] font-bold"

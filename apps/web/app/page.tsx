@@ -6,9 +6,7 @@ import { GatesSection } from "../components/sections/gates-section";
 import { VariablesSection } from "../components/sections/variables-section";
 import { MethodologySection } from "../components/sections/methodology-section";
 import { ScenariosSection } from "../components/sections/scenarios-section";
-import { InfrastructureSection } from "../components/sections/infrastructure-section";
 import { LimitationsSection } from "../components/sections/limitations-section";
-import { OpenBenchmarkSection } from "../components/sections/open-benchmark-section";
 import { AccessSection } from "../components/sections/access-section";
 import { ReferencesSection } from "../components/sections/references-section";
 
@@ -23,9 +21,7 @@ export default function HomePage() {
         <VariablesSection />
         <MethodologySection />
         <ScenariosSection />
-        <InfrastructureSection />
         <LimitationsSection />
-        <OpenBenchmarkSection />
         <AccessSection />
         <ReferencesSection />
       </main>

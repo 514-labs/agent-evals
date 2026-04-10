@@ -114,21 +114,28 @@ export function getAgentNames(entries: EvalResult[]): string[] {
 // Cost vs Score scatter
 export type CostScorePoint = {
   cost: number;
+  time: number;
   score: number;
   agent: string;
   scenario: string;
   highestGate: number;
+  tier: string;
 };
 
-export function computeCostScore(entries: EvalResult[]): CostScorePoint[] {
+export function computeCostScore(
+  entries: EvalResult[],
+  scenarioTiers: Record<string, string> = {},
+): CostScorePoint[] {
   return entries
     .filter((e) => e.efficiency.llmApiCostUsd > 0)
     .map((e) => ({
       cost: e.efficiency.llmApiCostUsd,
+      time: e.efficiency.wallClockSeconds,
       score: e.normalized_score,
       agent: formatAgent(e.agent),
       scenario: e.scenario,
       highestGate: e.highest_gate,
+      tier: scenarioTiers[e.scenario] ?? "unknown",
     }));
 }
 
@@ -138,9 +145,11 @@ export type LiftPoint = {
   baseScore: number;
   baseCost: number;
   baseTime: number;
+  baseN: number;
   specScore: number;
   specCost: number;
   specTime: number;
+  specN: number;
 };
 
 export function computeLiftData(entries: EvalResult[], baseHarness: string, specHarness: string): LiftPoint[] {
@@ -155,9 +164,11 @@ export function computeLiftData(entries: EvalResult[], baseHarness: string, spec
         baseScore: median(baseRuns.map((r) => r.normalized_score)),
         baseCost: median(baseRuns.map((r) => r.efficiency.llmApiCostUsd)),
         baseTime: median(baseRuns.map((r) => r.efficiency.wallClockSeconds)),
+        baseN: baseRuns.length,
         specScore: median(specRuns.map((r) => r.normalized_score)),
         specCost: median(specRuns.map((r) => r.efficiency.llmApiCostUsd)),
         specTime: median(specRuns.map((r) => r.efficiency.wallClockSeconds)),
+        specN: specRuns.length,
       };
     })
     .filter((p): p is LiftPoint => p !== null);
@@ -501,5 +512,27 @@ export function computeEfficiency(entries: EvalResult[]): EfficiencyRow[] {
       medianTokens: median(runs.map((r) => r.efficiency.tokensUsed)),
       medianTime: median(runs.map((r) => r.efficiency.wallClockSeconds)),
     };
+  });
+}
+
+export type EfficiencyByGateRow = {
+  agent: string;
+  gates: { minGate: number; medianCost: number; medianTime: number; n: number }[];
+};
+
+export function computeEfficiencyByGate(entries: EvalResult[]): EfficiencyByGateRow[] {
+  const agents = [...new Set(entries.map((e) => e.agent))];
+  return agents.map((agent) => {
+    const runs = entries.filter((e) => e.agent === agent);
+    const gates = [0, 1, 2, 3, 4, 5].map((minGate) => {
+      const filtered = runs.filter((r) => r.highest_gate >= minGate);
+      return {
+        minGate,
+        medianCost: median(filtered.map((r) => r.efficiency.llmApiCostUsd)),
+        medianTime: median(filtered.map((r) => r.efficiency.wallClockSeconds)),
+        n: filtered.length,
+      };
+    });
+    return { agent: formatAgent(agent), gates };
   });
 }

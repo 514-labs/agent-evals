@@ -6,7 +6,7 @@ export function AccessSection() {
   return (
     <section id="evaluation-access" className="pt-10">
       <div className="border-t border-[color:var(--secondary)] pt-8">
-        <SectionHeading number={9} title="Evaluation access" />
+        <SectionHeading number={7} title="Evaluation Access" />
 
         <div className="mt-6">
           <SplitCta

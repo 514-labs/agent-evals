@@ -12,7 +12,7 @@ export function MethodologySection() {
       </p>
 
       <h3 className="mt-10 font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-        Scenario Definition
+        4.1 Scenario Definition
       </h3>
       <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
         Each scenario is a self-contained data engineering task. The agent
@@ -24,22 +24,82 @@ export function MethodologySection() {
       </p>
 
       <h3 className="mt-10 font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-        Execution Protocol
+        4.2 Execution Protocol and Infrastructure
       </h3>
       <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
         A run pairs one agent, one tooling harness, and one prompt variant
         against one scenario. The agent operates autonomously: it may invoke
         tools, write code, query databases, and iterate, but there is no
-        conversational back-and-forth with a human. Every run produces a
-        full structured trace: each reasoning step, tool call (shell
-        commands, file edits, SQL queries), tool result, token count, and
-        wall-clock timing is recorded and persisted alongside the scored
-        result. These traces are the primary artifact for comparing how
+        conversational back-and-forth with a human. All scenarios run against
+        real, fully containerized infrastructure:
+      </p>
+
+      {/* Infrastructure table (desktop) */}
+      <div className="mt-4 border-b border-[color:var(--secondary)] hidden sm:block">
+        <div className="flex border-b border-[color:var(--secondary)]">
+          {[
+            { name: "POSTGRES", logo: "/logos/postgres.svg", description: "Transactional source of truth. Schema migrations, foreign keys, constraints." },
+            { name: "CLICKHOUSE", logo: "/logos/clickhouse.svg", description: "Columnar analytics engine. Materialized views, partition keys, ORDER BY optimization." },
+            { name: "REDPANDA", logo: "/logos/redpanda.svg", description: "Kafka-compatible event streaming. Topics, consumers, partitions." },
+          ].map((item) => (
+            <div key={item.name} className="flex-1 flex items-center gap-2.5 px-4 py-3">
+              <div className="size-6 flex items-center justify-center bg-white/95 border border-white rounded-sm overflow-hidden">
+                <img src={item.logo} alt={item.name} width={18} height={18} className="object-contain" />
+              </div>
+              <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)]">
+                {item.name}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="flex">
+          {[
+            "Transactional source of truth. Schema migrations, foreign keys, constraints.",
+            "Columnar analytics engine. Materialized views, partition keys, ORDER BY optimization.",
+            "Kafka-compatible event streaming. Topics, consumers, partitions.",
+          ].map((desc) => (
+            <div key={desc} className="flex-1 px-4 py-3">
+              <p className="font-[family-name:var(--font-display)] text-xs leading-normal text-[color:var(--muted-foreground)]">
+                {desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Infrastructure table (mobile) */}
+      <div className="mt-4 sm:hidden">
+        {[
+          { name: "POSTGRES", logo: "/logos/postgres.svg", description: "Transactional source of truth. Schema migrations, foreign keys, constraints." },
+          { name: "CLICKHOUSE", logo: "/logos/clickhouse.svg", description: "Columnar analytics engine. Materialized views, partition keys, ORDER BY optimization." },
+          { name: "REDPANDA", logo: "/logos/redpanda.svg", description: "Kafka-compatible event streaming. Topics, consumers, partitions." },
+        ].map((item) => (
+          <div key={item.name} className="border-b border-[color:var(--secondary)] py-4">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="size-6 flex items-center justify-center bg-white/95 border border-white rounded-sm overflow-hidden">
+                <img src={item.logo} alt={item.name} width={18} height={18} className="object-contain" />
+              </div>
+              <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1.2px] text-[color:var(--foreground)]">
+                {item.name}
+              </span>
+            </div>
+            <p className="font-[family-name:var(--font-display)] text-xs leading-normal text-[color:var(--muted-foreground)]">
+              {item.description}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
+        Every run produces a full structured trace: each reasoning step, tool
+        call (shell commands, file edits, SQL queries), tool result, token
+        count, and wall-clock timing is recorded and persisted alongside the
+        scored result. These traces are the primary artifact for comparing how
         different agents approach the same task.
       </p>
 
       <h3 className="mt-10 font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-        Evaluation Procedure
+        4.3 Evaluation Procedure
       </h3>
       <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
         Gates are evaluated sequentially. Each gate contains two kinds of
@@ -51,7 +111,7 @@ export function MethodologySection() {
       </p>
 
       <h3 className="mt-10 font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-        Scoring Function
+        4.4 Scoring Function
       </h3>
       <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
         The normalized score is a step function with partial credit at the

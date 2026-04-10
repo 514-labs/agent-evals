@@ -5,9 +5,18 @@ import { scaleLog, scaleLinear } from "d3-scale";
 import type { LiftPoint } from "./aggregate";
 import { AGENT_LABELS } from "./aggregate";
 
+type TierKey = "all" | "tier-1" | "tier-2" | "tier-3";
+
 interface LiftChartProps {
-  data: LiftPoint[];
+  dataByTier: Record<TierKey, LiftPoint[]>;
 }
+
+const TIER_OPTIONS: { key: TierKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "tier-1", label: "T1" },
+  { key: "tier-2", label: "T2" },
+  { key: "tier-3", label: "T3" },
+];
 
 const AGENT_COLORS: Record<string, string> = {
   "Claude-Code": "#B91C1C",
@@ -37,7 +46,6 @@ const BREAK_GAP = 12;
 
 function makeTimeBrokenScale(innerW: number) {
   const linearStart = BREAK_ZONE + BREAK_GAP;
-  const linearW = innerW - linearStart;
   const linear = scaleLinear().domain([TIME_BREAK, TIME_MAX]).range([linearStart, innerW]);
 
   function scale(v: number): number {
@@ -62,12 +70,18 @@ function DesktopLiftChart({ data, mode }: { data: LiftPoint[]; mode: "cost" | "t
     if (allX.length === 0) return { xScale: null, yScale: null, xTicks: [] as number[], yTicks: [] as number[], isBroken: false };
 
     const yMin = Math.max(0, Math.min(...allY) - 0.1);
-    const yMax = Math.min(1.1, Math.max(...allY) + 0.1);
-    const ys = scaleLinear().domain([yMin, yMax]).range([INNER_H, 0]).nice();
+    const yMax = 1.0;
+    const ys = scaleLinear().domain([yMin, yMax]).range([INNER_H, 0]);
+
+    const step = yMax - yMin > 0.5 ? 0.2 : yMax - yMin > 0.2 ? 0.1 : 0.05;
+    const explicitYTicks: number[] = [];
+    for (let v = Math.ceil(yMin / step) * step; v <= yMax + 1e-9; v += step) {
+      explicitYTicks.push(Math.round(v * 100) / 100);
+    }
 
     if (mode === "time") {
       const { scale } = makeTimeBrokenScale(INNER_W);
-      return { xScale: scale, yScale: ys, xTicks: scale.ticks(), yTicks: ys.ticks(5), isBroken: true };
+      return { xScale: scale, yScale: ys, xTicks: scale.ticks(), yTicks: explicitYTicks, isBroken: true };
     }
 
     const xMin = Math.max(0.01, Math.min(...allX) * 0.5);
@@ -82,7 +96,7 @@ function DesktopLiftChart({ data, mode }: { data: LiftPoint[]; mode: "cost" | "t
       return curr - prev > 40;
     });
 
-    return { xScale: xs, yScale: ys, xTicks: filteredXTicks, yTicks: ys.ticks(5), isBroken: false };
+    return { xScale: xs, yScale: ys, xTicks: filteredXTicks, yTicks: explicitYTicks, isBroken: false };
   }, [sorted, mode]);
 
   if (!xScale || !yScale) return null;
@@ -136,7 +150,7 @@ function DesktopLiftChart({ data, mode }: { data: LiftPoint[]; mode: "cost" | "t
         </text>
         {yTicks.map((t) => (
           <text key={`yl-${t}`} x={-8} y={yScale(t) + 3} textAnchor="end" fontSize={9} fill="var(--muted-foreground)">
-            {t.toFixed(1)}
+            {t.toFixed(2)}
           </text>
         ))}
         <text x={0} y={0} textAnchor="middle" fontSize={10} fill="var(--muted-foreground)" fontFamily="var(--font-mono)" transform={`translate(-34,${INNER_H / 2}) rotate(-90)`}>
@@ -164,25 +178,6 @@ function DesktopLiftChart({ data, mode }: { data: LiftPoint[]; mode: "cost" | "t
           );
         })}
       </g>
-
-      {/* Left-aligned legend */}
-      <g transform={`translate(${PAD.left},${H - 14})`}>
-        {sorted.map((d, i) => {
-          const color = AGENT_COLORS[d.agent] ?? "#999";
-          return (
-            <g key={d.agent} transform={`translate(${i * 100},0)`}>
-              <circle cx={5} cy={5} r={4} fill={color} />
-              <text x={14} y={9} fontSize={10} fill="var(--muted-foreground)">{AGENT_LABELS[d.agent] ?? d.agent}</text>
-            </g>
-          );
-        })}
-        <g transform={`translate(${sorted.length * 100 + 20},0)`}>
-          <circle cx={5} cy={5} r={4} fill="none" stroke="var(--muted-foreground)" strokeWidth={1.5} />
-          <text x={14} y={9} fontSize={9} fill="var(--muted-foreground)">base-rt</text>
-          <circle cx={75} cy={5} r={4} fill="var(--muted-foreground)" />
-          <text x={84} y={9} fontSize={9} fill="var(--muted-foreground)">classic-de</text>
-        </g>
-      </g>
     </svg>
   );
 }
@@ -193,7 +188,7 @@ function MobileLiftRow({ point, mode }: { point: LiftPoint; mode: "cost" | "time
   const minScore = Math.min(point.baseScore, point.specScore);
   const maxScore = Math.max(point.baseScore, point.specScore);
   const rangeMin = Math.max(0, minScore - 0.15);
-  const rangeMax = Math.min(1.1, maxScore + 0.15);
+  const rangeMax = Math.min(1.0, maxScore + 0.15);
   const scale = scaleLinear().domain([rangeMin, rangeMax]).range([0, 100]);
 
   const basePct = scale(point.baseScore);
@@ -227,85 +222,129 @@ function MobileLiftRow({ point, mode }: { point: LiftPoint; mode: "cost" | "time
       </div>
       <div className="flex justify-between mt-1">
         <span className="font-[family-name:var(--font-display)] text-[10px] text-[color:var(--muted-foreground)] tabular-nums">
-          {point.baseScore.toFixed(2)} base-rt
+          {point.baseScore.toFixed(2)} base-rt (n={point.baseN})
         </span>
         <span className="font-[family-name:var(--font-display)] text-[10px] text-[color:var(--muted-foreground)] tabular-nums">
-          {point.specScore.toFixed(2)} classic-de
+          {point.specScore.toFixed(2)} classic-de (n={point.specN})
         </span>
       </div>
     </div>
   );
 }
 
-export function LiftChart({ data }: LiftChartProps) {
+export function LiftChart({ dataByTier }: LiftChartProps) {
   const [mode, setMode] = useState<"cost" | "time">("cost");
+  const [tier, setTier] = useState<TierKey>("all");
+  const data = dataByTier[tier];
 
-  if (data.length === 0) {
-    return (
-      <div className="border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[280px]">
-        <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
-          Insufficient data for lift chart
-        </p>
-      </div>
-    );
-  }
-
-  const sorted = [...data].sort((a, b) => AGENT_ORDER.indexOf(a.agent) - AGENT_ORDER.indexOf(b.agent));
+  const sorted = data
+    ? [...data].sort((a, b) => AGENT_ORDER.indexOf(a.agent) - AGENT_ORDER.indexOf(b.agent))
+    : [];
+  const hasData = sorted.length > 0;
 
   return (
     <>
-      {/* Cost / Time toggle */}
-      <div className="flex justify-between items-center mb-3">
-        <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
-          Gated score vs.
-        </span>
-        <div className="flex">
-          <button
-            type="button"
-            onClick={() => setMode("cost")}
-            className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
-              mode === "cost"
-                ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
-            }`}
-          >
-            Cost
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("time")}
-            className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border border-l-0 px-3 py-1 transition-colors ${
-              mode === "time"
-                ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
-            }`}
-          >
-            Time
-          </button>
+      {/* Controls row */}
+      <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
+            Gated score vs.
+          </span>
+          <div className="flex">
+            <button
+              type="button"
+              onClick={() => setMode("cost")}
+              className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
+                mode === "cost"
+                  ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+              }`}
+            >
+              Cost
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("time")}
+              className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border border-l-0 px-3 py-1 transition-colors ${
+                mode === "time"
+                  ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+              }`}
+            >
+              Time
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="font-[family-name:var(--font-display)] text-sm text-[color:var(--muted-foreground)]">
+            Scenario difficulty:
+          </span>
+          <div className="flex gap-1.5">
+            {TIER_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setTier(opt.key)}
+                className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
+                  tier === opt.key
+                    ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
+                    : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Mobile */}
-      <div className="sm:hidden">
-        {sorted.map((d) => (
-          <MobileLiftRow key={d.agent} point={d} mode={mode} />
-        ))}
-        <div className="flex items-center gap-3 mt-3">
-          <div className="flex items-center gap-1">
-            <span className="inline-block size-2.5 rounded-full border-2 border-[color:var(--muted-foreground)]" />
-            <span className="font-[family-name:var(--font-mono)] text-[9px] text-[color:var(--muted-foreground)]">base-rt</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="inline-block size-2.5 rounded-full bg-[color:var(--muted-foreground)]" />
-            <span className="font-[family-name:var(--font-mono)] text-[9px] text-[color:var(--muted-foreground)]">classic-de</span>
-          </div>
+      {!hasData ? (
+        <div className="border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[280px]">
+          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
+            No runs with both harnesses at this difficulty tier
+          </p>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Mobile */}
+          <div className="sm:hidden">
+            {sorted.map((d) => (
+              <MobileLiftRow key={d.agent} point={d} mode={mode} />
+            ))}
+          </div>
 
-      {/* Desktop */}
-      <div className="hidden sm:block">
-        <DesktopLiftChart data={data} mode={mode} />
-      </div>
+          {/* Desktop */}
+          <div className="hidden sm:block">
+            <DesktopLiftChart data={sorted} mode={mode} />
+          </div>
+
+          {/* Legend: per agent × harness with n counts */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 justify-center">
+            {sorted.map((d) => {
+          const color = AGENT_COLORS[d.agent] ?? "#999";
+          const label = AGENT_LABELS[d.agent] ?? d.agent;
+          return (
+            <div key={d.agent} className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block size-2.5 rounded-full border-2" style={{ borderColor: color }} />
+                <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold text-[color:var(--muted-foreground)]">
+                  {label} Base-RT
+                  <span className="font-normal ml-1 text-[color:var(--chart-4)]">n={d.baseN}</span>
+                </span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block size-2.5 rounded-full" style={{ backgroundColor: color }} />
+                <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold text-[color:var(--muted-foreground)]">
+                  {label} Classic-DE
+                  <span className="font-normal ml-1 text-[color:var(--chart-4)]">n={d.specN}</span>
+                </span>
+              </span>
+            </div>
+          );
+        })}
+          </div>
+        </>
+      )}
     </>
   );
 }

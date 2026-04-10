@@ -37,20 +37,38 @@ const AGENT_HEX: Record<string, string> = {
   Cursor: "#A8A29E",
 };
 
-const GATES = [
-  { label: "G1+", value: 1 },
-  { label: "G2+", value: 2 },
-  { label: "G3+", value: 3 },
-  { label: "G4+", value: 4 },
-  { label: "G5+", value: 5 },
+type TierKey = "all" | "tier-1" | "tier-2" | "tier-3";
+
+const TIER_OPTIONS: { key: TierKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "tier-1", label: "T1" },
+  { key: "tier-2", label: "T2" },
+  { key: "tier-3", label: "T3" },
 ];
 
-export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
-  const [minGate, setMinGate] = useState(1);
+const EPSILON = 0.01;
+function scoreToY(score: number): number {
+  return -Math.log10(1 + EPSILON - Math.min(score, 1));
+}
 
-  const filtered = allData.filter(
-    (d) => d.highestGate >= minGate && d.cost > 0,
-  );
+const SCORE_TICKS = [0, 0.3, 0.6, 0.8, 0.9, 0.95, 1.0];
+const Y_TICKS = SCORE_TICKS.map(scoreToY);
+const Y_MAX = scoreToY(1.0);
+
+function formatTimeTick(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = seconds / 60;
+  return Number.isInteger(m) ? `${m}m` : `${m.toFixed(1)}m`;
+}
+
+export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
+  const [mode, setMode] = useState<"cost" | "time">("cost");
+  const [tier, setTier] = useState<TierKey>("all");
+
+  const filtered = allData
+    .filter((d) => d.cost > 0 && d.time > 0)
+    .filter((d) => tier === "all" || d.tier === tier)
+    .map((d) => ({ ...d, yScore: scoreToY(d.score) }));
 
   const config: ChartConfig = Object.fromEntries(
     agents.map((agent) => [
@@ -59,104 +77,145 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
     ]),
   );
 
+  const xDataKey = mode === "cost" ? "cost" : "time";
+  const xScale = mode === "cost" ? "log" : ("linear" as const);
+  const xLabel = mode === "cost" ? "Cost (log scale)" : "Time";
+
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
-        <span className="font-[family-name:var(--font-display)] text-sm text-[color:var(--muted-foreground)]">
-          Gate threshold selector:
-        </span>
-        <div className="flex gap-1.5">
-          {GATES.map((g) => (
+      <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
+            Score vs.
+          </span>
+          <div className="flex">
             <button
-              key={g.label}
               type="button"
-              onClick={() => setMinGate(g.value)}
+              onClick={() => setMode("cost")}
               className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
-                minGate === g.value
+                mode === "cost"
                   ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
                   : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
               }`}
             >
-              {g.label}
+              Cost
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setMode("time")}
+              className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border border-l-0 px-3 py-1 transition-colors ${
+                mode === "time"
+                  ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+              }`}
+            >
+              Time
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="font-[family-name:var(--font-display)] text-sm text-[color:var(--muted-foreground)]">
+            Scenario difficulty:
+          </span>
+          <div className="flex gap-1.5">
+            {TIER_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setTier(opt.key)}
+                className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
+                  tier === opt.key
+                    ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
+                    : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[280px]">
-          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] text-center">
-            No runs cleared gate {minGate}
-          </p>
-        </div>
-      ) : (
-        <ChartContainer config={config} className="aspect-auto h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 10, right: 10, bottom: 40, left: 16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis
-                dataKey="cost"
-                type="number"
-                scale="log"
-                domain={["auto", "auto"]}
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={{ stroke: "var(--border)" }}
-                tickFormatter={(v: number) => `$${v < 1 ? v.toFixed(2) : v.toFixed(0)}`}
-                name="Cost"
-              >
-                <Label value="Cost (log scale)" position="insideBottom" offset={-14} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }} />
-              </XAxis>
-              <YAxis
-                dataKey="score"
-                type="number"
-                domain={[0, 1.1]}
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={{ stroke: "var(--border)" }}
-                tickFormatter={(v: number) => v.toFixed(2)}
-                name="Score"
-              >
-                <Label value="Gated Score" angle={-90} position="insideLeft" offset={0} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)", textAnchor: "middle" }} />
-              </YAxis>
-              <ZAxis range={[60, 60]} />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    formatter={(value, name) =>
-                      name === "cost"
-                        ? `$${(value as number).toFixed(2)}`
-                        : (value as number).toFixed(3)
-                    }
-                  />
-                }
-              />
-              {agents.map((agent) => (
-                <Scatter
-                  key={agent}
-                  name={AGENT_LABELS[agent] ?? agent}
-                  data={filtered.filter((d) => d.agent === agent)}
-                  fill={AGENT_HEX[agent] ?? "#999"}
+      <ChartContainer config={config} className="aspect-auto h-[320px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 10, right: 10, bottom: 40, left: 16 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis
+              dataKey={xDataKey}
+              type="number"
+              scale={xScale}
+              domain={["auto", "auto"]}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              tickFormatter={(v: number) =>
+                mode === "cost"
+                  ? `$${v < 1 ? v.toFixed(2) : v.toFixed(0)}`
+                  : formatTimeTick(v)
+              }
+              name={mode === "cost" ? "Cost" : "Time"}
+            >
+              <Label value={xLabel} position="insideBottom" offset={-14} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)" }} />
+            </XAxis>
+            <YAxis
+              dataKey="yScore"
+              type="number"
+              domain={[0, Y_MAX]}
+              ticks={Y_TICKS}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
+              tickFormatter={(v: number) => {
+                const score = 1 + EPSILON - Math.pow(10, -v);
+                return score.toFixed(2);
+              }}
+              name="Score"
+            >
+              <Label value="Gated Score (log)" angle={-90} position="insideLeft" offset={0} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontFamily: "var(--font-mono)", textAnchor: "middle" }} />
+            </YAxis>
+            <ZAxis range={[60, 60]} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name) => {
+                    if (name === "cost") return `$${(value as number).toFixed(2)}`;
+                    if (name === "time") return formatTimeTick(value as number);
+                    const v = value as number;
+                    const score = 1 + EPSILON - Math.pow(10, -v);
+                    return score.toFixed(3);
+                  }}
                 />
-              ))}
-            </ScatterChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      )}
-
-      {/* Custom circle legend matching Figma */}
-      <div className="flex items-center gap-4 mt-3 justify-center">
-        {agents.map((agent) => (
-          <div key={agent} className="flex items-center gap-1.5">
-            <span
-              className="inline-block size-2.5 rounded-full"
-              style={{ backgroundColor: AGENT_HEX[agent] ?? "#999" }}
+              }
             />
-            <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold text-[color:var(--muted-foreground)]">
-              {AGENT_LABELS[agent] ?? agent}
-            </span>
-          </div>
-        ))}
+            {agents.map((agent) => (
+              <Scatter
+                key={agent}
+                name={AGENT_LABELS[agent] ?? agent}
+                data={filtered.filter((d) => d.agent === agent)}
+                fill={AGENT_HEX[agent] ?? "#999"}
+              />
+            ))}
+          </ScatterChart>
+        </ResponsiveContainer>
+      </ChartContainer>
+
+      {/* Custom circle legend */}
+      <div className="flex items-center gap-4 mt-3 justify-center">
+        {agents.map((agent) => {
+          const n = filtered.filter((d) => d.agent === agent).length;
+          return (
+            <div key={agent} className="flex items-center gap-1.5">
+              <span
+                className="inline-block size-2.5 rounded-full"
+                style={{ backgroundColor: AGENT_HEX[agent] ?? "#999" }}
+              />
+              <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold text-[color:var(--muted-foreground)]">
+                {AGENT_LABELS[agent] ?? agent}
+                <span className="font-normal ml-1 text-[color:var(--chart-4)]">n={n}</span>
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

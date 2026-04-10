@@ -30,10 +30,8 @@ const tocEntries = [
   { id: "scenarios", number: 3, label: "Scenarios" },
   { id: "methodology", number: 4, label: "Methodology" },
   { id: "comparative-results", number: 5, label: "Comparative Results" },
-  { id: "infrastructure", number: 6, label: "Infrastructure" },
-  { id: "limitations", number: 7, label: "Limitations" },
-  { id: "open-benchmark", number: 8, label: "Open Benchmark" },
-  { id: "evaluation-access", number: 9, label: "Evaluation Access" },
+  { id: "limitations", number: 6, label: "Limitations" },
+  { id: "evaluation-access", number: 7, label: "Evaluation Access" },
 ];
 
 export function AbstractSection() {
