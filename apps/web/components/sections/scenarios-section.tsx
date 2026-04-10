@@ -120,9 +120,7 @@ export function ScenariosSection() {
           <GateAttritionChart dataByTier={gateAttritionByTier} countsByTier={countsByTier} agents={agents} />
         </div>
         <SideNote>
-          Computed over {numRuns} runs across {numScenarios} scenarios
-          and {numAgents} agents. Both harness configurations (base-rt and
-          classic-de) are combined.
+          {`Computed over ${numRuns} runs across ${numScenarios} scenarios and ${numAgents} agents. Both harness configurations (base-rt and classic-de) are combined.`}
         </SideNote>
       </div>
 

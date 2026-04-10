@@ -10,19 +10,13 @@ export function Footer() {
               DEC
             </span>
             <span className="text-[color:var(--muted-foreground)]">&middot;</span>
-            <Link
-              href="/docs"
-              className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors"
-            >
+            <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--border)] cursor-default">
               Documentation
-            </Link>
+            </span>
             <span className="text-[color:var(--muted-foreground)]">&middot;</span>
-            <Link
-              href="/leaderboard"
-              className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors"
-            >
+            <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--border)] cursor-default">
               Leaderboard
-            </Link>
+            </span>
             <span className="text-[color:var(--muted-foreground)]">&middot;</span>
             <a
               href="https://github.com/514-labs/agent-evals"

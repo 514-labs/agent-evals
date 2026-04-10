@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
+
 interface SideNoteProps {
-  children: string;
+  children: ReactNode;
 }
 
 export function SideNote({ children }: SideNoteProps) {

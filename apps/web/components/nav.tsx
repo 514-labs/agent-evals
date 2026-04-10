@@ -11,10 +11,10 @@ interface NavProps {
 }
 
 const sectionAnchors = [
-  { href: "#scenarios", label: "Scenarios" },
-  { href: "/leaderboard", label: "Leaderboard", external: false },
-  { href: "#results", label: "Compare" },
-];
+  { href: "#scenarios", label: "Scenarios", disabled: true },
+  { href: "/leaderboard", label: "Leaderboard", external: false, disabled: true },
+  { href: "#results", label: "Compare", disabled: true },
+] as const;
 
 export function Nav({
   activeItem,
@@ -61,7 +61,14 @@ export function Nav({
           {isLanding ? (
             <>
               {sectionAnchors.map((link) =>
-                link.href.startsWith("#") ? (
+                link.disabled ? (
+                  <span
+                    key={link.href}
+                    className="hidden lg:inline text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--border)] px-1.5 py-1 font-[family-name:var(--font-mono)] cursor-default"
+                  >
+                    {link.label}
+                  </span>
+                ) : link.href.startsWith("#") ? (
                   <a
                     key={link.href}
                     href={link.href}
@@ -92,7 +99,7 @@ export function Nav({
               </span>
               <MobileMenu
                 links={[
-                  ...sectionAnchors,
+                  ...sectionAnchors.filter((l) => !l.disabled),
                   { href: "https://github.com/514-labs/agent-evals", label: "GitHub" },
                 ]}
               />
@@ -104,12 +111,14 @@ export function Nav({
                 Docs
               </Link>
               */}
+              {/* Re-enable after next release
               <Link
                 href="/leaderboard"
                 className={linkClass(activeItem === "leaderboard")}
               >
                 Leaderboard
               </Link>
+              */}
               <Link
                 href="/audit"
                 className={linkClass(activeItem === "audit")}
