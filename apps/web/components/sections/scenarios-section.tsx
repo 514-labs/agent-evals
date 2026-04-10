@@ -13,6 +13,7 @@ import {
   computePersonaLift,
   computeEfficiency,
   getAgentNames,
+  formatAgent,
   AGENT_LABELS,
 } from "../charts/aggregate";
 import { getLeaderboardEntries, getScenarioTiers } from "@/data/results";
@@ -36,12 +37,25 @@ export function ScenariosSection() {
   const entries = getLeaderboardEntries();
   const agents = getAgentNames(entries);
   const scenarioTiers = getScenarioTiers();
-  const gateAttritionByTier = {
-    all: computeGateAttrition(entries),
-    "tier-1": computeGateAttrition(entries.filter((e) => scenarioTiers[e.scenario] === "tier-1")),
-    "tier-2": computeGateAttrition(entries.filter((e) => scenarioTiers[e.scenario] === "tier-2")),
-    "tier-3": computeGateAttrition(entries.filter((e) => scenarioTiers[e.scenario] === "tier-3")),
-  };
+  const tierBuckets = {
+    all: entries,
+    "tier-1": entries.filter((e) => scenarioTiers[e.scenario] === "tier-1"),
+    "tier-2": entries.filter((e) => scenarioTiers[e.scenario] === "tier-2"),
+    "tier-3": entries.filter((e) => scenarioTiers[e.scenario] === "tier-3"),
+  } as const;
+  const gateAttritionByTier = Object.fromEntries(
+    Object.entries(tierBuckets).map(([k, v]) => [k, computeGateAttrition(v)]),
+  ) as Record<"all" | "tier-1" | "tier-2" | "tier-3", ReturnType<typeof computeGateAttrition>>;
+  const countsByTier = Object.fromEntries(
+    Object.entries(tierBuckets).map(([k, v]) => {
+      const counts: Record<string, number> = {};
+      for (const e of v) {
+        const agent = formatAgent(e.agent);
+        counts[agent] = (counts[agent] ?? 0) + 1;
+      }
+      return [k, counts];
+    }),
+  ) as Record<"all" | "tier-1" | "tier-2" | "tier-3", Record<string, number>>;
   const costScoreData = computeCostScore(entries);
   const liftData = computeLiftData(entries, "base-rt", "classic-de");
   const harnessLiftData = computeHarnessLift(entries, "base-rt", "classic-de");
@@ -103,7 +117,7 @@ export function ScenariosSection() {
             cleared that gate level. Filter by scenario difficulty (T1
             easiest, T3 hardest).
           </span>
-          <GateAttritionChart dataByTier={gateAttritionByTier} agents={agents} />
+          <GateAttritionChart dataByTier={gateAttritionByTier} countsByTier={countsByTier} agents={agents} />
         </div>
         <SideNote>
           Computed over {numRuns} runs across {numScenarios} scenarios

@@ -23,6 +23,7 @@ type TierKey = "all" | "tier-1" | "tier-2" | "tier-3";
 
 interface GateAttritionChartProps {
   dataByTier: Record<TierKey, GateAttritionPoint[]>;
+  countsByTier: Record<TierKey, Record<string, number>>;
   agents: string[];
 }
 
@@ -57,9 +58,10 @@ const SERIES_HEX: Record<string, string> = {
 
 const LABELS: Record<string, string> = { ...AGENT_LABELS, ...MODEL_LABELS };
 
-export function GateAttritionChart({ dataByTier, agents }: GateAttritionChartProps) {
+export function GateAttritionChart({ dataByTier, countsByTier, agents }: GateAttritionChartProps) {
   const [tier, setTier] = useState<TierKey>("all");
   const data = dataByTier[tier];
+  const counts = countsByTier[tier];
 
   const config: ChartConfig = Object.fromEntries(
     agents.map((agent) => [
@@ -140,6 +142,9 @@ export function GateAttritionChart({ dataByTier, agents }: GateAttritionChartPro
             />
             <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold text-[color:var(--muted-foreground)]">
               {LABELS[agent] ?? agent}
+              <span className="font-normal ml-1 text-[color:var(--chart-4)]">
+                n={counts[agent] ?? 0}
+              </span>
             </span>
           </div>
         ))}

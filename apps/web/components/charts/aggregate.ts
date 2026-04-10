@@ -9,7 +9,7 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-function formatAgent(agent: string): string {
+export function formatAgent(agent: string): string {
   return agent
     .replace("claude-code", "Claude-Code")
     .replace("codex", "Codex")
