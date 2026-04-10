@@ -15,7 +15,7 @@ import {
   getAgentNames,
   AGENT_LABELS,
 } from "../charts/aggregate";
-import { getLeaderboardEntries } from "@/data/results";
+import { getLeaderboardEntries, getScenarioTiers } from "@/data/results";
 
 function formatCost(v: number): string {
   return v < 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(0)}`;
@@ -35,7 +35,13 @@ function formatTime(s: number): string {
 export function ScenariosSection() {
   const entries = getLeaderboardEntries();
   const agents = getAgentNames(entries);
-  const gateAttritionData = computeGateAttrition(entries);
+  const scenarioTiers = getScenarioTiers();
+  const gateAttritionByTier = {
+    all: computeGateAttrition(entries),
+    "tier-1": computeGateAttrition(entries.filter((e) => scenarioTiers[e.scenario] === "tier-1")),
+    "tier-2": computeGateAttrition(entries.filter((e) => scenarioTiers[e.scenario] === "tier-2")),
+    "tier-3": computeGateAttrition(entries.filter((e) => scenarioTiers[e.scenario] === "tier-3")),
+  };
   const costScoreData = computeCostScore(entries);
   const liftData = computeLiftData(entries, "base-rt", "classic-de");
   const harnessLiftData = computeHarnessLift(entries, "base-rt", "classic-de");
@@ -56,38 +62,60 @@ export function ScenariosSection() {
         off against cost and time. Finally, scenario-level detail.
       </p>
 
-      {/* The Quality Story */}
+      {/* Task Completion */}
       <div className="mt-10">
         <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-          The Quality Story
+          Task Completion
         </h3>
         <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
-          A run tells you which agent-harness pair clears which quality gates,
-          and where it falls off. The gate-attrition curve is the primary
-          quality visualization. The question is: how much domain knowledge the
-          prompt provides, and whether the tooling harness matters.
+          Attrition through the first four gates is gradual: 90% of runs clear
+          G1 (functional), tapering to 78% at G4 (performant). The production
+          gate is a cliff: only 15% of runs clear G5. Agent spreads at each
+          gate are modest (7{"\u2013"}14pp) and mostly not statistically
+          significant overall, but on tier-2 scenarios agent choice becomes
+          significant at early gates (p = 0.03). Within Claude, model choice
+          (Opus 4.6 vs Sonnet 4.6) shows no meaningful difference at any gate
+          (p &gt; 0.3), with identical median normalized scores.
         </p>
+        <div className="mt-4 border-l-2 border-[color:var(--accent)] pl-4">
+          <p className="font-[family-name:var(--font-display)] text-[11px] font-bold uppercase tracking-[1.2px] text-[color:var(--accent)]">
+            Interpretation
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--accent)]">
+            Of the 98 runs that reach G5, the single biggest failure
+            is <code className="text-[11px]">uses_env_vars</code>: 67%
+            hardcode database connection strings instead of reading from
+            environment variables. Deep nesting (14%) and leftover debug
+            artifacts (8%) account for most of the rest. The pattern is
+            consistent: agents produce functional code that is brittle
+            across environments and harder to maintain.
+          </p>
+        </div>
       </div>
 
       <div className="mt-4 relative">
         <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-4">
-          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-3">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-[1px] text-[color:var(--foreground)] block mb-1">
             Gate Attrition by Agent
           </span>
-          <GateAttritionChart data={gateAttritionData} agents={agents} />
+          <span className="font-[family-name:var(--font-display)] text-[12px] text-[color:var(--muted-foreground)] block mb-3">
+            For each gate, the percentage of that agent&rsquo;s runs that
+            cleared that gate level. Filter by scenario difficulty (T1
+            easiest, T3 hardest).
+          </span>
+          <GateAttritionChart dataByTier={gateAttritionByTier} agents={agents} />
         </div>
         <SideNote>
-          Gate completion rate per agent. For each of the five gates, the
-          percentage of that agent&rsquo;s runs that cleared that gate level.
-          Computed over {numRuns} total runs across {numScenarios} scenarios
-          and {numAgents} agents, all harnesses combined.
+          Computed over {numRuns} runs across {numScenarios} scenarios
+          and {numAgents} agents. Both harness configurations (base-rt and
+          classic-de) are combined.
         </SideNote>
       </div>
 
-      {/* The Lift Story */}
+      {/* Harness Lift */}
       <div className="mt-10">
         <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-          The Lift Story
+          Harness Lift
         </h3>
         <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
           The lift chart compares quality against efficiency for every
@@ -110,10 +138,10 @@ export function ScenariosSection() {
         </SideNote>
       </div>
 
-      {/* The Efficiency Story */}
+      {/* Cost and Efficiency */}
       <div className="mt-10">
         <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-          The Efficiency Story
+          Cost and Efficiency
         </h3>
         <p className="mt-2 font-[family-name:var(--font-display)] text-sm leading-[1.4] text-[color:var(--muted-foreground)]">
           Raw cost is meaningful if the agent did not solve the problem. A $0.10

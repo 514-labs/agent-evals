@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   LineChart,
   Line,
@@ -18,10 +19,19 @@ import {
 import type { GateAttritionPoint } from "./aggregate";
 import { AGENT_LABELS, MODEL_LABELS } from "./aggregate";
 
+type TierKey = "all" | "tier-1" | "tier-2" | "tier-3";
+
 interface GateAttritionChartProps {
-  data: GateAttritionPoint[];
+  dataByTier: Record<TierKey, GateAttritionPoint[]>;
   agents: string[];
 }
+
+const TIER_OPTIONS: { key: TierKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "tier-1", label: "T1" },
+  { key: "tier-2", label: "T2" },
+  { key: "tier-3", label: "T3" },
+];
 
 const SERIES_COLORS: Record<string, string> = {
   "Claude-Code": "var(--chart-1)",
@@ -47,7 +57,10 @@ const SERIES_HEX: Record<string, string> = {
 
 const LABELS: Record<string, string> = { ...AGENT_LABELS, ...MODEL_LABELS };
 
-export function GateAttritionChart({ data, agents }: GateAttritionChartProps) {
+export function GateAttritionChart({ dataByTier, agents }: GateAttritionChartProps) {
+  const [tier, setTier] = useState<TierKey>("all");
+  const data = dataByTier[tier];
+
   const config: ChartConfig = Object.fromEntries(
     agents.map((agent) => [
       agent,
@@ -55,10 +68,32 @@ export function GateAttritionChart({ data, agents }: GateAttritionChartProps) {
     ]),
   );
 
-  if (data.length === 0) return null;
+  if (!data || data.length === 0) return null;
 
   return (
     <div>
+      <div className="flex items-center gap-3 mb-4">
+        <span className="font-[family-name:var(--font-display)] text-sm text-[color:var(--muted-foreground)]">
+          Scenario difficulty:
+        </span>
+        <div className="flex gap-1.5">
+          {TIER_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setTier(opt.key)}
+              className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
+                tier === opt.key
+                  ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <ChartContainer config={config} className="aspect-auto h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 10, bottom: 24, left: 16 }}>

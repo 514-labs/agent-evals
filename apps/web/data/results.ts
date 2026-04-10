@@ -235,3 +235,25 @@ export function getUniqueHarnesses(): string[] {
   const results = getCachedResults();
   return [...new Set(results.map((r) => r.harness))].sort();
 }
+
+const getScenarioTiersCache = cache((): Record<string, string> => {
+  const scenariosDir = join(process.cwd(), "..", "..", "scenarios");
+  const tiers: Record<string, string> = {};
+  if (!existsSync(scenariosDir)) return tiers;
+  for (const entry of readdirSync(scenariosDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const scenarioJson = join(scenariosDir, entry.name, "scenario.json");
+    if (!existsSync(scenarioJson)) continue;
+    try {
+      const parsed = JSON.parse(readFileSync(scenarioJson, "utf8"));
+      tiers[entry.name] = parsed.difficulty_tier ?? parsed.tier ?? "unknown";
+    } catch {
+      continue;
+    }
+  }
+  return tiers;
+});
+
+export function getScenarioTiers(): Record<string, string> {
+  return getScenarioTiersCache();
+}

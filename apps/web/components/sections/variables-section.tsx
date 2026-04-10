@@ -47,12 +47,9 @@ export function VariablesSection() {
         <div className="mt-8 relative">
           <CardStack items={variables} />
           <SideNote>
-            0.1-preview includes only a basic tooling harness.
-            Integrated harnesses are planned for future releases.
-          </SideNote>
-          <SideNote>
-            0.1-preview includes only baseline prompts. Informed
-            prompt variants are planned for future releases.
+            0.1-preview includes only a basic tooling harness and
+            baseline prompts. Integrated harnesses and informed prompt
+            variants are planned for future releases.
           </SideNote>
         </div>
       </div>
