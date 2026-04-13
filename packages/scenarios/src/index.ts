@@ -11,6 +11,7 @@ export type {
   PersonaPrompts,
   Task,
   Scenario,
+  ScenarioProductionChecks,
   RegistryScenario,
   ObservedMetrics,
   EvalResult,
