@@ -335,7 +335,6 @@ fn start_web_server(web_dir: &Path, audits_dir: &Path, results_dir: &Path, port:
     let mut command = Command::new("pnpm");
     command
         .arg("dev")
-        .arg("--")
         .arg("--port")
         .arg(port.to_string())
         .current_dir(web_dir)
