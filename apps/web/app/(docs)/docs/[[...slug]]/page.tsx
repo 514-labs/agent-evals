@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state"
 import { HarnessShowcaseBlock } from "@/components/harness-showcase-block"
 import { RoadmapTimeline } from "@/components/roadmap-timeline"
 import { ScenarioRegistryBlock } from "@/components/scenario-registry-block"
+import { isPublished } from "@/lib/published-docs"
 import { docsSource } from "@/lib/source"
 import { useMDXComponents } from "@/mdx-components"
 
@@ -49,6 +50,11 @@ export default async function DocsPage({
   params: Promise<{ slug?: string[] }>
 }) {
   const { slug } = await params
+
+  if (!isPublished(slug)) {
+    notFound()
+  }
+
   const page = docsSource.getPage(slug)
 
   if (!page) {

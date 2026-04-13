@@ -14,6 +14,7 @@ const sectionAnchors = [
   { href: "#scenarios", label: "Scenarios", disabled: true },
   { href: "/leaderboard", label: "Leaderboard", external: false, disabled: true },
   { href: "#results", label: "Compare", disabled: true },
+  { href: "/docs", label: "Documentation", disabled: false },
 ] as const;
 
 export function Nav({
@@ -101,16 +102,15 @@ export function Nav({
                 links={[
                   ...sectionAnchors.filter((l) => !l.disabled),
                   { href: "https://github.com/514-labs/agent-evals", label: "GitHub" },
+                  { href: "/docs", label: "Documentation" },
                 ]}
               />
             </>
           ) : (
             <>
-              {/* Hidden for Apr 9 launch - re-enable after docs review
               <Link href="/docs" className={linkClass(activeItem === "docs")}>
                 Docs
               </Link>
-              */}
               {/* Re-enable after next release
               <Link
                 href="/leaderboard"

@@ -10,10 +10,53 @@ import {
   SidebarSeparator,
 } from "@workspace/ui/components/sidebar";
 
+import type { Node, Root } from "fumadocs-core/page-tree";
+
 import { DocsSearch } from "@/components/docs-search";
 import { DocsTreeNav } from "@/components/docs-tree-nav";
 import { Nav } from "@/components/nav";
+import { isPublished } from "@/lib/published-docs";
 import { docsSource } from "@/lib/source";
+
+function slugFromUrl(url: string): string[] {
+  return url.replace(/^\/docs\/?/, "").split("/").filter(Boolean);
+}
+
+function filterTree(nodes: Node[]): Node[] {
+  const filtered: Node[] = [];
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]!;
+
+    if (node.type === "separator") {
+      // Only keep a separator if there's visible content after it
+      const rest = nodes.slice(i + 1);
+      const hasVisibleSibling = filterTree(rest).length > 0;
+      if (hasVisibleSibling) filtered.push(node);
+      continue;
+    }
+
+    if (node.type === "page") {
+      if (isPublished(slugFromUrl(node.url))) filtered.push(node);
+      continue;
+    }
+
+    if (node.type === "folder") {
+      const children = filterTree(node.children);
+      const indexVisible = node.index ? isPublished(slugFromUrl(node.index.url)) : false;
+      if (children.length > 0 || indexVisible) {
+        filtered.push({ ...node, children });
+      }
+    }
+  }
+
+  return filtered;
+}
+
+function getPublishedTree(): Root {
+  const tree = docsSource.pageTree;
+  return { ...tree, children: filterTree(tree.children) };
+}
 
 export default function DocsLayout({
   children,
@@ -39,7 +82,7 @@ export default function DocsLayout({
           <SidebarContent className="px-2">
             <SidebarGroup>
               <SidebarGroupContent>
-                <DocsTreeNav tree={docsSource.pageTree} />
+                <DocsTreeNav tree={getPublishedTree()} />
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
