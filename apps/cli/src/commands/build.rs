@@ -67,24 +67,46 @@ pub async fn execute(args: BuildArgs) -> Result<()> {
         args.scenario, args.harness, args.agent, args.model, args.version
     );
 
-    let status = Command::new(&plan.script_path)
+    let output = Command::new(&plan.script_path)
         .args(&plan.command_args)
         .current_dir(&plan.repo_root)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
+        .stderr(Stdio::piped())
+        .output()
         .with_context(|| format!("Failed to start {}", plan.script_path.display()))?;
 
-    if !status.success() {
-        bail!(
-            "Build failed for image '{}' with exit status {}",
-            plan.image_tag,
-            status
-                .code()
-                .map(|code| code.to_string())
-                .unwrap_or_else(|| "unknown".to_string())
-        );
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        // Surface stderr so the user can see what Docker reported
+        if !stderr.trim().is_empty() {
+            eprint!("{stderr}");
+        }
+
+        let is_daemon_issue = stderr.contains("_ping")
+            || stderr.contains("Is the docker daemon running")
+            || stderr.contains("500 Internal Server Error");
+
+        let exit_code = output
+            .status
+            .code()
+            .map(|code| code.to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        if is_daemon_issue {
+            bail!(
+                "Build failed for image '{}' with exit status {exit_code}\n\n\
+                 The Docker daemon appears to not be responding.\n\
+                 Start Docker Desktop or restart the Docker daemon, then try again.",
+                plan.image_tag,
+            );
+        } else {
+            bail!(
+                "Build failed for image '{}' with exit status {exit_code}",
+                plan.image_tag,
+            );
+        }
     }
 
     println!("Built image: {}", plan.image_tag);

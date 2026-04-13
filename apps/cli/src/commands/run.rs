@@ -433,7 +433,20 @@ async fn run_single(
             },
         )
         .await
-        .with_context(|| format!("Failed to create container from image '{image}'"))?;
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("500") || msg.contains("server error") {
+                anyhow::anyhow!(
+                    "Failed to create container from image '{image}': \
+                     Docker daemon returned a server error.\n\n\
+                     This usually means the Docker daemon is not running or is in a bad state.\n\
+                     Start Docker Desktop or restart the Docker daemon, then try again.\n\n\
+                     Original error: {e}"
+                )
+            } else {
+                anyhow::anyhow!("Failed to create container from image '{image}': {e}")
+            }
+        })?;
 
     docker
         .start_container(&container_name, None::<StartContainerOptions<String>>)
