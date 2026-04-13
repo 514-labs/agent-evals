@@ -1,100 +1,128 @@
 ---
-title: "Overview"
-description: "Install the CLI, try the research preview, inspect results, open the audit UI, and contribute new evals."
+title: "Quickstart"
+description: "Install the CLI, build and run a benchmark scenario, view results, and open the audit UI. This will allow you to replicate our results, create your own scenarios, and contribute data to the benchmark."
 ---
 
-DEC Bench `0.1` is a research preview for evaluating AI agents on real data engineering work. The fastest way to help is to run the CLI-first workflow on Foo Bar, note anything rough, and contribute new evals as the surface expands.
+## Prerequisites
 
-Install `dec-bench`:
+- [Docker](https://docs.docker.com/get-started/get-docker/) installed and running
+- An API key for the agent under test
 
-```bash title="Install the CLI"
-curl -fsSL https://decbench.ai/install.sh | sh
-```
+| Agent | Environment variable | Get a key |
+|-------|---------------------|-----------|
+| Claude Code | `ANTHROPIC_API_KEY` | [Anthropic Console](https://console.anthropic.com/) |
+| Codex | `OPENAI_API_KEY` or `CODEX_API_KEY` | [OpenAI Platform](https://platform.openai.com/api-keys) |
+| Cursor | `CURSOR_API_KEY` | [Cursor Settings](https://cursor.com/settings) |
 
-The branded installer is served from `decbench.ai` and fetches stable releases or preview builds from GitHub releases in `514-labs/agent-evals`.
+## 1. Clone the repository
 
-Clone the repo and enter it before your first build or run:
+The CLI requires a local checkout of the repository for scenario definitions and build scripts.
 
-```bash title="Clone the repo"
+```bash title="Clone and enter the repo"
 git clone https://github.com/514-labs/agent-evals.git
 cd agent-evals
 ```
 
-The first-run workflow uses repo-local scenarios and build scripts from this checkout.
+## 2. Install the CLI
 
-The default examples use `claude-code`, so export `ANTHROPIC_API_KEY` before you run:
-
-```bash title="Export the default agent API key"
-export ANTHROPIC_API_KEY=your-key-here
+```bash title="Install dec-bench"
+curl -fsSL https://decbench.ai/install.sh | sh
 ```
 
-Run a benchmark:
+## 3. Build a scenario
 
-```bash title="Build and run a benchmark"
+Each scenario builds a Docker image containing the infrastructure, seed data, agent tooling, and validation harness.
+
+```bash title="Build the scenario image"
 dec-bench build --scenario foo-bar-csv-ingest
+```
+
+## 4. Run the benchmark
+
+Export the API key for your agent, then run the scenario.
+
+```bash title="Set the API key and run"
+export ANTHROPIC_API_KEY=<your-key>
 dec-bench run --scenario foo-bar-csv-ingest
 ```
 
-Inspect the latest run:
+The CLI starts a container, launches the agent against the scenario prompt, runs the validation gates, and writes result artifacts. At the end it prints a run summary with the `Run ID`. Copy this for the next steps.
 
-```bash title="Inspect the latest run"
-dec-bench results --latest --scenario foo-bar-csv-ingest
+```text
+Run summary
+Run ID: foo-bar-csv-ingest-claude-code-...-1776118371671
+Gate/score: highest gate 0 | normalized score 0.100
+Result file: results/foo-bar-csv-ingest-...-1776118371671.json
 ```
 
-That detailed view prints `Run ID: ...` at the top so you can copy the real run ID into the audit command.
+## 5. View results
 
-The audit UI is a local web app. Install its dependencies before opening it for the first time:
+Print gate scores and artifact paths from the terminal:
 
-```bash title="Install web dependencies (once)"
+```bash title="Inspect the run"
+dec-bench results --run-id <run-id>
+```
+
+This prints the run metadata, gate scores, and paths to all artifacts:
+
+```text
+Selected run
+Run ID: foo-bar-csv-ingest-claude-code-claude-sonnet-4-20250514-base-rt-baseline-no-plan-...
+Scenario: foo-bar-csv-ingest
+Harness: base-rt
+Agent: claude-code
+Model: claude-sonnet-4-20250514
+Version: v0.1.0
+Highest gate: 0
+Normalized score: 0.1000
+Result file: results/foo-bar-csv-ingest-...json
+Artifacts:
+  stdout: results/foo-bar-csv-ingest-...stdout
+  infra stdout: results/foo-bar-csv-ingest-...infra.stdout
+  stderr: results/foo-bar-csv-ingest-...stderr
+  trace: results/foo-bar-csv-ingest-...trace.json
+  assertion log: results/foo-bar-csv-ingest-...assertion-log.json
+  session jsonl: results/foo-bar-csv-ingest-...session.jsonl
+  run metadata: results/foo-bar-csv-ingest-...run-meta.json
+  agent raw: results/foo-bar-csv-ingest-...agent-raw.json
+```
+
+For a visual view of agent traces, assertion results, and run metadata, open the audit UI. This requires installing the web dependencies first:
+
+```bash title="Install web dependencies (first time only)"
 pnpm install
 ```
 
-Open the audit UI:
-
-```bash title="Open localhost audit UI"
+```bash title="Open the audit UI"
 dec-bench audit open \
   --scenario foo-bar-csv-ingest \
-  --run-id <run-id-from-results>
+  --run-id <run-id>
 ```
 
-## How It Works
+## Troubleshooting
 
-The CLI is the main workflow in `0.1`. Docker is the runtime underneath it.
+### Docker is not running
 
-Every built image still encodes the same variables:
+If `dec-bench build` or `dec-bench run` fails with a Docker connection error, start Docker Desktop (or the Docker daemon) and retry.
 
-```text title="Image tag format"
-{scenario}.{harness}.{agent}.{model}.{version}
+### Missing API key
+
+If the API key is not set, `dec-bench run` exits immediately:
+
+```text
+Error: Missing required API key for agent 'claude-code':
+
+  - ANTHROPIC_API_KEY
+
+Set it before running:
+
+    export ANTHROPIC_API_KEY=<your-key>
 ```
 
-| Variable | What it is | Examples |
-|----------|-----------|----------|
-| **Scenario** | A data engineering problem with infrastructure, seed data, a prompt, and validation | `foo-bar-csv-ingest`, `foo-bar-time-grain-rollups`, `foo-bar-cross-system-reconciliation` |
-| **Harness** | Tools pre-installed for the agent | `base-rt`, `classic-de`, `olap-for-swe` |
-| **Agent** | The AI coding agent | Claude Code, Codex, Cursor |
-| **Model** | The LLM behind the agent | `claude-sonnet-4-20250514`, `haiku-4.5` |
+### Port conflict on audit open
 
-Each combination builds a distinct container. The CLI manages the build, run, result capture, and audit handoff.
+If port 3000 is already in use, the audit command will fail. Free the port or specify an alternative:
 
-## v0.1 Research Preview
-
-The `0.1` research preview includes:
-
-- 36 Foo Bar scenarios
-- 3 harness configurations
-- installable CLI binaries
-- a one-line installer
-- localhost audit flow through the existing web UI
-
-## Help Shape DEC Bench
-
-- [Running Evals](/docs/running-evals) -- install the CLI, run one scenario, and inspect the workflow end to end
-- [Add an Eval](/docs/add-eval/getting-started) -- contribute a new scenario if you want to collaborate on the benchmark itself
-
-## Next Steps
-
-- [Architecture](/docs/architecture) -- how images are layered and built
-- [Scoring](/docs/scoring) -- 5 sequential gates and efficiency tiebreakers
-- [Running Evals](/docs/running-evals) -- install, build, run, results, audit
-- [Foo Bar Domain](/docs/evals/domains/foo-bar) -- full 36-scenario catalog
-- [Add an Eval](/docs/add-eval/getting-started) -- contribute a new scenario
+```bash
+dec-bench audit open --scenario foo-bar-csv-ingest --run-id <run-id> --port 3001
+```

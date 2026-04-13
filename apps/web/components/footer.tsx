@@ -10,9 +10,12 @@ export function Footer() {
               DEC
             </span>
             <span className="text-[color:var(--muted-foreground)]">&middot;</span>
-            <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--border)] cursor-default">
+            <Link
+              href="/docs"
+              className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] transition-colors"
+            >
               Documentation
-            </span>
+            </Link>
             <span className="text-[color:var(--muted-foreground)]">&middot;</span>
             <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--border)] cursor-default">
               Leaderboard
