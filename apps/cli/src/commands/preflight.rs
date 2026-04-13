@@ -48,18 +48,30 @@ pub fn ensure_exists(path: &Path, label: &str) -> Result<()> {
 }
 
 pub fn check_docker() -> Result<()> {
-    let status = Command::new("docker")
+    let output = Command::new("docker")
         .arg("info")
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
+        .stderr(Stdio::piped())
+        .output();
 
-    match status {
-        Ok(s) if s.success() => Ok(()),
-        Ok(_) => bail!(
-            "Docker is installed but the daemon is not running.\n\n\
-             Start Docker Desktop or the Docker daemon, then try again."
-        ),
+    match output {
+        Ok(o) if o.status.success() => Ok(()),
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            let detail = stderr.trim();
+            if detail.is_empty() {
+                bail!(
+                    "Docker is installed but the daemon is not running.\n\n\
+                     Start Docker Desktop or the Docker daemon, then try again."
+                );
+            } else {
+                bail!(
+                    "Docker is installed but the daemon is not running.\n\n\
+                     docker info reported:\n  {detail}\n\n\
+                     Start Docker Desktop or the Docker daemon, then try again."
+                );
+            }
+        }
         Err(_) => bail!(
             "Docker is not installed or not in your PATH.\n\n\
              Install Docker: https://docs.docker.com/get-docker/"
