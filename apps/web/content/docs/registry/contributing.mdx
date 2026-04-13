@@ -83,6 +83,47 @@ dec-bench registry add \
 - push to remote
 - PR creation via `gh pr create`
 
+## Releasing a New CLI Binary
+
+The install script (`curl -fsSL https://decbench.ai/install.sh | sh`) serves pre-built binaries from the **latest GitHub release** in `514-labs/agent-evals`. If you merge CLI changes to `main`, users will not pick them up until a new release is published.
+
+### How the release pipeline works
+
+The `cli-release.yml` workflow triggers on any tag push matching `v*`. It:
+
+1. Validates the tag matches `version` in `apps/cli/Cargo.toml`
+2. Cross-compiles for `x86_64-unknown-linux-gnu`, `aarch64-apple-darwin`, and `x86_64-apple-darwin`
+3. Runs the installer smoke test against the Linux archive
+4. Creates a GitHub release with the compiled archives and checksums
+
+### Cutting a new release
+
+Bump the version in `apps/cli/Cargo.toml`, then tag and push:
+
+```bash
+git tag v<version>
+git push origin v<version>
+```
+
+### Re-releasing an existing version
+
+If `Cargo.toml` version has not changed but `main` has moved ahead of the release (e.g. bug fixes merged after the release was cut), delete the old release and re-tag:
+
+```bash
+gh release delete v<version> --repo 514-labs/agent-evals --yes
+git push origin --delete v<version>
+git tag -d v<version>
+git fetch origin main
+git tag v<version> origin/main
+git push origin v<version>
+```
+
+CI will rebuild and publish the release from the new tag target. The install script will then serve the updated binary.
+
+### When to release
+
+Any change to `apps/cli/` that affects runtime behavior should be followed by a release. The install script always fetches `latest`, so a stale release means every new user gets an outdated binary.
+
 ## Review Checklist
 
 PRs are reviewed for:
