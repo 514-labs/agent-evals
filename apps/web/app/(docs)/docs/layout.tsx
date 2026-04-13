@@ -26,7 +26,7 @@ function filterTree(nodes: Node[]): Node[] {
   const filtered: Node[] = [];
 
   for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
+    const node = nodes[i]!;
 
     if (node.type === "separator") {
       // Only keep a separator if there's visible content after it
