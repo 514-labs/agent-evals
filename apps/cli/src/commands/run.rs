@@ -160,15 +160,6 @@ const DEFAULT_AGENTS: &[(&str, &str)] = &[
 
 pub async fn execute(args: RunArgs) -> Result<()> {
     if args.matrix {
-        preflight::check_docker()?;
-        let docker = Docker::connect_with_local_defaults()
-            .context("Failed to connect to Docker daemon")?;
-
-        let scenarios = load_scenarios_with_harness()?;
-        if scenarios.is_empty() {
-            bail!("No scenarios found");
-        }
-
         let agent_models: Vec<(String, String)> = if args.agent_models.is_empty() {
             DEFAULT_AGENTS
                 .iter()
@@ -180,6 +171,22 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                 .map(|am| (am.agent.clone(), am.model.clone()))
                 .collect()
         };
+
+        // Validate all agent/model/key combos upfront before any Docker work.
+        let pairs: Vec<(&str, &str)> = agent_models
+            .iter()
+            .map(|(a, m)| (a.as_str(), m.as_str()))
+            .collect();
+        preflight::validate_agent_model_keys(&pairs).await?;
+
+        preflight::check_docker()?;
+        let docker = Docker::connect_with_local_defaults()
+            .context("Failed to connect to Docker daemon")?;
+
+        let scenarios = load_scenarios_with_harness()?;
+        if scenarios.is_empty() {
+            bail!("No scenarios found");
+        }
 
         let scenario_filter = args.scenario.as_deref();
         let harness_filter = if args.harness != "base-rt" {
@@ -331,6 +338,10 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         .scenario
         .as_deref()
         .context("--scenario is required unless --matrix is enabled")?;
+
+    // Validate agent/model/key upfront before any Docker work.
+    preflight::validate_agent_model_keys(&[(&args.agent, &args.model)]).await?;
+
     preflight::check_docker()?;
     let docker =
         Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
@@ -362,8 +373,6 @@ async fn run_single(
     persona: Persona,
     mode: PlanMode,
 ) -> Result<()> {
-    preflight::check_api_keys(&args.agent)?;
-
     let image = format!(
         "{}.{}.{}.{}.{}",
         scenario_id, args.harness, args.agent, args.model, args.version
