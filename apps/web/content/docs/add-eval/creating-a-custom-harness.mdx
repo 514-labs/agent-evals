@@ -1,0 +1,36 @@
+---
+title: "Creating a Custom Harness"
+description: "Author a custom harness when no existing profile supports the tools your scenario requires."
+---
+
+Create a custom harness only when no existing harness profile includes the tools your scenario needs.
+
+## When to create one
+
+The three built-in harnesses cover most scenarios:
+
+| Harness | What it installs |
+|---------|-----------------|
+| `base-rt` | Base infrastructure with Python, Node.js, database CLIs |
+| `classic-de` | dbt-core, dbt-postgres, dbt-clickhouse, apache-airflow, pyspark |
+| `olap-for-swe` | MooseStack (moose-cli, moose-lib) |
+
+If your scenario requires tools not available in any of these, create a custom harness script.
+
+## Minimal harness script
+
+A harness is a shell script that installs tools into the image layer. It runs once at build time.
+
+```bash title="harnesses/custom-elt.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+
+pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0
+npm install -g pnpm
+```
+
+## Guidelines
+
+- Pin major tool versions where reproducibility matters.
+- Minimize the install surface area. Only include tools the agent actually needs.
+- Keep install time predictable. Large installs slow down the build/run feedback loop.

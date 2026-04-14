@@ -1,0 +1,85 @@
+---
+title: "Writing Assertions"
+description: "Design reliable gate assertions that produce deterministic, actionable results."
+---
+
+Assertion quality is the primary lever for eval reliability. Each assertion should check one thing, fail with an actionable message, and produce the same result on every run.
+
+## Structure
+
+Each gate has a TypeScript file in `assertions/` that exports named async functions. The framework discovers them by export name, runs them, and maps results directly to the scoring output.
+
+```ts title="assertions/functional.ts"
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
+
+export async function target_table_exists(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await ctx.clickhouse.query({
+    query: "SELECT count() AS n FROM system.tables WHERE database = 'analytics' AND name = 'events'",
+    format: "JSONEachRow",
+  });
+  const rows = await (result as any).json();
+  const count = Number(rows[0]?.n ?? 0);
+  return {
+    passed: count === 1,
+    message: count === 1 ? "Target table exists." : `Expected 1 table, got ${count}.`,
+    details: { expected: 1, actual: count },
+  };
+}
+```
+
+The `AssertionResult` object has three fields:
+
+| Field | Required | Purpose |
+|-------|----------|---------|
+| `passed` | yes | Boolean pass/fail |
+| `message` | no | Human-readable explanation, surfaced in the audit UI |
+| `details` | no | Structured data for programmatic analysis |
+
+## The five gates
+
+Each gate tests a different quality dimension. Assertions are evaluated sequentially: a scenario must pass all assertions in one gate before the next gate runs.
+
+| Gate | Question it answers | Examples |
+|------|-------------------|----------|
+| Functional | Did the agent produce something that runs? | Process exits cleanly, target table exists, expected files are present |
+| Correct | Is the output right? | Row counts match, checksums match, schema and types are correct |
+| Robust | Does it handle edge cases? | Nulls, duplicates, late-arriving data, idempotent reruns |
+| Performant | Is it fast enough? | Query latency under threshold, pipeline completes within time budget |
+| Production | Would you ship this? | Environment variables used (not hardcoded), tests present, no leaked secrets |
+
+## Writing robust checks
+
+For assertions that test idempotency or resilience, run the pipeline multiple times and verify the output is unchanged.
+
+```ts title="assertions/robust.ts"
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
+import { execSync } from "child_process";
+
+export async function idempotent_rerun(ctx: AssertionContext): Promise<AssertionResult> {
+  execSync("./run_pipeline.sh", { stdio: "inherit" });
+  execSync("./run_pipeline.sh", { stdio: "inherit" });
+
+  const result = await ctx.clickhouse.query({
+    query: `SELECT count() AS dupes FROM (
+      SELECT order_id, count() AS c FROM analytics.fct_orders_daily
+      GROUP BY order_id HAVING c > 1
+    )`,
+    format: "JSONEachRow",
+  });
+  const rows = await (result as any).json();
+  const dupes = Number(rows[0]?.dupes ?? 0);
+  return {
+    passed: dupes === 0,
+    message: dupes === 0 ? "No duplicates after rerun." : `Found ${dupes} duplicate order_ids.`,
+    details: { duplicateCount: dupes },
+  };
+}
+```
+
+## Guidelines
+
+- One check per function. A function named `table_has_rows` should not also verify schema.
+- Make failure messages actionable. "Expected 15 rows, got 12" is useful. "Assertion failed" is not.
+- Avoid side effects. Assertions should read state, not modify it. The robust gate is the exception, where re-running a pipeline is the point.
+- Keep assertions fast. Long-running assertions slow down the feedback loop and make debugging harder.
+- Use deterministic seed data. If the input data changes between runs, assertions that depend on exact counts will be unreliable.

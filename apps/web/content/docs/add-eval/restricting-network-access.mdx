@@ -1,0 +1,26 @@
+---
+title: "Restricting Network Access"
+description: "Control outbound network traffic in scenarios using iptables rules."
+---
+
+Use restricted network mode when you want stronger control over what the agent can reach during a run.
+
+## Base restriction
+
+Drop all outbound traffic except loopback:
+
+```bash title="Restricted mode baseline"
+iptables -A OUTPUT -o lo -j ACCEPT
+iptables -P OUTPUT DROP
+```
+
+## Allowing specific endpoints
+
+Add rules for endpoints the agent or its tools genuinely need:
+
+```bash title="harnesses/custom-elt/iptables.sh"
+iptables -I OUTPUT -d pypi.org -j ACCEPT
+iptables -I OUTPUT -d registry.npmjs.org -j ACCEPT
+```
+
+Each harness can include its own `iptables.sh` that layers on top of the base restriction. The agent layer adds rules for the LLM API endpoints it requires.

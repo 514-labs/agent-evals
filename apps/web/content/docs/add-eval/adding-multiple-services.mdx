@@ -1,0 +1,54 @@
+---
+title: "Adding Multiple Services"
+description: "Configure scenarios with multiple datastores and services running inside a single container."
+---
+
+Some scenarios require more than one datastore to represent a realistic workflow. All services run inside the same container, managed by supervisord.
+
+## Common topology
+
+A typical multi-service scenario moves data across three systems:
+
+```text
+Postgres (OLTP source) --> Redpanda (streaming bus) --> ClickHouse (OLAP serving)
+```
+
+The agent's task might be to build the pipeline connecting them, fix a broken connection between them, or reconcile data that has drifted across the three stores.
+
+## Configuring supervisord
+
+Add each service to `supervisord.conf`. The entrypoint waits for all services to pass readiness checks before running init scripts or starting the agent.
+
+```ini title="supervisord.conf"
+[program:postgres]
+command=/usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/data
+autostart=true
+autorestart=false
+
+[program:clickhouse]
+command=/usr/bin/clickhouse-server --config-file=/etc/clickhouse-server/config.xml
+autostart=true
+autorestart=false
+
+[program:redpanda]
+command=/opt/redpanda/bin/redpanda --config /etc/redpanda/redpanda.yaml
+autostart=true
+autorestart=false
+```
+
+## Custom ports and connection strings
+
+If a scenario needs non-default ports or connection settings, add an `env.sh` file. The entrypoint sources it before readiness checks, init scripts, agent execution, and assertions.
+
+```bash title="env.sh"
+export CLICKHOUSE_URL="http://localhost:18123"
+export CLICKHOUSE_HOST="localhost"
+export CLICKHOUSE_PORT="18123"
+```
+
+## Guidelines
+
+- Keep service startup deterministic. Services should reach a ready state in a predictable order.
+- Fail fast on missing dependencies. If ClickHouse depends on data seeded in Postgres, the init script for ClickHouse should check that the Postgres seed completed.
+- Expose explicit readiness checks. The entrypoint checks standard ports by default, but custom ports require `env.sh`.
+- Document cross-service contracts in the prompt. If the agent needs to know that events flow from Postgres through Redpanda to ClickHouse, say so in the prompt.
