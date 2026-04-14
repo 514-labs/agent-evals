@@ -140,13 +140,13 @@ run_init_scripts() {
           psql "${POSTGRES_URL}" -f "${script}"
         elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]] && [[ "${script}" == *clickhouse* ]]; then
           echo "Running ClickHouse init: ${script}"
-          curl -fsS --data-binary @"${script}" "${CLICKHOUSE_URL%/}/?multiquery=1" >/dev/null
+          clickhouse-client --host "${CLICKHOUSE_HOST:-localhost}" --port 9000 --multiquery < "${script}"
         elif [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]]; then
           echo "Running SQL init (Postgres): ${script}"
           psql "${POSTGRES_URL}" -f "${script}"
         elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]]; then
           echo "Running SQL init (ClickHouse): ${script}"
-          curl -fsS --data-binary @"${script}" "${CLICKHOUSE_URL%/}/?multiquery=1" >/dev/null
+          clickhouse-client --host "${CLICKHOUSE_HOST:-localhost}" --port 9000 --multiquery < "${script}"
         else
           echo "Skipping SQL init without a supervised database target: ${script}"
         fi
