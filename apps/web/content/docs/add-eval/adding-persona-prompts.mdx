@@ -1,0 +1,45 @@
+---
+title: "Adding Persona Prompts"
+description: "Write baseline and informed prompts that test how domain knowledge in the prompt affects agent performance."
+---
+
+Each scenario includes two prompts, one per persona. Both prompts ask for the same outcome and are scored against the same assertions. The persona changes how much context the user provides, not what success looks like.
+
+The persona is an independent variable in the benchmark. Every scenario is run with each persona, across every agent and harness combination. This measures the difference in performance across personas for a given scenario, agent, and harness, and allows us to identify interaction effects between these variables.
+
+## The two personas
+
+**Baseline** prompts use plain language with no tool names, no schema details, and no implementation hints. They represent a user who knows what outcome they want but not how to get there.
+
+**Informed** prompts name specific tools, set explicit targets, and provide technical constraints. They represent a user who could do the work themselves and is delegating to the agent.
+
+## Guidelines
+
+- Both prompts must target the same outcome. Do not add requirements in the informed prompt that the baseline omits entirely.
+- Avoid ambiguity in the informed prompt. If the target schema is vague, assertion failures will be hard to interpret.
+- Browse [existing scenario prompts](https://github.com/514-labs/agent-evals/tree/main/scenarios) for more examples of the baseline/informed split.
+
+## Writing a baseline prompt
+
+Write it the way a non-technical stakeholder would describe the problem. Focus on the desired outcome, not the method.
+
+```markdown title="prompts/baseline.md"
+I have a bunch of CSV files that need to go into ClickHouse.
+Some of them have messy data -- weird dates, missing values.
+Can you get it all loaded into a clean table?
+```
+
+Avoid leaking implementation details. If the baseline prompt mentions specific column names, table schemas, or tool commands, it is doing the informed prompt's job.
+
+## Writing an informed prompt
+
+Write it the way an experienced data engineer would hand off a task. Be specific about tools, schemas, and edge cases.
+
+```markdown title="prompts/informed.md"
+Ingest five CSV files from /data/csv/ into a single ClickHouse
+table `analytics.events`. Handle DD/MM/YYYY dates, mixed null
+representations (N/A, null, empty), duplicate header rows
+mid-file, and trailing delimiters. Target schema: event_id
+String, event_ts DateTime, user_id String, event_type String,
+value Float64 (nullable values should be 0).
+```

@@ -1,0 +1,131 @@
+---
+title: "Writing Gate Assertions"
+description: "Understand core and scenario-specific assertions, what belongs in each gate, and patterns from existing scenarios."
+---
+
+## Core vs scenario assertions
+
+Every scenario is evaluated by two layers of assertions:
+
+**Core assertions** are built into the framework and run for every scenario automatically. You do not write these.
+
+| Gate | Core assertions |
+|------|----------------|
+| Functional | `process_exits_clean` (exit code 0), `no_unhandled_errors` (no tracebacks or panics in session log) |
+| Robust | `idempotent_rerun` (scenario can be rerun without errors) |
+| Production | `uses_env_vars`, `no_secrets_in_code`, `no_dead_code_markers`, `no_debug_artifacts`, `zero_compiler_errors`, `zero_lint_errors`, `has_type_safety`, `functions_are_focused`, `no_deep_nesting`, and others |
+
+The Correct and Performant gates have no core assertions. These are entirely scenario-specific.
+
+**Scenario assertions** are what you write in `assertions/`. They test whether the agent solved *your specific problem*. Each gate file exports named async functions that the framework discovers and runs.
+
+## Guidelines
+
+These apply across all gates:
+
+- One check per function. A function named `table_has_rows` should not also verify schema.
+- Make failure messages actionable. "Expected 15 rows, got 12" is useful. "Assertion failed" is not.
+- Avoid side effects. Assertions read state, they do not modify it. The robust gate's idempotency check is the exception.
+- Keep assertions fast. Long-running assertions slow down the feedback loop.
+- Use the shared helpers in `_shared/assertion-helpers.ts` for common checks like hardcoded connections and `SELECT *` scanning.
+- Browse [existing scenario assertions](https://github.com/514-labs/agent-evals/tree/main/scenarios) for more patterns.
+
+## Gate 1: Functional
+
+Check that the agent produced the expected artifacts. These are typically existence checks.
+
+- Target table exists in the database
+- Expected files are present
+- Basic row count is non-zero
+
+```ts title="Example from the foo-bar-csv-ingest scenario"
+export async function target_table_exists(ctx: AssertionContext): Promise<AssertionResult> {
+  // SELECT count() FROM system.tables WHERE database = 'analytics' AND name = 'events'
+}
+```
+
+[View full assertion file from the foo-bar-csv-ingest scenario](https://github.com/514-labs/agent-evals/blob/main/scenarios/foo-bar-csv-ingest/assertions/functional.ts)
+
+## Gate 2: Correct
+
+Validate that the data is accurate. These checks use exact counts, checksums, or value comparisons.
+
+- Exact row counts match expected totals
+- Checksums match between source and target
+- No null values in required fields
+- Date ranges are valid
+- Cross-system counts agree
+
+```ts title="Example from the foo-bar-csv-ingest scenario"
+export async function all_fifteen_events_loaded(ctx: AssertionContext): Promise<AssertionResult> {
+  // SELECT count() FROM analytics.events -- expects exactly 15
+}
+```
+
+```ts title="Example from the ecommerce-pipeline-recovery scenario"
+export async function revenue_checksum(ctx: AssertionContext): Promise<AssertionResult> {
+  // Compare SUM(amount) between Postgres source and ClickHouse target
+  // Math.abs(sourceSum - targetSum) < 0.001
+}
+```
+
+Example assertions: [foo-bar-csv-ingest scenario](https://github.com/514-labs/agent-evals/blob/main/scenarios/foo-bar-csv-ingest/assertions/correct.ts) | [ecommerce-pipeline-recovery scenario](https://github.com/514-labs/agent-evals/blob/main/scenarios/ecommerce-pipeline-recovery/assertions/correct.ts)
+
+## Gate 3: Robust
+
+Test that the solution is resilient. These checks look for common data problems and structural quality.
+
+- No duplicate header rows in loaded data
+- No data loss under volume
+- Schema has primary key constraints
+- Required columns are present
+
+Many scenarios also use shared helpers from `scenarios/_shared/assertion-helpers.ts`:
+
+- `scanWorkspaceForHardcodedConnections()`: scans agent-written code for hardcoded connection strings
+- `avoidsSelectStarQueries()`: scans for `SELECT *` patterns
+
+```ts title="Example: shared helper usage"
+import { scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+
+export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {
+  return scanWorkspaceForHardcodedConnections();
+}
+```
+
+Example assertions: [foo-bar-csv-ingest scenario](https://github.com/514-labs/agent-evals/blob/main/scenarios/foo-bar-csv-ingest/assertions/robust.ts)
+
+See also: [shared assertion helpers](https://github.com/514-labs/agent-evals/blob/main/scenarios/_shared/assertion-helpers.ts)
+
+## Gate 4: Performant
+
+Measure query latency and pipeline throughput against thresholds. Thresholds vary by scenario.
+
+- Query execution under 100-200ms
+- No `SELECT *` in production queries
+
+```ts title="Example from the foo-bar-slow-queries scenario"
+export async function scan_query_under_100ms(ctx: AssertionContext): Promise<AssertionResult> {
+  // Time the query execution, check elapsed < 100
+}
+```
+
+Example assertions: [foo-bar-slow-queries scenario](https://github.com/514-labs/agent-evals/blob/main/scenarios/foo-bar-slow-queries/assertions/performant.ts)
+
+## Gate 5: Production
+
+Check production-readiness beyond correctness. Most of these are handled by core assertions, but scenarios can add their own.
+
+- Connection environment variables are available
+- No temporary or test tables left behind
+- Documentation exists
+- Data grain is enforced (e.g. daily grain)
+
+```ts title="Example from the ecommerce-pipeline-recovery scenario"
+export async function no_temporary_tables(ctx: AssertionContext): Promise<AssertionResult> {
+  // COUNT(*) WHERE table LIKE '%tmp%' = 0
+}
+```
+
+Example assertions: [ecommerce-pipeline-recovery scenario](https://github.com/514-labs/agent-evals/blob/main/scenarios/ecommerce-pipeline-recovery/assertions/production.ts)
+

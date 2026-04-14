@@ -1,0 +1,31 @@
+---
+title: "Calibrating and Maintaining Scenarios"
+description: "Review results, adjust thresholds, and version changes to keep scenarios reliable over time."
+---
+
+A scenario is not finished when it merges. Reviewing results across runs can reveal problems with prompts, assertions, or seed data that were not obvious during authoring.
+
+## Reviewing results
+
+After a scenario has been run across multiple agents and models, look for patterns in the results:
+
+- **Failure clusters**: if every agent fails the same assertion, the assertion may be too strict or the prompt may be missing critical context.
+- **Universal passes**: if every agent passes every gate with both personas, the assertions may not be testing enough. Review whether the checks are thorough.
+- **Flaky results**: individual runs will vary because LLM output is generative. This is expected. But if results for the same agent/model combination are inconsistent across many runs, the scenario may have avoidable non-determinism. Check seed data, service startup order, and assertion timing.
+
+## Adjusting thresholds
+
+Performance and production gate assertions often include numeric thresholds (query latency, row counts, timing budgets). When adjusting these:
+
+- Document the rationale for the change. "Relaxed from 100ms to 200ms because baseline hardware varies" is traceable. A silent threshold change is not.
+- Test the new threshold against existing results before merging. A threshold change that retroactively flips pass/fail for published runs affects leaderboard interpretation.
+
+## Breaking changes
+
+Any change to a scenario that can alter its scoring output is a breaking change:
+
+- Modified assertions (new checks, changed thresholds, removed checks)
+- Changed seed data or init scripts
+- Updated prompts
+
+When making breaking changes, note them clearly in the PR description. Results from before and after a breaking change are not directly comparable.
