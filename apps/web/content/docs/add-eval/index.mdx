@@ -3,8 +3,16 @@ title: "Add a Scenario"
 description: "Scaffold a new evaluation scenario, write prompts and assertions, set up infrastructure, and run it locally."
 ---
 
+Before creating a new scenario, check whether a similar one already exists. The [scenarios directory](https://github.com/514-labs/agent-evals/tree/main/scenarios) contains all current scenarios. Use an LLM to search through them if you are unsure.
+
+This guide covers two things:
+
+1. Creating and testing a new scenario locally
+2. Publishing it to DEC Bench via pull request
+
 ## Prerequisites
 
+- The `dec-bench` CLI installed (see [Quickstart](/docs))
 - [Docker](https://docs.docker.com/get-started/get-docker/) installed and running
 - Local clone of the [repository](https://github.com/514-labs/agent-evals)
 - Node.js >= 20 and `pnpm` >= 10.4
@@ -13,14 +21,26 @@ description: "Scaffold a new evaluation scenario, write prompts and assertions, 
 pnpm install
 ```
 
-## 1. Scaffold the scenario
+## 1. Design the problem
 
-The CLI generates all required files and directories.
+Before scaffolding, decide:
+
+- **Domain**: for v0.x, use `foo-bar`
+- **Tier**: `tier-1` (single skill), `tier-2` (multi-step), or `tier-3` (cross-system)
+- **Starting state**:
+  - Broken/incomplete: infrastructure boots with defects the agent must diagnose and fix
+  - Clean/greenfield: infrastructure is healthy and the agent builds from scratch
+
+Define success in concrete, pass/fail terms. Good evals produce deterministic outcomes, not subjective judgments.
+
+## 2. Scaffold the scenario
+
+Once you know what you are building, the CLI generates all required files and directories.
 
 ```bash title="Scaffold a new scenario"
 dec-bench create \
-  --name foo-bar-my-scenario \
-  --domain foo-bar \
+  --name <my-scenario> \
+  --domain <my-domain> \
   --tier tier-1
 ```
 
@@ -35,7 +55,7 @@ dec-bench create \
 This generates:
 
 <Files>
-  <Folder name="scenarios/foo-bar-my-scenario" defaultOpen>
+  <Folder name="scenarios/<my-scenario>" defaultOpen>
     <Folder name="assertions" defaultOpen>
       <File name="correct.ts" />
       <File name="functional.ts" />
@@ -55,19 +75,15 @@ This generates:
   </Folder>
 </Files>
 
-Every file is pre-populated with the right structure and placeholder comments.
+| Path | Purpose |
+|------|---------|
+| `assertions/` | One TypeScript file per gate (functional, correct, robust, performant, production). Each exports named assertion functions that return pass/fail results. See [Writing Assertions](/docs/add-eval/writing-assertions) for what belongs in each gate. |
+| `init/` | Shell scripts and SQL files that run before the agent starts. Use these to seed data, create schemas, or introduce intentional defects. |
+| `prompts/` | Two markdown files, one per persona. `baseline.md` gives the agent minimal guidance; `informed.md` provides explicit technical context. |
+| `scenario.json` | Metadata: scenario ID, domain, tier, harness, task descriptions, and tags. This is how the CLI and registry identify the scenario. |
+| `supervisord.conf` | Declares which services (Postgres, ClickHouse, Redpanda) start inside the container and in what order. |
 
-## 2. Design the problem
-
-Before editing any files, decide:
-
-- **Domain**: for v0.1, use `foo-bar`
-- **Tier**: `tier-1` (single skill), `tier-2` (multi-step), or `tier-3` (cross-system)
-- **Starting state**:
-  - Broken/incomplete: infrastructure boots with defects the agent must diagnose and fix
-  - Clean/greenfield: infrastructure is healthy and the agent builds from scratch
-
-Define success in concrete, pass/fail terms. Good evals produce deterministic outcomes, not subjective judgments.
+All files are pre-populated with the right structure and placeholder comments.
 
 ## 3. Write the prompts
 
@@ -193,8 +209,8 @@ See `packages/scenarios/src/types.ts` for the full schema contract.
 ## 8. Run and validate locally
 
 ```bash title="Run the scenario"
-dec-bench build --scenario foo-bar-my-scenario
-dec-bench run --scenario foo-bar-my-scenario
+dec-bench build --scenario <my-scenario>
+dec-bench run --scenario <my-scenario>
 ```
 
 Verify the output:

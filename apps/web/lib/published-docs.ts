@@ -2,7 +2,7 @@
 // Empty array = index page (quickstart). Nested pages use path segments, e.g. ["evals", "domains", "foo-bar"].
 export const PUBLISHED_SLUGS: string[][] = [
   [],                                              // /docs (quickstart)
-  ["add-eval", "getting-started"],                 // Add a Scenario
+  ["add-eval"],                                     // Add a Scenario
   ["add-eval", "writing-assertions"],              // Writing Assertions
   ["add-eval", "adding-multiple-services"],        // Adding Multiple Services
   ["add-eval", "adding-persona-prompts"],          // Adding Persona Prompts
