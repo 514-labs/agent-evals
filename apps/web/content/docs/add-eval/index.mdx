@@ -1,11 +1,28 @@
 ---
 title: "Add a Scenario"
-description: "Scaffold a new evaluation scenario, write prompts and assertions, set up infrastructure, and run it locally."
+description: "Design a data engineering task, define how it is measured, and publish it to the benchmark."
 ---
+
+A DEC Bench evaluation runs every combination of four independent variables:
+
+| Variable | What it is |
+|----------|-----------|
+| **Scenario** | The data engineering task: infrastructure, seed data, and success criteria |
+| **Agent / Model** | The AI coding agent and the LLM behind it (Claude Code, Codex, Cursor) |
+| **Harness** | The tools available to the agent (base-rt, classic-de, olap-for-swe) |
+| **Persona** | The type of user giving instructions (baseline or informed) |
+
+For each combination, the benchmark measures gate achievement (how far through the five quality gates the agent gets) and efficiency (wall-clock time, token usage, cost).
+
+Adding a scenario means defining a new task that can be run across all agents, harnesses, and personas. As part of this, you define:
+
+1. The scenario itself: infrastructure, seed data, and the problem statement
+2. The prompts used by each persona
+3. The assertions that prove gate achievement
 
 Before creating a new scenario, check whether a similar one already exists. The [scenarios directory](https://github.com/514-labs/agent-evals/tree/main/scenarios) contains all current scenarios. Use an LLM to search through them if you are unsure.
 
-This guide covers two things:
+This guide covers:
 
 1. Creating and testing a new scenario locally
 2. Publishing it to DEC Bench via pull request
@@ -26,7 +43,7 @@ pnpm install
 Before scaffolding, decide:
 
 - **Domain**: for v0.x, use `foo-bar`
-- **Tier**: `tier-1` (single skill), `tier-2` (multi-step), or `tier-3` (cross-system)
+- **Tier**: `tier-1` (single skill), `tier-2` (multi-step), or `tier-3` (cross-system). See the [tier definitions on the homepage](https://decbench.ai/#evaluation-design).
 - **Starting state**:
   - Broken/incomplete: infrastructure boots with defects the agent must diagnose and fix
   - Clean/greenfield: infrastructure is healthy and the agent builds from scratch
@@ -77,7 +94,7 @@ This generates:
 
 | Path | Purpose |
 |------|---------|
-| `assertions/` | One TypeScript file per gate (functional, correct, robust, performant, production). Each exports named assertion functions that return pass/fail results. See [Writing Assertions](/docs/add-eval/writing-assertions) for what belongs in each gate. |
+| `assertions/` | One TypeScript file per gate (functional, correct, robust, performant, production). Each exports named assertion functions that return pass/fail results. See [step 5](#5-write-gate-assertions) below and [Writing Assertions](/docs/add-eval/writing-assertions) for details. |
 | `init/` | Shell scripts and SQL files that run before the agent starts. Use these to seed data, create schemas, or introduce intentional defects. |
 | `prompts/` | Two markdown files, one per persona. `baseline.md` gives the agent minimal guidance; `informed.md` provides explicit technical context. |
 | `scenario.json` | Metadata: scenario ID, domain, tier, harness, task descriptions, and tags. This is how the CLI and registry identify the scenario. |
@@ -85,16 +102,16 @@ This generates:
 
 All files are pre-populated with the right structure and placeholder comments.
 
-## 3. Write the prompts
+## 3. Write the persona prompts
 
-Each scenario has two prompts in `prompts/`, one per persona. Both are scored against the same assertions.
+Each scenario has two prompts in `prompts/`, one per persona. The persona is an independent variable in the benchmark: every scenario is run separately with each prompt, and the results are compared to measure how much the agent's performance depends on the quality of guidance it receives.
 
 - **`baseline.md`**: plain language, no tool names or implementation hints. Tests what the agent figures out on its own.
-- **`informed.md`**: names specific tools, sets targets, provides technical constraints. Tests whether domain knowledge in the prompt changes the outcome.
+- **`informed.md`**: names specific tools, sets explicit targets, provides technical constraints. Tests whether domain knowledge changes the outcome.
 
 ```markdown title="prompts/baseline.md"
 I have a bunch of CSV files that need to go into ClickHouse.
-Some of them have messy data — weird dates, missing values.
+Some of them have messy data -- weird dates, missing values.
 Can you get it all loaded into a clean table?
 ```
 
@@ -107,7 +124,9 @@ String, event_ts DateTime, user_id String, event_type String,
 value Float64 (nullable values should be 0).
 ```
 
-See [Adding Persona Prompts](/docs/add-eval/adding-persona-prompts) for more on prompt design.
+Both prompts should target the same outcome and the baseline should be solvable.
+
+For more details, see [Adding Persona Prompts](/docs/add-eval/adding-persona-prompts).
 
 ## 4. Set up infrastructure and seed data
 
@@ -127,23 +146,43 @@ autorestart=false
 
 Connection strings are exported as environment variables (`$POSTGRES_URL`, `$CLICKHOUSE_URL`, etc.) so the agent and assertions can use them directly.
 
+Seed data using init scripts in `init/`. These run after services are ready but before the agent starts. They can be SQL files, shell scripts, or anything executable.
+
+```sql title="init/postgres-setup.sql (from foo-bar-cross-system-reconciliation)"
+CREATE SCHEMA IF NOT EXISTS app;
+
+CREATE TABLE app.transactions (
+  id SERIAL PRIMARY KEY,
+  customer_id TEXT NOT NULL,
+  amount NUMERIC(10, 2) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+INSERT INTO app.transactions (customer_id, amount, created_at) VALUES
+  ('c001', 10.00, '2026-01-15T09:00:00Z'),
+  ('c002', 25.50, '2026-01-15T09:05:00Z'),
+  ('c003', 33.33, '2026-01-15T09:10:00Z'),
+  ('c004', 47.99, '2026-01-15T09:15:00Z'),
+  ('c005', 52.00, '2026-01-15T09:20:00Z');
+```
+
 For broken/incomplete starts, use init scripts to introduce defects (misconfigured connections, missing indexes, schema drift). For clean/greenfield starts, provide healthy infrastructure and realistic source data.
 
-In both models: seed deterministic data, export connection settings via environment variables, and avoid hidden state that makes runs non-reproducible.
+Seed deterministic data, export connection settings via environment variables, and avoid hidden state that makes runs non-reproducible.
 
-See [Adding Multiple Services](/docs/add-eval/adding-multiple-services) for multi-service topologies.
+For more details, see [Adding Multiple Services](/docs/add-eval/adding-multiple-services).
 
 ## 5. Write gate assertions
 
-Each gate has a TypeScript file in `assertions/` that exports named assertion functions. The framework discovers and runs them, collecting results into structured JSON output.
+Gates are evaluated sequentially: a scenario must pass all assertions in one gate before the next gate runs. The framework includes core assertions that run for every scenario (e.g. `process_exits_clean`, `no_unhandled_errors` in the functional gate). Your scenario's assertion files in `assertions/` add scenario-specific checks on top of these.
 
-| Gate | Goal | Typical checks |
-|------|------|----------------|
-| Functional | It runs | process exits cleanly, expected artifacts exist |
-| Correct | It is right | row counts, checksums, schema/type expectations |
-| Robust | It handles edge cases | nulls/dupes/late events, idempotent reruns |
-| Performant | It is fast enough | query latency, pipeline runtime thresholds |
-| Production | You would ship it | env-var usage, tests present, secret hygiene |
+| Gate | Question it answers | Typical checks |
+|------|-------------------|----------------|
+| Functional | Did it run? | Process exits cleanly, target table exists |
+| Correct | Is the output right? | Row counts, checksums, schema/type expectations |
+| Robust | Does it handle edge cases? | Nulls, duplicates, idempotent reruns |
+| Performant | Is it fast enough? | Query latency, pipeline runtime thresholds |
+| Production | Would you ship this? | No hardcoded secrets, tests present |
 
 Each assertion returns an `AssertionResult` with `passed`, plus optional `message` and `details` fields.
 
@@ -165,11 +204,13 @@ export async function target_table_exists(ctx: AssertionContext): Promise<Assert
 }
 ```
 
-Keep assertions deterministic, fast, and focused on a single check each. See [Writing Assertions](/docs/add-eval/writing-assertions) for advanced patterns.
+One check per function, actionable failure messages, deterministic results.
+
+For more details, see [Writing Assertions](/docs/add-eval/writing-assertions).
 
 ## 6. Select a harness
 
-A harness installs tools in the image layer used by the agent. Use an existing profile when possible.
+The harness determines what tools are available to the agent. Like the persona, the harness is a variable in the benchmark: the same scenario can be run with different harnesses to measure how tool availability affects performance. Use an existing profile when possible.
 
 | Harness | What it installs |
 |---------|-----------------|
@@ -207,6 +248,8 @@ Complete `scenario.json` with metadata:
 See `packages/scenarios/src/types.ts` for the full schema contract.
 
 ## 8. Run and validate locally
+
+Test with a single agent/harness/persona combination. The benchmark will run all combinations once the scenario is published.
 
 ```bash title="Run the scenario"
 dec-bench build --scenario <my-scenario>
