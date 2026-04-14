@@ -1,0 +1,20 @@
+Implemented the migration pipeline in [/workspace/sync_sales.py](/workspace/sync_sales.py) and documented it in [/workspace/README.md](/workspace/README.md).
+
+The script now:
+- enforces the ClickHouse target schema on `analytics.sales` with `id`, `product_id`, `quantity`, `amount Decimal(10,2)`, `sale_date Date`
+- uses `MergeTree ORDER BY (sale_date, product_id, id)`
+- repairs a mismatched existing target table by rebuilding it and migrating rows forward
+- supports incremental loads with a watermark in `analytics.sync_state`
+- validates `count` and `sum(amount)` after each run
+
+Verification:
+- first run loaded all 15 rows
+- second run loaded 0 rows, confirming incremental behavior
+- Postgres: `count=15`, `sum(amount)=761.82`
+- ClickHouse: `count=15`, `sum(amount)=761.82`
+- sorting key is `sale_date, product_id, id`
+- in-process ClickHouse aggregation latency measured `7ms` with the same Node client family the harness uses
+
+Key files:
+- [/workspace/sync_sales.py](/workspace/sync_sales.py)
+- [/workspace/README.md](/workspace/README.md)

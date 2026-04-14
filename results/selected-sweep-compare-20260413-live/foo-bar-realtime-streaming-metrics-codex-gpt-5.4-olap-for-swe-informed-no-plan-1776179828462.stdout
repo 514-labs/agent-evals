@@ -1,0 +1,26 @@
+Repaired the pipeline by adding a ClickHouse Kafka source table and materialized view in [/workspace/realtime_metrics_pipeline.sql](/workspace/realtime_metrics_pipeline.sql), plus an idempotent repair/verify script in [/workspace/fix_realtime_metrics.sh](/workspace/fix_realtime_metrics.sh). I also added operator notes in [/workspace/README.md](/workspace/README.md).
+
+I executed `/workspace/fix_realtime_metrics.sh` against the live services. It rebuilt the Kafka ingest path, recreated the `metrics` topic, reseeded the 10 benchmark messages, and verified delivery into `analytics.realtime_metrics`.
+
+Verification on the live system:
+- `analytics.realtime_metrics` exists: `1`
+- Row count: `10`
+- Value checksum: `569`
+- Unique hosts: `3`
+
+Aggregation query now returns:
+```text
+host_a cpu     avg=48.5 cnt=2
+host_a memory  avg=69   cnt=2
+host_b cpu     avg=79.5 cnt=2
+host_b memory  avg=55   cnt=1
+host_c cpu     avg=24   cnt=2
+host_c memory  avg=72   cnt=1
+```
+
+The required query works as-is:
+```sql
+SELECT host_id, metric_name, avg(value), count()
+FROM analytics.realtime_metrics
+GROUP BY host_id, metric_name;
+```

@@ -1,0 +1,59 @@
+
+Exploring the workspace to locate the database setup and how `analytics.events` is defined.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Applying the migration: `analytics.events` is a ClickHouse MergeTree table. Adding the column with `ALTER TABLE ... ADD COLUMN`, then backfilling with `ALTER TABLE ... UPDATE` (ClickHouse's standard way to mutate existing rows without rebuilding the table).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here’s what was done on **ClickHouse** `analytics.events` (MergeTree).
+
+### Migration
+1. **`ALTER TABLE ... ADD COLUMN`** — added `region String DEFAULT 'unknown'`.
+2. **`ALTER TABLE ... UPDATE`** — backfilled all rows (no table rebuild):
+   - `startsWith(user_id, 'u1')` → `'us-east'`
+   - `startsWith(user_id, 'u2')` → `'eu-west'`
+   - otherwise → `'unknown'`
+
+### Verification (run locally)
+- **Schema:** `region` is present with default `'unknown'`.
+- **`SELECT *`:** Returns all five columns; sample rows: `u1_*` → `us-east`, `u2_*` → `eu-west`, `u3_*` → `unknown`.
+- **Existing column list:** `SELECT event_id, event_ts, event_type, user_id` still works unchanged.
+- **Mutations:** `system.mutations` shows the update finished (`is_done = 1`).
+
+This matches the scenario checks: `region` exists, every row has a non-empty `region`, and `SELECT *` still returns at least four columns (now five).

@@ -1,0 +1,60 @@
+
+Exploring the codebase to locate the ClickHouse `analytics.events` definition and how to recreate it with an optimized ORDER BY.
+
+
+
+
+
+Updating the init SQL and migrating the live ClickHouse table. Checking whether ClickHouse is running and how to connect:
+
+
+Updating the init script and migrating the live table.
+
+
+
+
+
+Query times ~9–24ms. Locating and running the benchmark evaluation script:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was done.
+
+### 1. Init script (`/scenario/init/clickhouse-setup.sql`)
+
+`ORDER BY tuple()` was replaced with `ORDER BY (region, event_ts, event_id)` so new environments get the right primary key from the start.
+
+### 2. Live ClickHouse migration
+
+The existing `analytics.events` table (2M rows) was rebuilt without losing data:
+
+- `analytics.events_new` created with `ORDER BY (region, event_ts, event_id)`
+- `INSERT INTO analytics.events_new SELECT * FROM analytics.events`
+- `EXCHANGE TABLES analytics.events AND analytics.events_new`
+- `DROP TABLE analytics.events_new` (drops the old physical table that was swapped to that name)
+
+### 3. Checks
+
+| Check | Result |
+|--------|--------|
+| Row count | `2000000` |
+| DDL | `ORDER BY (region, event_ts, event_id)` |
+| `clickhouse-client --time` | ~9–24 ms for the target query |
+| HTTP client (`Date.now()` like the harness) | ~33 ms, under 100 ms |
+| `EXPLAIN indexes = 1` | Primary key on `region`, `event_ts`; **83 / 245** granules read (not a full scan) |
+
+The query plan shows the primary key used with `region = 'us-west'` and `event_ts >= '2026-01-01'`, so ClickHouse can skip most granules.

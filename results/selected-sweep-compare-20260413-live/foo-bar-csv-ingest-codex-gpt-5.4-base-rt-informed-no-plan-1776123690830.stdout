@@ -1,0 +1,18 @@
+Created `analytics.events` in ClickHouse with the requested schema and loaded all five CSVs after normalizing the known source issues:
+
+- `events_02.csv`: converted `DD/MM/YYYY` to `YYYY-MM-DD 00:00:00`
+- `events_03.csv`: mapped `N/A`, `null`, and empty values to `0`
+- `events_04.csv`: skipped the duplicate mid-file header row
+- `events_05.csv`: ignored the trailing empty column from the trailing comma
+
+Verification passed in ClickHouse:
+
+- `count() = 15`
+- `sum(value) = 333`
+- `min(event_ts) = 2026-01-15 00:00:00`
+- `max(event_ts) = 2026-01-20 16:00:00`
+- `event_id = 'event_id'` rows present: `0`
+
+Spot checks also confirmed:
+- `evt_004` / `evt_005` / `evt_006` have repaired date-only timestamps
+- `evt_007` / `evt_008` / `evt_009` have `value = 0`

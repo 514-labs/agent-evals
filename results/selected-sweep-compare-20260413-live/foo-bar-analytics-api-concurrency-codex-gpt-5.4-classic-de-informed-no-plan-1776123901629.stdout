@@ -1,0 +1,8 @@
+Patched [server.js](/workspace/server.js) to remove the shared ClickHouse client/result state and query ClickHouse over HTTP per request using `CLICKHOUSE_URL`. The endpoint now always responds as JSON and returns `{ "total": number }`. I also added [README.md](/workspace/README.md) so the workspace satisfies the docs check.
+
+Verification passed against the live service on port 3000:
+- `curl http://localhost:3000/api/metrics` returned `{"total":458}`
+- `curl -I http://localhost:3000/api/metrics` returned `200 OK` with `Content-Type: application/json; charset=utf-8`
+- 5 concurrent requests all succeeded and returned consistent totals: `458, 458, 458, 458, 458`
+
+The API process is running in a persistent session and listening on port `3000`.

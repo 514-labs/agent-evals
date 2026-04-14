@@ -1,0 +1,27 @@
+Implemented a live repair using a background Python consumer and verified the pipeline end to end.
+
+Files added:
+- [repair_pipeline.py](/workspace/repair_pipeline.py)
+- [metrics_consumer.py](/workspace/metrics_consumer.py)
+- [README.md](/workspace/README.md)
+
+What it does:
+- Ensures `analytics.realtime_metrics` exists in ClickHouse.
+- Starts `metrics_consumer.py` in the background, consuming Redpanda topic `metrics` with `auto_offset_reset='earliest'`.
+- Inserts JSON records into ClickHouse as raw rows, making the required aggregation query work directly.
+
+Verification:
+- Background consumer is running from `/workspace/metrics_consumer.pid`.
+- `SELECT count(), sum(value) FROM analytics.realtime_metrics` returned `10` rows and checksum `569`.
+- `SELECT host_id, metric_name, avg(value), count() FROM analytics.realtime_metrics GROUP BY host_id, metric_name` returned:
+
+```text
+host_a  cpu     48.5  2
+host_a  memory  69    2
+host_b  cpu     79.5  2
+host_b  memory  55    1
+host_c  cpu     24    2
+host_c  memory  72    1
+```
+
+This satisfies the seeded-data requirement and keeps the stream ingest active for near-realtime queries.

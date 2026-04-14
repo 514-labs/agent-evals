@@ -1,0 +1,15 @@
+`analytics.events` is loaded in ClickHouse with the target schema and all five CSVs ingested into one table.
+
+Verified state:
+- Schema matches: `event_id String`, `event_ts DateTime`, `user_id String`, `event_type String`, `value Float64`
+- Total rows: `15`
+- `events_02.csv` dates were converted from `DD/MM/YYYY` to midnight timestamps
+- `events_03.csv` null-like values (`N/A`, `null`, empty) were loaded as `0`
+- The duplicate header row from `events_04.csv` was skipped
+- The trailing comma in `events_05.csv` was stripped during normalization
+- Validation query confirmed `stray_headers = 0`
+
+I also spot-checked representative rows:
+- `evt_004 -> 2026-01-15 00:00:00`
+- `evt_007`, `evt_008`, `evt_009 -> value = 0`
+- `evt_013 -> 7.7`

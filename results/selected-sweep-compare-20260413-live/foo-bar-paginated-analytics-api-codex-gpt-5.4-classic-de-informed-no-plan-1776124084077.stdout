@@ -1,0 +1,11 @@
+Built the API in [server.js](/workspace/server.js) with a small Node HTTP server on port `3000`. `GET /api/events` reads `limit` and `offset`, queries `analytics.events` with explicit columns and deterministic `ORDER BY event_ts ASC, event_id ASC`, and returns `{ data, total, hasMore, limit, offset }`. I also added [package.json](/workspace/package.json) and operator notes in [README.md](/workspace/README.md).
+
+Verified live behavior against ClickHouse and the running service:
+- `GET /health` responds successfully on port `3000`
+- `GET /api/events?limit=5&offset=0` returns rows starting at `evt_0`
+- `GET /api/events?limit=5&offset=5` returns rows starting at `evt_5`, so pages do not overlap
+- API `total` matches ClickHouse `count()` at `15000`
+- First page timing was about `38ms`
+- Invalid paging params return `400`
+
+The detached server is running as PID `1069`.

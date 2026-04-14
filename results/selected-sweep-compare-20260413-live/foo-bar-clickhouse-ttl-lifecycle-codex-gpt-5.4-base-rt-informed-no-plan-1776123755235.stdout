@@ -1,0 +1,28 @@
+Created `analytics.raw_events` in ClickHouse with the requested lifecycle policy.
+
+Verified definition:
+- Engine: `MergeTree`
+- Columns: `event_id String`, `event_ts DateTime`, `payload String`
+- Partitioning: `PARTITION BY toMonth(event_ts)`
+- Sort key: `ORDER BY (event_ts, event_id)`
+- TTL: `event_ts + INTERVAL 90 DAY` (stored by ClickHouse as `toIntervalDay(90)`)
+
+Verification query returned:
+```sql
+CREATE TABLE analytics.raw_events
+(
+    `event_id` String,
+    `event_ts` DateTime,
+    `payload` String
+)
+ENGINE = MergeTree
+PARTITION BY toMonth(event_ts)
+ORDER BY (event_ts, event_id)
+TTL event_ts + toIntervalDay(90)
+```
+
+And system metadata confirms:
+- `engine = MergeTree`
+- `partition_key = toMonth(event_ts)`
+- `sorting_key = event_ts, event_id`
+- `primary_key = event_ts, event_id`

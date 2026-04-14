@@ -1,0 +1,11 @@
+The pipeline is repaired and verified end to end.
+
+I added an env-driven repair pipeline in [pipeline.py](/workspace/pipeline.py), documented the table/topic mapping in [cdc-connector.json](/workspace/cdc-connector.json), and added usage notes in [README.md](/workspace/README.md). The fix does four things: ensures Redpanda topic `events` exists, creates ClickHouse table `analytics.events`, snapshots `app.events` from Postgres into Kafka, and consumes Kafka into ClickHouse without duplicating rows on rerun.
+
+Verification passed on the live services:
+- Postgres `app.events`: 10 rows
+- Redpanda topic `events`: messages present
+- ClickHouse `analytics.events`: 10 rows
+- Event types matched exactly: `click`, `page_view`, `purchase`
+
+I also reran the snapshot and consumer once more to check idempotence; the second consumer pass inserted `0` new rows and ClickHouse stayed at `10`.

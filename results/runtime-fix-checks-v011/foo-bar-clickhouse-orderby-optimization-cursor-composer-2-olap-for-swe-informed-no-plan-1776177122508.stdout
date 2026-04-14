@@ -1,0 +1,73 @@
+
+Exploring the codebase to locate the ClickHouse `analytics.events` definition and how we can recreate it with an optimized ORDER BY.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Recreating the table with `ORDER BY (region, event_ts, event_id)` and verifying query performance.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Updating the init script so future benchmark runs create the table with the correct ORDER BY.
+
+
+
+
+
+
+
+
+Here is what was done.
+
+### Live ClickHouse data
+- Created `analytics.events_new` with `ENGINE = MergeTree ORDER BY (region, event_ts, event_id)`, copied all **2,000,000** rows from `analytics.events`, then renamed and dropped the old table.
+- Ran `OPTIMIZE TABLE analytics.events FINAL` so data sits in a clean layout for the primary key.
+
+**Benchmark:** `SELECT sum(amount) FROM analytics.events WHERE region = 'us-west' AND event_ts >= '2026-01-01'` now finishes in about **4–18 ms** on repeated runs (well under 100 ms).
+
+**Plan check:** `EXPLAIN indexes = 1` shows the primary key on `region` and `event_ts`, binary search, and granule pruning (e.g. **83 / 245** granules), so blocks are skipped instead of a full scan.
+
+### Init script (so fresh environments match)
+Updated the scenario DDL so new setups do not regress to `ORDER BY tuple()`:
+
+```3:9:/scenario/init/clickhouse-setup.sql
+CREATE TABLE analytics.events (
+  event_id String,
+  region String,
+  event_ts DateTime,
+  amount Float64
+) ENGINE = MergeTree()
+ORDER BY (region, event_ts, event_id);
+```
+
+On-disk metadata under `/var/lib/clickhouse/.../events.sql` already reflects `ORDER BY (region, event_ts, event_id)` after the migration.

@@ -1,0 +1,17 @@
+Applied the live ClickHouse migration directly on `analytics.events` with `ALTER` only:
+
+```sql
+ALTER TABLE analytics.events
+ADD COLUMN IF NOT EXISTS region String DEFAULT 'unknown';
+
+ALTER TABLE analytics.events
+UPDATE region = multiIf(
+  startsWith(user_id, 'u1'), 'us-east',
+  startsWith(user_id, 'u2'), 'eu-west',
+  'unknown'
+)
+WHERE 1
+SETTINGS mutations_sync = 2;
+```
+
+Verification passed. `region` exists with default `'unknown'`, all 5 existing rows were backfilled (`u1* -> us-east`, `u2* -> eu-west`, others `unknown`), and `SELECT * FROM analytics.events LIMIT 1` returns the expected 5-column shape including `region`. A Node check using the ClickHouse client measured `SELECT event_id, region FROM analytics.events LIMIT 10` at `26ms`. I also added operator notes at [README.md](/workspace/README.md).

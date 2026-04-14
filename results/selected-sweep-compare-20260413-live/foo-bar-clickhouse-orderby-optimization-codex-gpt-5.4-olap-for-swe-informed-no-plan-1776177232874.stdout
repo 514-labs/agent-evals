@@ -1,0 +1,3 @@
+Updated the seed schema in [clickhouse-setup.sql](/scenario/init/clickhouse-setup.sql) to `ORDER BY (region, event_ts, event_id)`, then rebuilt the live `analytics.events` table in ClickHouse with a copy-and-swap migration so all existing data was preserved.
+
+Verification: `SHOW CREATE TABLE analytics.events` now reports `ORDER BY (region, event_ts, event_id)`, `SELECT count() FROM analytics.events` returns `2000000`, and the target query ran in `0.011s` via `clickhouse-client` and about `0.005s` to `0.015s` over HTTP on repeated runs, well under the 100ms target. I didn’t find a packaged test runner under `/scenario`, so validation was done directly against the running ClickHouse instance.

@@ -1,0 +1,7 @@
+Rebuilt `analytics.events` on `MergeTree` with `ORDER BY (region, event_ts, event_id)`, copied all 2,000,000 rows into the new layout, swapped it into place, and removed the temporary backup table.
+
+Verification:
+- `SHOW CREATE TABLE analytics.events` now reports `ORDER BY (region, event_ts, event_id)`.
+- `SELECT count() FROM analytics.events` returns `2000000`.
+- `SELECT sum(amount) FROM analytics.events WHERE region = 'us-west' AND event_ts >= '2026-01-01'` runs in `0.006s` with `clickhouse-client --time`, which is under the 100ms target.
+- `EXPLAIN indexes = 1` shows the primary key is used with binary search and only `83/245` granules read instead of a full scan.

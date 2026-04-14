@@ -1,0 +1,57 @@
+
+Exploring the CSV files and ClickHouse setup to ingest them into `analytics.events`.
+
+
+Checking whether ClickHouse is running and how it parses our timestamps.
+
+
+
+
+
+Creating the ClickHouse table and a Python ingestion script to normalize all CSV quirks.
+
+
+Fixing NULL detection: use lowercase set and compare with `v.lower()`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was done:
+
+### 1. **`analytics.events`**
+- Database `analytics` and table `events` were created with:
+  - `event_id` String, `event_ts` DateTime, `user_id` String, `event_type` String, `value` Float64  
+- Engine: `MergeTree`, `ORDER BY (event_ts, event_id)`.
+
+### 2. **Ingestion**
+A small Python helper (`/tmp/ingest_analytics_events.py`) reads every `events_*.csv` under `/data/csv`, normalizes rows, prints **TabSeparated** lines, and that stream is loaded with:
+
+`INSERT INTO analytics.events FORMAT TabSeparated`
+
+Handling matches the quirks you listed:
+
+| File | Handling |
+|------|----------|
+| `events_01.csv` | Normal CSV rows |
+| `events_02.csv` | `event_ts` parsed as `%d/%m/%Y`, stored at `00:00:00` |
+| `events_03.csv` | `N/A`, `null` (any case), and empty `value` → **0** |
+| `events_04.csv` | Rows with `event_id == "event_id"` skipped (repeated header) |
+| `events_05.csv` | Extra empty field from trailing comma dropped (`row[:5]` when the 6th field is empty) |
+
+### 3. **Checks**
+- **`count()`** = **15** (3 rows × 5 files).  
+- **Null-like values**: `evt_007`, `evt_008`, `evt_009` all have `value = 0`.  
+- **DD/MM/YYYY**: e.g. `evt_004` → `2026-01-15 00:00:00` for `15/01/2026`.  
+- **Trailing comma file**: `evt_013`–`evt_015` present with correct `value` and timestamps.
+
+ClickHouse was already up; nothing was started in the foreground. If you want this loader kept in a specific project path instead of `/tmp`, say where and it can be copied there.

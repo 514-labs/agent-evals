@@ -1,0 +1,19 @@
+Created `analytics.raw_events` in ClickHouse with the requested schema and lifecycle policy:
+
+```sql
+CREATE TABLE analytics.raw_events
+(
+    `event_id` String,
+    `event_ts` DateTime,
+    `payload` String
+)
+ENGINE = MergeTree
+PARTITION BY toMonth(event_ts)
+ORDER BY (event_ts, event_id)
+TTL event_ts + INTERVAL 90 DAY
+```
+
+Verified directly against the running server:
+- `SHOW CREATE TABLE analytics.raw_events` returns the expected `MergeTree`, `PARTITION BY toMonth(event_ts)`, `ORDER BY (event_ts, event_id)`, and `TTL event_ts + toIntervalDay(90)`.
+- Inserted one row older than 90 days and one current row; only the current row remained visible, confirming TTL behavior.
+- Cleaned up the test data with `TRUNCATE TABLE analytics.raw_events`; the table now exists and is empty.

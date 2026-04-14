@@ -1,0 +1,73 @@
+
+Exploring the codebase and database setup to optimize the analytical API with materialized views or pre-aggregated tables.
+
+
+
+
+
+
+
+
+Verifying ClickHouse syntax and whether the server is running:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Updating `clickhouse-setup.sql` for fresh installs (MVs before INSERT) and applying migration to the live database. Cleaning up test tables.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was implemented.
+
+### 1. **`analytics.metrics_agg`** (AggregatingMergeTree)
+- Stores `countState`, `uniqState(user_id)`, and `sumState(revenue)` under a single key `k = 1`.
+- **`analytics.metrics_agg_mv`** fills it on each insert into `analytics.events`.
+
+### 2. **`analytics.events_by_region_day`** (SummingMergeTree)
+- Grain: `(region, day)` with summed `cnt`.
+- **`analytics.events_by_region_day_mv`** maintains it from `events`.
+- Reads use `sum(cnt) GROUP BY region, day` so results stay right before merges finish.
+
+### 3. **Init script** (`/scenario/init/clickhouse-setup.sql`)
+- Creates `events`, both rollup tables, both materialized views, then runs the 5M-row `INSERT` so the MVs populate during load (no extra backfill step).
+
+### 4. **API** (`/workspace/server.py` and `/scenario/init/setup-api.sh`)
+- **`/api/metrics`**: `countMerge` / `uniqMerge` / `sumMerge` on `metrics_agg`.
+- **`/api/breakdown`**: `sum(cnt)` on `events_by_region_day` with the same `ORDER BY` as before.
+
+### 5. **Live database**
+- On the running ClickHouse instance, rollup tables were created, backfilled from existing `events`, and MVs added so new inserts stay in sync.
+
+**Checks run**
+- Metrics API matches `SELECT count(), uniq(user_id), sum(revenue) FROM analytics.events` (exact on this dataset).
+- Breakdown matches a full scan `GROUP BY region, day` (diff 0).
+- `curl` timings after warm-up: **~3–4 ms** per endpoint; first breakdown call was **~54 ms**, still under 200 ms.
+
+The API is running in the background on port 3000 with the updated queries.

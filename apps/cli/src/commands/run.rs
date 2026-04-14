@@ -408,6 +408,9 @@ async fn run_single(
         "CURSOR_API_KEY",
         "POSTGRES_URL",
         "CLICKHOUSE_URL",
+        "CLICKHOUSE_WAIT_SECONDS",
+        "CLICKHOUSE_STATEMENT_MAX_ATTEMPTS",
+        "REDPANDA_WAIT_SECONDS",
     ] {
         if let Ok(value) = std::env::var(key) {
             env.push(format!("{key}={value}"));

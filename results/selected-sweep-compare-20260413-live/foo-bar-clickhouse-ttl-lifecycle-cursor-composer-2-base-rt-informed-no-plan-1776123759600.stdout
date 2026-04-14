@@ -1,0 +1,96 @@
+
+Exploring the workspace for ClickHouse setup and creating the table per your specifications.
+
+
+
+
+
+Adding the table DDL to the init script and applying it to the running ClickHouse server.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was done.
+
+### Changes
+Updated [`/scenario/init/clickhouse-setup.sql`](/scenario/init/clickhouse-setup.sql) so initialization creates **`analytics.raw_events`** with:
+
+- Columns: `event_id String`, `event_ts DateTime`, `payload String`
+- **`ENGINE = MergeTree`**
+- **`PARTITION BY toMonth(event_ts)`**
+- **`ORDER BY (event_ts, event_id)`**
+- **`TTL event_ts + INTERVAL 90 DAY`**
+
+The same script was applied to the running server with `clickhouse-client --multiquery`.
+
+### Verification
+- **`SHOW CREATE TABLE analytics.raw_events`** — table exists with MergeTree, monthly partition, sort key, and TTL (ClickHouse stores the TTL as `event_ts + toIntervalDay(90)`, which is equivalent to 90 days).
+- **`system.tables`** — `engine = MergeTree`, `partition_key = toMonth(event_ts)`, `sorting_key = event_ts, event_id`.
+- **`SELECT count() FROM analytics.raw_events`** — succeeds (performance assertion path).
+- Insert smoke test via `INSERT ... FORMAT Values` succeeded.
+
+The durable definition for new environments is in the init SQL above; the live server already has the table created from that DDL.

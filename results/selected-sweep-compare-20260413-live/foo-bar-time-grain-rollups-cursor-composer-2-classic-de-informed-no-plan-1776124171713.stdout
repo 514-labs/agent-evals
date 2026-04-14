@@ -1,0 +1,46 @@
+
+Exploring the codebase to locate analytics rollup definitions and fix time-grain aggregations.
+
+
+
+
+
+Fixing `clickhouse-setup.sql`: daily rollup used `0 AS event_count`; hourly and monthly weren't populated. Applying the fix and verifying against ClickHouse.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here’s what was wrong and what changed.
+
+### Cause
+In `scenario/init/clickhouse-setup.sql`, `analytics.rollup_daily` was filled with `0 AS event_count`, and **hourly** and **monthly** rollups were never loaded.
+
+### Fix
+1. **`analytics.rollup_hourly`** — `INSERT ... SELECT toStartOfHour(event_ts), count() ... GROUP BY hour`
+2. **`analytics.rollup_daily`** — `INSERT ... SELECT toDate(event_ts), count() ... GROUP BY day` (real counts, not zero)
+3. **`analytics.rollup_monthly`** — `INSERT ... SELECT toDate(toStartOfMonth(event_ts)), count() ... GROUP BY month` (so the value fits the existing `Date` column)
+
+`SummingMergeTree` + one row per bucket from `GROUP BY` is appropriate for these rollups.
+
+### Verification
+On the running ClickHouse instance, rollups were truncated and reloaded with the same logic. Checks:
+
+- `count()` on `raw_events` = **6**
+- `sum(event_count)` on each rollup = **6**
+
+Sample buckets: hourly 2+1+2+1, daily 3+2+1, monthly 5+1 — all **6**.
+
+The init script at `scenario/init/clickhouse-setup.sql` is updated so a clean run gets correct rollups without manual steps.

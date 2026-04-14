@@ -1,0 +1,23 @@
+Created and verified `analytics.raw_events` in ClickHouse.
+
+Final table definition:
+```sql
+CREATE TABLE analytics.raw_events
+(
+    event_id String,
+    event_ts DateTime,
+    payload String
+)
+ENGINE = MergeTree
+PARTITION BY toMonth(event_ts)
+ORDER BY (event_ts, event_id)
+TTL event_ts + INTERVAL 90 DAY
+```
+
+Verification from ClickHouse confirmed:
+- engine: `MergeTree`
+- partition key: `toMonth(event_ts)`
+- sort key: `event_ts, event_id`
+- TTL persisted as `event_ts + toIntervalDay(90)`
+
+`SHOW CREATE TABLE analytics.raw_events` now returns the expected schema, and `system.tables` shows the table present in `analytics` with the TTL in `create_table_query` / `engine_full`.

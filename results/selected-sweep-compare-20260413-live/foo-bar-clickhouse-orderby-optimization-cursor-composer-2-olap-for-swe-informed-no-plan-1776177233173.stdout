@@ -1,0 +1,80 @@
+
+Exploring the workspace to locate the ClickHouse setup and the `analytics.events` table definition.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Updating the init SQL and migrating the live ClickHouse table so verification passes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was done.
+
+### 1. Init script: `ORDER BY` aligned with filters
+
+`/scenario/init/clickhouse-setup.sql` now uses `ORDER BY (region, event_ts, event_id)` so new environments build the table with a primary key that matches `WHERE region = … AND event_ts >= …`, which lets MergeTree skip granules/blocks.
+
+```3:9:/scenario/init/clickhouse-setup.sql
+CREATE TABLE analytics.events (
+  event_id String,
+  region String,
+  event_ts DateTime,
+  amount Float64
+) ENGINE = MergeTree()
+ORDER BY (region, event_ts, event_id);
+```
+
+### 2. Live data migration (keep 2M rows)
+
+On the running server, data was moved with a side table, `EXCHANGE TABLES`, and drop of the old physical table so the `analytics.events` name stayed the same and all rows were kept.
+
+### 3. Verification
+
+| Check | Result |
+|--------|--------|
+| `count()` | `2000000` |
+| `sorting_key` in `system.tables` | `region, event_ts, event_id` |
+| `create_table_query` (for `correct.ts`) | contains `ORDER BY (region, event_ts, event_id)` |
+| `clickhouse-client --time` on the benchmark query | ~6–22 ms server time |
+| Node `@clickhouse/client` + `Date.now()` (similar to `performant.ts`) | ~8–21 ms |
+
+So the filtered aggregation stays **under 100 ms** with room to spare, while the row-count assertion still sees exactly **2M** rows.

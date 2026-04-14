@@ -1,0 +1,3 @@
+Recreated `analytics.events` with `ORDER BY (region, event_ts, event_id)`, bulk-copied all 2,000,000 rows into the reordered table, swapped it into place, and dropped the old copy. I also updated the setup SQL in [clickhouse-setup.sql](/scenario/init/clickhouse-setup.sql) and added a short note in [README.md](/workspace/README.md).
+
+Verification on the live ClickHouse instance passed: `SHOW CREATE TABLE analytics.events` now shows the new sort key, `SELECT count() FROM analytics.events` returns `2000000`, the target query ran in `0.035s` via `clickhouse-client`, and the HTTP path returned in about `0.021s`. Query-log validation showed the new layout cut the scan to about `672,896` rows instead of a full-table read.

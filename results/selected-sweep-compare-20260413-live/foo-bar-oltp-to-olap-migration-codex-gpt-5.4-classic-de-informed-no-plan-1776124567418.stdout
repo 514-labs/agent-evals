@@ -1,0 +1,12 @@
+Implemented the migration pipeline in [sync_sales.py](/workspace/sync_sales.py) and documented it in [README.md](/workspace/README.md).
+
+The script is env-driven, recreates `analytics.sales` if the schema is wrong, and keeps the target aligned as:
+`id UInt32, product_id String, quantity Int32, amount Decimal(10, 2), sale_date Date`
+with `MergeTree ORDER BY (sale_date, product_id, id)`. Incremental loading is handled by `max(id)` already present in ClickHouse, so reruns only pull new rows from `app.sales`.
+
+Verification:
+- Ran `python3 /workspace/sync_sales.py`: inserted `15` rows, target total `761.82`
+- Ran it again: inserted `0` rows, proving incremental behavior
+- Postgres check: `count=15`, `sum(amount)=761.82`
+- ClickHouse check: `count=15`, `sum(amount)=761.82`
+- Confirmed required columns are present and the workspace has no hardcoded connection literals or `SELECT *` queries

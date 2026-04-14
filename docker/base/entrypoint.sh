@@ -93,16 +93,102 @@ wait_for_clickhouse() {
   if [[ "${SUPERVISED_CLICKHOUSE:-0}" != "1" ]]; then
     return 0
   fi
+  local max_wait_seconds="${CLICKHOUSE_WAIT_SECONDS:-300}"
   echo "Waiting for ClickHouse..."
-  for _ in $(seq 1 30); do
-    if curl -fsS --max-time 2 "${CLICKHOUSE_URL%/}/?query=SELECT%201" >/dev/null 2>&1; then
+  for _ in $(seq 1 "${max_wait_seconds}"); do
+    if curl -fsS --max-time 2 --data-binary "SELECT 1" "${CLICKHOUSE_URL%/}/" >/dev/null 2>&1; then
       echo "ClickHouse is ready."
       return 0
     fi
     sleep 1
   done
   echo "ClickHouse did not become ready." >&2
+  print_clickhouse_diagnostics
   return 1
+}
+
+run_clickhouse_statement() {
+  local statement="$1"
+  local max_attempts="${CLICKHOUSE_STATEMENT_MAX_ATTEMPTS:-15}"
+  local response_file=""
+  local http_code=""
+  local curl_exit=0
+  local attempt=0
+
+  response_file="$(mktemp)"
+
+  for attempt in $(seq 1 "${max_attempts}"); do
+    http_code=""
+    if http_code="$(curl -sS -o "${response_file}" -w '%{http_code}' --max-time 30 --data-binary "${statement}" "${CLICKHOUSE_URL%/}/")"; then
+      curl_exit=0
+    else
+      curl_exit=$?
+    fi
+
+    if [[ "${curl_exit}" == "0" ]] && [[ "${http_code}" =~ ^2 ]]; then
+      rm -f "${response_file}"
+      return 0
+    fi
+
+    if [[ "${attempt}" -lt "${max_attempts}" ]]; then
+      echo "ClickHouse statement attempt ${attempt}/${max_attempts} failed (curl_exit=${curl_exit} http_status=${http_code:-000}). Retrying..." >&2
+      sleep 1
+    fi
+  done
+
+  echo "ClickHouse statement failed after ${max_attempts} attempts (curl_exit=${curl_exit} http_status=${http_code:-000})." >&2
+  echo "ClickHouse URL: ${CLICKHOUSE_URL}" >&2
+  if [[ -s "${response_file}" ]]; then
+    echo "---- ClickHouse response body ----" >&2
+    cat "${response_file}" >&2
+  fi
+  rm -f "${response_file}"
+  return 1
+}
+
+run_clickhouse_sql_file() {
+  local script="$1"
+  local ran_statement=0
+
+  while IFS= read -r -d '' statement; do
+    ran_statement=1
+    run_clickhouse_statement "${statement}"
+  done < <(
+    awk '
+      /^[[:space:]]*--/ { next }
+      { print }
+    ' "${script}" | awk '
+      BEGIN { RS=";"; ORS="" }
+      {
+        gsub(/\r/, "", $0)
+        if ($0 !~ /^[[:space:]]*$/) {
+          printf "%s%c", $0, 0
+        }
+      }
+    '
+  )
+
+  if [[ "${ran_statement}" != "1" ]]; then
+    echo "No ClickHouse statements found in ${script}"
+  fi
+}
+
+print_redpanda_diagnostics() {
+  for log_path in /tmp/redpanda.log /tmp/redpanda.err.log; do
+    if [[ -f "${log_path}" ]]; then
+      echo "---- ${log_path} (tail) ----" >&2
+      tail -n 60 "${log_path}" >&2 || true
+    fi
+  done
+}
+
+print_clickhouse_diagnostics() {
+  for log_path in /tmp/clickhouse.log /tmp/clickhouse.err.log /var/log/clickhouse-server/clickhouse-server.log /var/log/clickhouse-server/clickhouse-server.err.log; do
+    if [[ -f "${log_path}" ]]; then
+      echo "---- ${log_path} (tail) ----" >&2
+      tail -n 60 "${log_path}" >&2 || true
+    fi
+  done
 }
 
 wait_for_redpanda() {
@@ -112,11 +198,16 @@ wait_for_redpanda() {
   local broker="${REDPANDA_BROKER}"
   local host="${broker%%:*}"
   local port="${broker##*:}"
+  local max_wait_seconds="${REDPANDA_WAIT_SECONDS:-300}"
   if [[ "${host}" == "${port}" ]]; then
     port="9092"
   fi
   echo "Waiting for Redpanda..."
-  for _ in $(seq 1 120); do
+  for _ in $(seq 1 "${max_wait_seconds}"); do
+    if command -v rpk >/dev/null 2>&1 && rpk cluster info -X brokers="${broker}" >/dev/null 2>&1; then
+      echo "Redpanda is ready."
+      return 0
+    fi
     if bash -lc ">/dev/tcp/${host}/${port}" >/dev/null 2>&1; then
       echo "Redpanda is ready."
       return 0
@@ -124,6 +215,7 @@ wait_for_redpanda() {
     sleep 1
   done
   echo "Redpanda did not become ready at ${host}:${port}." >&2
+  print_redpanda_diagnostics
   return 1
 }
 
@@ -140,13 +232,13 @@ run_init_scripts() {
           psql "${POSTGRES_URL}" -f "${script}"
         elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]] && [[ "${script}" == *clickhouse* ]]; then
           echo "Running ClickHouse init: ${script}"
-          curl -fsS --data-binary @"${script}" "${CLICKHOUSE_URL%/}/?multiquery=1" >/dev/null
+          run_clickhouse_sql_file "${script}"
         elif [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]]; then
           echo "Running SQL init (Postgres): ${script}"
           psql "${POSTGRES_URL}" -f "${script}"
         elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]]; then
           echo "Running SQL init (ClickHouse): ${script}"
-          curl -fsS --data-binary @"${script}" "${CLICKHOUSE_URL%/}/?multiquery=1" >/dev/null
+          run_clickhouse_sql_file "${script}"
         else
           echo "Skipping SQL init without a supervised database target: ${script}"
         fi

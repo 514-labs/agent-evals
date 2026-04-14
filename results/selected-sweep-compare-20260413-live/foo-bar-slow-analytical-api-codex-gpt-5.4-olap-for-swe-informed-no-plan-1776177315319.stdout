@@ -1,0 +1,10 @@
+Switched the API from ad-hoc scans of `analytics.events` to precomputed ClickHouse rollups in [server.py](/workspace/server.py#L25). Startup now creates and backfills `analytics.metrics_daily` and `analytics.breakdown_by_region_day`, then maintains them via materialized views, and the two endpoints read only from those pre-aggregated tables at [server.py](/workspace/server.py#L115). I also added operator notes in [README.md](/workspace/README.md#L1).
+
+One constraint mattered during implementation: the container filesystem was effectively full for new MergeTree storage, so I used in-memory pre-aggregated tables plus materialized views instead of on-disk rollups. That still satisfies the requirement that requests hit precomputed data rather than aggregating 5M rows at request time.
+
+Verification:
+- `GET /api/metrics` returned `{"total_events":5000000,"unique_users":10000,"total_revenue":247499277}` and matched the source aggregate exactly.
+- `GET /api/breakdown` returned 270 region/day rows totaling `5000000`, and a full source-vs-rollup join showed `0` mismatches.
+- Measured latency with `curl`: `/api/metrics` was `8.8ms, 59.7ms, 7.1ms, 8.4ms, 8.4ms`; `/api/breakdown` was `4.2ms, 3.9ms, 19.6ms, 7.0ms, 7.0ms`.
+
+The API is running on port `3000`.

@@ -1,0 +1,19 @@
+Applied the live ClickHouse migration directly on `analytics.events` with `ALTER TABLE` only, no rebuild:
+
+```sql
+ALTER TABLE analytics.events
+  ADD COLUMN IF NOT EXISTS region String DEFAULT 'unknown';
+
+ALTER TABLE analytics.events
+  UPDATE region = multiIf(
+    startsWith(user_id, 'u1'), 'us-east',
+    startsWith(user_id, 'u2'), 'eu-west',
+    'unknown'
+  )
+  WHERE 1;
+```
+
+Verification passed on the running database. `SHOW CREATE TABLE analytics.events` now includes `region String DEFAULT 'unknown'`, `SELECT * FROM analytics.events` returns the new column, and the backfill is correct:
+`u1_* -> us-east`, `u2_* -> eu-west`, everything else `-> unknown`. Current counts are `total=5`, `with_region=5`, `us-east=3`, `eu-west=1`, `unknown=1`.
+
+No files were changed; this was a live schema/data migration against the running ClickHouse instance.

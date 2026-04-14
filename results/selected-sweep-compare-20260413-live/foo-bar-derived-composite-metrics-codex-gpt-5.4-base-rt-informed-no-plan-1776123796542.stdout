@@ -1,0 +1,15 @@
+Implemented an idempotent ETL for `analytics.metrics_daily` and applied it to the live ClickHouse database.
+
+The ETL is in [metrics_daily_etl.sql](/workspace/sql/metrics_daily_etl.sql) and creates:
+- `day Date`
+- `conversion_rate Float64`
+- `avg_order_value Float64`
+- `daily_active_users UInt64`
+
+I also added a refresh wrapper at [refresh_metrics_daily.sh](/workspace/scripts/refresh_metrics_daily.sh) and operator notes in [README.md](/workspace/README.md).
+
+Verification:
+- Ran the ETL against ClickHouse successfully.
+- Verified `analytics.metrics_daily` has 30 daily rows spanning `2026-01-01` through `2026-01-30`.
+- Ran a full mismatch check against the raw-event aggregation: `0` mismatches.
+- Ran the benchmark assertions: functional, correct, robust, and performant all passed. The only remaining non-scenario failure is the harness’s production-core `uses_env_vars` check, which depends on missing `POSTGRES_URL` in the container environment rather than the metrics implementation itself.

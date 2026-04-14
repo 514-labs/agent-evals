@@ -1,0 +1,80 @@
+
+Exploring CSV files and the environment, then ingesting them into ClickHouse with proper handling for each file's quirks.
+
+
+
+
+
+ClickHouse is running. Creating the `analytics.events` table and a small ingestion script to normalize the five CSV variants, then verifying row counts and data.
+
+
+
+
+
+Creating the database and table, then adding and running a Python ingestion script to normalize all CSV variants.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here is what was done.
+
+### `analytics.events`
+- **Database**: `CREATE DATABASE IF NOT EXISTS analytics`
+- **Table**: `MergeTree`, ordered by `(event_ts, event_id)`:
+
+`event_id` String, `event_ts` DateTime, `user_id` String, `event_type` String, `value` Float64 (non-numeric / empty / `N/A` / `null` → **0**)
+
+### Ingestion
+A small Python normalizer at `/tmp/ingest_analytics_events.py` reads the five files under `/data/csv/` and writes **TabSeparated** rows for `INSERT ... FORMAT TabSeparated`:
+
+| File | Handling |
+|------|-----------|
+| `events_01.csv` | ISO timestamps via `DictReader` |
+| `events_02.csv` | `event_ts` parsed as `%d/%m/%Y`, stored at **00:00:00** (e.g. `15/01/2026` → `2026-01-15 00:00:00`) |
+| `events_03.csv` | `N/A`, `null`, and empty `value` → **0.0** |
+| `events_04.csv` | Skips a repeated header row (`event_id,event_ts,...`) in the middle |
+| `events_05.csv` | Drops the extra empty field from the **trailing comma** on each row |
+
+ISO timestamps ending in `Z` are converted to **UTC** and stored as naive `DateTime` (wall time in UTC).
+
+### Verification (run locally)
+- `SELECT count() FROM analytics.events` → **15**
+- Spots: `evt_004` = `2026-01-15 00:00:00`, `evt_007`–`evt_009` have `value = 0`, all 15 `event_id`s present in order.
+
+To reload from scratch:
+
+```bash
+clickhouse-client --multiquery "
+DROP TABLE IF EXISTS analytics.events;
+CREATE TABLE analytics.events (
+  event_id String,
+  event_ts DateTime,
+  user_id String,
+  event_type String,
+  value Float64
+) ENGINE = MergeTree ORDER BY (event_ts, event_id);
+"
+python3 /tmp/ingest_analytics_events.py | clickhouse-client --query "INSERT INTO analytics.events FORMAT TabSeparated"
+```
