@@ -29,10 +29,13 @@ function filterTree(nodes: Node[]): Node[] {
     const node = nodes[i]!;
 
     if (node.type === "separator") {
-      // Only keep a separator if there's visible content after it
-      const rest = nodes.slice(i + 1);
-      const hasVisibleSibling = filterTree(rest).length > 0;
-      if (hasVisibleSibling) filtered.push(node);
+      // Only keep a separator if there's visible content before the next separator
+      const section: Node[] = [];
+      for (let j = i + 1; j < nodes.length; j++) {
+        if (nodes[j]!.type === "separator") break;
+        section.push(nodes[j]!);
+      }
+      if (filterTree(section).length > 0) filtered.push(node);
       continue;
     }
 
