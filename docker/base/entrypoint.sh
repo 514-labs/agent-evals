@@ -30,23 +30,42 @@ if [[ "${NETWORK_POLICY:-open}" == "restricted" ]] && [[ -x /opt/dec-bench/agent
   /opt/dec-bench/agent/iptables.sh
 fi
 
+source_scenario_env() {
+  if [[ ! -f /scenario/env.sh ]]; then
+    return 0
+  fi
+  echo "Sourcing scenario env: /scenario/env.sh"
+  set -a
+  # shellcheck source=/dev/null
+  . /scenario/env.sh
+  set +a
+}
+
+source_scenario_env
+
 if [[ -f /etc/supervisord.conf ]]; then
   supervisord -c /etc/supervisord.conf
 fi
 
 detect_services() {
+  export SUPERVISED_POSTGRES=0
+  export SUPERVISED_CLICKHOUSE=0
+  export SUPERVISED_REDPANDA=0
   if [[ -f /etc/supervisord.conf ]]; then
     if grep -q "\[program:postgres\]" /etc/supervisord.conf 2>/dev/null; then
+      export SUPERVISED_POSTGRES=1
       export POSTGRES_URL="${POSTGRES_URL:-postgresql://postgres@localhost:5432/postgres}"
       export POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
       export POSTGRES_PORT="${POSTGRES_PORT:-5432}"
     fi
     if grep -q "\[program:clickhouse\]" /etc/supervisord.conf 2>/dev/null; then
+      export SUPERVISED_CLICKHOUSE=1
       export CLICKHOUSE_URL="${CLICKHOUSE_URL:-http://localhost:8123}"
       export CLICKHOUSE_HOST="${CLICKHOUSE_HOST:-localhost}"
       export CLICKHOUSE_PORT="${CLICKHOUSE_PORT:-8123}"
     fi
     if grep -q "\[program:redpanda\]" /etc/supervisord.conf 2>/dev/null; then
+      export SUPERVISED_REDPANDA=1
       export REDPANDA_BROKER="${REDPANDA_BROKER:-localhost:9092}"
     fi
   fi
@@ -55,7 +74,7 @@ detect_services() {
 detect_services
 
 wait_for_postgres() {
-  if [[ -z "${POSTGRES_URL:-}" ]]; then
+  if [[ "${SUPERVISED_POSTGRES:-0}" != "1" ]]; then
     return 0
   fi
   echo "Waiting for Postgres..."
@@ -71,12 +90,12 @@ wait_for_postgres() {
 }
 
 wait_for_clickhouse() {
-  if [[ -z "${CLICKHOUSE_URL:-}" ]]; then
+  if [[ "${SUPERVISED_CLICKHOUSE:-0}" != "1" ]]; then
     return 0
   fi
   echo "Waiting for ClickHouse..."
   for _ in $(seq 1 30); do
-    if clickhouse-client --query "SELECT 1" >/dev/null 2>&1; then
+    if curl -fsS --max-time 2 "${CLICKHOUSE_URL%/}/?query=SELECT%201" >/dev/null 2>&1; then
       echo "ClickHouse is ready."
       return 0
     fi
@@ -87,7 +106,7 @@ wait_for_clickhouse() {
 }
 
 wait_for_redpanda() {
-  if [[ -z "${REDPANDA_BROKER:-}" ]]; then
+  if [[ "${SUPERVISED_REDPANDA:-0}" != "1" ]]; then
     return 0
   fi
   local broker="${REDPANDA_BROKER}"
@@ -116,15 +135,20 @@ run_init_scripts() {
   for script in /scenario/init/*; do
     case "${script}" in
       *.sql)
-        if [[ -n "${POSTGRES_URL:-}" ]] && [[ "${script}" == *postgres* ]]; then
+        if [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]] && [[ "${script}" == *postgres* ]]; then
           echo "Running Postgres init: ${script}"
           psql "${POSTGRES_URL}" -f "${script}"
-        elif [[ -n "${CLICKHOUSE_URL:-}" ]] && [[ "${script}" == *clickhouse* ]]; then
+        elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]] && [[ "${script}" == *clickhouse* ]]; then
           echo "Running ClickHouse init: ${script}"
-          clickhouse-client --multiquery < "${script}"
-        elif [[ -n "${POSTGRES_URL:-}" ]]; then
+          curl -fsS --data-binary @"${script}" "${CLICKHOUSE_URL%/}/?multiquery=1" >/dev/null
+        elif [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]]; then
           echo "Running SQL init (Postgres): ${script}"
           psql "${POSTGRES_URL}" -f "${script}"
+        elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]]; then
+          echo "Running SQL init (ClickHouse): ${script}"
+          curl -fsS --data-binary @"${script}" "${CLICKHOUSE_URL%/}/?multiquery=1" >/dev/null
+        else
+          echo "Skipping SQL init without a supervised database target: ${script}"
         fi
         ;;
       *.sh)

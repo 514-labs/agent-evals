@@ -57,6 +57,7 @@ const DEFAULT_PRODUCTION_THRESHOLDS_BY_TIER: Record<string, ProductionThresholds
   "tier-2": { maxExpectedLines: 350, maxFileLines: 250 },
   "tier-3": { maxExpectedLines: 500, maxFileLines: 250 },
 };
+const FALLBACK_PRODUCTION_THRESHOLDS: ProductionThresholds = { maxExpectedLines: 350, maxFileLines: 250 };
 const OUTPUT_LINE_REASONABLE_MULTIPLIER = 1.25;
 const QUALITY_SCAN_EXTENSIONS = new Set([
   ".py",
@@ -103,6 +104,11 @@ const DEBUG_FILE_PATTERNS: Array<{ kind: string; regex: RegExp }> = [
   { kind: "backup_file", regex: /\.(?:bak|orig|tmp)$/i },
 ];
 const SOURCE_SCAN_EXTENSIONS = new Set([".py", ".js", ".jsx", ".ts", ".tsx", ".rs", ".go", ".java"]);
+const SERVICE_ENV_VAR_REQUIREMENTS: Array<{ prefix: string; envVar: string }> = [
+  { prefix: "postgres", envVar: "POSTGRES_URL" },
+  { prefix: "clickhouse", envVar: "CLICKHOUSE_URL" },
+  { prefix: "redpanda", envVar: "REDPANDA_BROKER" },
+];
 
 const execFileAsync = promisify(execFile);
 
@@ -366,17 +372,23 @@ function getCoreAssertions(
   if (gate === "production") {
     return {
       uses_env_vars: async (ctx) => {
-        const hasPostgres = Boolean(ctx.env("POSTGRES_URL"));
-        const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
-        const passed = hasPostgres && hasClickHouse;
+        const requiredEnvVars = options.productionConfig.requiredEnvVars;
+        const missingEnvVars = requiredEnvVars.filter((envVar) => !ctx.env(envVar));
+        const passed = missingEnvVars.length === 0;
         return {
           passed,
           message: passed
-            ? "Required data store environment variables are available."
+            ? requiredEnvVars.length === 0
+              ? "No data store environment variables are required for this scenario."
+              : "Required data store environment variables are available."
             : "Missing required data store environment variables.",
           details: {
-            hasPostgresUrl: hasPostgres,
-            hasClickhouseUrl: hasClickHouse,
+            declaredServices: options.productionConfig.declaredServices,
+            requiredEnvVars,
+            missingEnvVars,
+            hasPostgresUrl: Boolean(ctx.env("POSTGRES_URL")),
+            hasClickhouseUrl: Boolean(ctx.env("CLICKHOUSE_URL")),
+            hasRedpandaBroker: Boolean(ctx.env("REDPANDA_BROKER")),
           },
         };
       },
@@ -550,27 +562,53 @@ interface WorkspaceQualityFile {
   lineCount: number;
 }
 
-type PartialScenarioDefinition = Pick<Scenario, "tier" | "productionChecks">;
+type PartialScenarioDefinition = Pick<Scenario, "infrastructure" | "tier" | "productionChecks">;
 
 function loadScenarioProductionConfig(assertionsDir: string): ScenarioProductionConfig {
   const raw = safeRead(join(assertionsDir, "..", "scenario.json"));
   if (!raw) {
     return {
+      declaredServices: [],
+      requiredEnvVars: [],
       thresholds: resolveProductionThresholds(undefined, undefined),
     };
   }
 
   try {
     const parsed = JSON.parse(raw) as PartialScenarioDefinition;
+    const declaredServices =
+      parsed.infrastructure?.services?.filter((service): service is string => typeof service === "string") ?? [];
     return {
+      declaredServices,
+      requiredEnvVars: resolveRequiredEnvVarsFromServices(declaredServices),
       tier: parsed.tier,
       thresholds: resolveProductionThresholds(parsed.tier, parsed.productionChecks),
     };
   } catch {
     return {
+      declaredServices: [],
+      requiredEnvVars: [],
       thresholds: resolveProductionThresholds(undefined, undefined),
     };
   }
+}
+
+function resolveRequiredEnvVarsFromServices(services: string[]): string[] {
+  const required = new Set<string>();
+
+  for (const rawService of services) {
+    const service = rawService.trim().toLowerCase();
+    if (!service) {
+      continue;
+    }
+    for (const requirement of SERVICE_ENV_VAR_REQUIREMENTS) {
+      if (service.startsWith(requirement.prefix)) {
+        required.add(requirement.envVar);
+      }
+    }
+  }
+
+  return Array.from(required);
 }
 
 function resolveProductionThresholds(
@@ -578,7 +616,7 @@ function resolveProductionThresholds(
   overrides: ScenarioProductionChecks | undefined,
 ): ProductionThresholds {
   const defaults =
-    DEFAULT_PRODUCTION_THRESHOLDS_BY_TIER[tier ?? ""] ?? DEFAULT_PRODUCTION_THRESHOLDS_BY_TIER["tier-2"];
+    DEFAULT_PRODUCTION_THRESHOLDS_BY_TIER[tier ?? ""] ?? FALLBACK_PRODUCTION_THRESHOLDS;
 
   return {
     maxExpectedLines: sanitizeThreshold(overrides?.maxExpectedLines, defaults.maxExpectedLines),

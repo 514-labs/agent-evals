@@ -23,6 +23,31 @@ function createFixtureDir(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix));
 }
 
+function createScenarioJson(options?: {
+  services?: string[];
+  productionChecks?: { maxExpectedLines?: number; maxFileLines?: number };
+  tier?: string;
+}) {
+  return JSON.stringify({
+    id: "test-scenario",
+    title: "Test Scenario",
+    description: "Test.",
+    tier: options?.tier ?? "tier-1",
+    domain: "foo-bar",
+    harness: "base-rt",
+    tasks: [{ id: "task-1", description: "Do the thing", category: "ingestion" }],
+    personaPrompts: { baseline: "prompts/baseline.md", informed: "prompts/informed.md" },
+    infrastructure: {
+      services: options?.services ?? [],
+      description: "Test infrastructure.",
+    },
+    tags: ["test"],
+    baselineMetrics: { queryLatencyMs: 0, storageBytes: 0, costPerQueryUsd: 0 },
+    referenceMetrics: { queryLatencyMs: 1, storageBytes: 1, costPerQueryUsd: 1 },
+    productionChecks: options?.productionChecks,
+  });
+}
+
 async function runCoreEvaluation(options: {
   workspaceRoot: string;
   sessionLogPath?: string;
@@ -149,6 +174,87 @@ test("session-log fallback flags duplicate-key idempotency failures", async (t) 
   assert.match(rerunLog.message ?? "", /risk markers/i);
 });
 
+test("production env assertion passes when the scenario declares no services", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output, assertionLogs } = await runCoreEvaluation({
+    workspaceRoot,
+    env: {
+      POSTGRES_URL: undefined,
+      CLICKHOUSE_URL: undefined,
+      REDPANDA_BROKER: undefined,
+    },
+    scenarioJson: createScenarioJson({ services: [] }),
+  });
+  const envLog = assertionLogs.production.core.uses_env_vars;
+
+  assert.equal(output.gates.production.core.uses_env_vars, true);
+  assert.ok(envLog);
+  assert.match(
+    envLog.message ?? "",
+    /no data store environment variables are required/i,
+  );
+});
+
+test("production env assertion only requires ClickHouse for clickhouse-only scenarios", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output, assertionLogs } = await runCoreEvaluation({
+    workspaceRoot,
+    env: {
+      POSTGRES_URL: undefined,
+    },
+    scenarioJson: createScenarioJson({ services: ["clickhouse"] }),
+  });
+  const envLog = assertionLogs.production.core.uses_env_vars;
+
+  assert.equal(output.gates.production.core.uses_env_vars, true);
+  assert.ok(envLog);
+  assert.deepEqual(envLog.details?.missingEnvVars, []);
+});
+
+test("production env assertion only requires Postgres for postgres-only scenarios", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output, assertionLogs } = await runCoreEvaluation({
+    workspaceRoot,
+    env: {
+      CLICKHOUSE_URL: undefined,
+    },
+    scenarioJson: createScenarioJson({ services: ["postgres-16"] }),
+  });
+  const envLog = assertionLogs.production.core.uses_env_vars;
+
+  assert.equal(output.gates.production.core.uses_env_vars, true);
+  assert.ok(envLog);
+  assert.deepEqual(envLog.details?.requiredEnvVars, [
+    "POSTGRES_URL",
+  ]);
+});
+
+test("production env assertion requires every declared service env var", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+
+  const { output, assertionLogs } = await runCoreEvaluation({
+    workspaceRoot,
+    env: {
+      REDPANDA_BROKER: undefined,
+    },
+    scenarioJson: createScenarioJson({ services: ["postgres-16", "clickhouse", "redpanda"] }),
+  });
+  const envLog = assertionLogs.production.core.uses_env_vars;
+
+  assert.equal(output.gates.production.core.uses_env_vars, false);
+  assert.ok(envLog);
+  assert.deepEqual(envLog.details?.missingEnvVars, [
+    "REDPANDA_BROKER",
+  ]);
+});
+
 test("normalized score uses total assertions in the failed gate band", async (t) => {
   const workspaceRoot = createFixtureDir("eval-core-workspace-");
   t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
@@ -158,6 +264,7 @@ test("normalized score uses total assertions in the failed gate band", async (t)
     env: {
       CLICKHOUSE_URL: undefined,
     },
+    scenarioJson: createScenarioJson({ services: ["postgres-16", "clickhouse"] }),
     assertionFiles: {
       production: TWO_PASSING_ASSERTIONS,
     },
@@ -271,26 +378,17 @@ test("production line-count assertion honors scenario overrides", async (t) => {
 
   const { output, assertionLogs } = await runCoreEvaluation({
     workspaceRoot,
-    scenarioJson: JSON.stringify({
-      id: "test-scenario",
-      title: "Test Scenario",
-      description: "Test.",
-      tier: "tier-1",
-      domain: "foo-bar",
-      harness: "base-rt",
-      tasks: [{ id: "task-1", description: "Do the thing", category: "ingestion" }],
-      personaPrompts: { baseline: "prompts/baseline.md", informed: "prompts/informed.md" },
-      tags: ["test"],
-      baselineMetrics: { queryLatencyMs: 0, storageBytes: 0, costPerQueryUsd: 0 },
-      referenceMetrics: { queryLatencyMs: 1, storageBytes: 1, costPerQueryUsd: 1 },
+    scenarioJson: createScenarioJson({
       productionChecks: { maxExpectedLines: 20 },
     }),
   });
+  const outputLineLog = assertionLogs.production.core.output_line_count_disciplined;
 
   assert.equal(output.gates.production.core.output_line_count_reasonable, false);
   assert.equal(output.gates.production.core.output_line_count_disciplined, false);
+  assert.ok(outputLineLog);
   assert.match(
-    assertionLogs.production.core.output_line_count_disciplined.message ?? "",
+    outputLineLog.message ?? "",
     /target 20-line budget/i,
   );
 });
@@ -302,18 +400,7 @@ test("production file-size assertion flags oversized files", async (t) => {
 
   const { output } = await runCoreEvaluation({
     workspaceRoot,
-    scenarioJson: JSON.stringify({
-      id: "test-scenario",
-      title: "Test Scenario",
-      description: "Test.",
-      tier: "tier-1",
-      domain: "foo-bar",
-      harness: "base-rt",
-      tasks: [{ id: "task-1", description: "Do the thing", category: "ingestion" }],
-      personaPrompts: { baseline: "prompts/baseline.md", informed: "prompts/informed.md" },
-      tags: ["test"],
-      baselineMetrics: { queryLatencyMs: 0, storageBytes: 0, costPerQueryUsd: 0 },
-      referenceMetrics: { queryLatencyMs: 1, storageBytes: 1, costPerQueryUsd: 1 },
+    scenarioJson: createScenarioJson({
       productionChecks: { maxFileLines: 10 },
     }),
   });

@@ -136,7 +136,7 @@ value Float64 (nullable values should be 0).
 
 ## 3) Set Up Infrastructure and Seed Data
 
-All services run inside a single container via supervisord. Define which services to start in `supervisord.conf` and use `init/` scripts to set up their initial state.
+Services run inside the scenario container. Most scenarios start them via `supervisord.conf`; harnesses or agents that manage their own infrastructure can keep a minimal `supervisord.conf` and publish connection settings through an optional `env.sh`.
 
 ```ini title="supervisord.conf example"
 [program:postgres]
@@ -151,6 +151,14 @@ autorestart=false
 ```
 
 Connection strings are exported as environment variables (`$POSTGRES_URL`, `$CLICKHOUSE_URL`, etc.) so the agent and assertions can use them directly.
+
+If a scenario needs non-default ports or agent-managed services, add `/scenario/env.sh`. The entrypoint sources it before readiness checks, init scripts, agent execution, and assertions.
+
+```bash title="env.sh example"
+export CLICKHOUSE_URL="http://localhost:18123"
+export CLICKHOUSE_HOST="localhost"
+export CLICKHOUSE_PORT="18123"
+```
 
 ### Broken/Incomplete Start
 

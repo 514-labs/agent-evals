@@ -29,6 +29,8 @@ export interface ProductionThresholds {
 export interface ScenarioProductionConfig {
   tier?: string;
   thresholds: ProductionThresholds;
+  declaredServices: string[];
+  requiredEnvVars: string[];
 }
 
 export type AssertionLogMap = Record<string, AssertionLog>;
