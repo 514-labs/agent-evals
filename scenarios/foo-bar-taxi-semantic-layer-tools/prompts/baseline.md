@@ -1,0 +1,1 @@
+There's raw NYC taxi trip data in ClickHouse (raw.yellow_trips_2024_01, raw.green_trips_2024_01). Design a proper analytics schema, define key business metrics, and expose them as MCP tools so an AI agent can query metrics, filter by taxi type, and get date-range aggregations. Fill in /workspace/assertions.json when done.

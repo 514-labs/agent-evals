@@ -1,0 +1,60 @@
+{
+  "id": "foo-bar-taxi-ingestion-to-api",
+  "title": "Foo Bar Taxi End-to-End Ingestion to API",
+  "description": "Build an end-to-end analytics pipeline: fetch January 2024 NYC taxi data from the TLC public dataset, load into ClickHouse with a well-designed schema, create materialized views for pre-aggregation, and expose HTTP API endpoints for trip stats and fare analysis.",
+  "lede": "In this scenario, an agent starts from a greenfield ClickHouse instance and must build a complete pipeline: fetching parquet data from the NYC TLC, designing an analytics schema, creating materialized views for common queries, and exposing API endpoints for trip statistics and fare analysis.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "base-rt",
+  "tasks": [
+    {
+      "id": "fetch-and-ingest-data",
+      "description": "Download January 2024 yellow and green taxi trip parquet files from the NYC TLC dataset and load them into ClickHouse with a unified schema.",
+      "category": "ingestion"
+    },
+    {
+      "id": "design-analytics-schema",
+      "description": "Design a proper analytics table with appropriate column types, a taxi_type discriminator, and ORDER BY suitable for analytics queries.",
+      "category": "schema-design"
+    },
+    {
+      "id": "create-materialized-views",
+      "description": "Create materialized views for trip stats, fare analysis, and common aggregations to achieve sub-200ms query performance.",
+      "category": "materialized-views"
+    },
+    {
+      "id": "build-api-endpoints",
+      "description": "Build HTTP API endpoints for trip statistics, fare analysis, and optionally taxi_type filtering.",
+      "category": "schema-design"
+    }
+  ],
+  "personaPrompts": {
+    "baseline": "prompts/baseline.md",
+    "informed": "prompts/informed.md"
+  },
+  "infrastructure": {
+    "services": [
+      "clickhouse"
+    ],
+    "description": "ClickHouse running but empty. Agent must fetch parquet data from the NYC TLC public dataset, load it, build MVs, and expose API endpoints."
+  },
+  "tags": [
+    "end-to-end",
+    "ingestion",
+    "materialized-views",
+    "api",
+    "nyc-taxi",
+    "schema-design",
+    "greenfield"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 2000,
+    "storageBytes": 600000000,
+    "costPerQueryUsd": 0.025
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 80,
+    "storageBytes": 200000000,
+    "costPerQueryUsd": 0.003
+  }
+}

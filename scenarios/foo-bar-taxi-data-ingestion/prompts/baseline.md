@@ -1,0 +1,1 @@
+Pull NYC yellow and green taxi trip data for January 2024 from https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page and load it into ClickHouse. The data has some quality issues -- handle them. Fill in /workspace/assertions.json when done.

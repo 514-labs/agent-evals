@@ -1,0 +1,60 @@
+{
+  "id": "foo-bar-taxi-jwt-multitenancy",
+  "title": "Foo Bar Taxi JWT Multi-Tenancy",
+  "description": "Design an analytics schema from pre-seeded raw NYC taxi data, implement JWT-based authentication, and enforce row-level security so yellow-cab and green-cab operators can only access their own trip data.",
+  "lede": "In this scenario, an agent must build a multi-tenant analytics API over pre-seeded NYC taxi data in ClickHouse, using JWT tokens to identify tenants and enforce row-level security so each operator sees only their own trips.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "base-rt",
+  "tasks": [
+    {
+      "id": "design-analytics-schema",
+      "description": "Design a proper analytics table in ClickHouse from the raw staging data with appropriate column types, a taxi_type discriminator, and ORDER BY suitable for tenant-filtered queries.",
+      "category": "schema-design"
+    },
+    {
+      "id": "implement-jwt-auth",
+      "description": "Build JWT authentication middleware that validates tokens using the shared secret in /data/auth/jwt-secret.txt and extracts tenant claims.",
+      "category": "schema-design"
+    },
+    {
+      "id": "enforce-row-level-security",
+      "description": "Enforce row-level security so that API queries are automatically filtered by the tenant claim from the JWT, preventing cross-tenant data access.",
+      "category": "schema-design"
+    },
+    {
+      "id": "build-tenant-api",
+      "description": "Build HTTP API endpoints that serve trip data scoped to the authenticated tenant, returning only rows matching the tenant's taxi_type.",
+      "category": "schema-design"
+    }
+  ],
+  "personaPrompts": {
+    "baseline": "prompts/baseline.md",
+    "informed": "prompts/informed.md"
+  },
+  "infrastructure": {
+    "services": [
+      "clickhouse"
+    ],
+    "description": "ClickHouse pre-seeded with raw.yellow_trips_2024_01 and raw.green_trips_2024_01 staging tables. Pre-signed JWTs and shared secret in /data/auth/."
+  },
+  "tags": [
+    "jwt",
+    "multi-tenancy",
+    "row-level-security",
+    "api",
+    "auth",
+    "nyc-taxi",
+    "schema-design"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 2000,
+    "storageBytes": 600000000,
+    "costPerQueryUsd": 0.025
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 80,
+    "storageBytes": 200000000,
+    "costPerQueryUsd": 0.003
+  }
+}

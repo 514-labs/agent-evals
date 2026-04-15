@@ -1,0 +1,1 @@
+There's raw NYC taxi trip data in ClickHouse (yellow and green trip tables in the `raw` database). Build an API with JWT-based multi-tenancy so yellow-cab and green-cab operators can only see their own data. JWTs and a shared secret are in /data/auth/. Fill in `/workspace/assertions.json` when done.

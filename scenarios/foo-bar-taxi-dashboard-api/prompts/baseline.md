@@ -1,0 +1,1 @@
+We need a dashboard backend for NYC taxi data. Raw yellow and green trip tables are in the `raw` database in ClickHouse. Build APIs for: trip summary stats, daily trends, breakdown by taxi type, and top routes. Make it fast -- the dataset has 3M+ rows. Fill in `/workspace/assertions.json` when done.

@@ -1,0 +1,73 @@
+{
+  "id": "foo-bar-taxi-multitenant-platform",
+  "title": "Foo Bar Taxi Multi-Tenant Analytics Platform",
+  "description": "Fetch NYC TLC taxi data, design a multi-tenant ClickHouse schema, build a semantic metrics layer, expose HTTP API endpoints, add JWT-based tenant isolation for yellow vs green cabs, and instrument with Langfuse tracing.",
+  "lede": "In this scenario, an agent must build a complete multi-tenant analytics platform from scratch: fetching NYC taxi trip data from TLC, designing a ClickHouse schema, defining semantic metrics, exposing API endpoints with JWT-based tenant isolation, and adding Langfuse observability tracing.",
+  "tier": "tier-3",
+  "domain": "foo-bar",
+  "harness": "base-rt",
+  "tasks": [
+    {
+      "id": "fetch-tlc-data",
+      "description": "Download yellow and green taxi trip parquet files for January and February 2024 from the NYC TLC data source and load them into ClickHouse.",
+      "category": "ingestion"
+    },
+    {
+      "id": "design-multitenant-schema",
+      "description": "Design a unified analytics schema with a taxi_type discriminator, proper ORDER BY and PARTITION BY for multi-tenant time-range queries.",
+      "category": "schema-design"
+    },
+    {
+      "id": "build-semantic-metrics-layer",
+      "description": "Define semantic business metrics (avg_fare, total_revenue, trips_per_day, avg_distance) in a declarative configuration and build materialized views or rollup tables for fast aggregation.",
+      "category": "materialized-views"
+    },
+    {
+      "id": "build-api-endpoints",
+      "description": "Build HTTP API endpoints for trips listing, metrics queries, and summary dashboards with filtering by taxi type and date range.",
+      "category": "schema-design"
+    },
+    {
+      "id": "add-jwt-tenant-isolation",
+      "description": "Implement JWT-based authentication using secrets from /data/auth/ so that yellow-tenant tokens only see yellow cab data and green-tenant tokens only see green cab data.",
+      "category": "schema-design"
+    },
+    {
+      "id": "add-langfuse-tracing",
+      "description": "Instrument all API endpoints with Langfuse tracing so each request produces a trace with spans for authentication, query generation, and execution.",
+      "category": "monitoring"
+    }
+  ],
+  "personaPrompts": {
+    "baseline": "prompts/baseline.md",
+    "informed": "prompts/informed.md"
+  },
+  "infrastructure": {
+    "services": [
+      "clickhouse"
+    ],
+    "description": "ClickHouse (empty, greenfield). JWT auth materials pre-staged in /data/auth/. Langfuse keys available via environment variables."
+  },
+  "tags": [
+    "schema-design",
+    "multi-tenant",
+    "jwt",
+    "api",
+    "semantic-layer",
+    "langfuse",
+    "tracing",
+    "ingestion",
+    "nyc-taxi",
+    "tier-3"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 3000,
+    "storageBytes": 1000000000,
+    "costPerQueryUsd": 0.05
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 100,
+    "storageBytes": 300000000,
+    "costPerQueryUsd": 0.005
+  }
+}

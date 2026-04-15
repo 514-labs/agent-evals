@@ -1,0 +1,1 @@
+Dashboard queries on our 3M-row taxi trips table are too slow -- taking seconds per query. The table is `analytics.taxi_trips` in ClickHouse. Create materialized views to pre-aggregate data for common dashboard patterns so queries return fast. Fill in `/workspace/assertions.json` when done.

@@ -1,0 +1,1 @@
+Our taxi trips table (`analytics.taxi_trips_v1`) is missing some columns from the newer data format, and `payment_type` is stored as an integer instead of a string. We need to migrate the schema, backfill the missing columns with defaults for existing rows, then ingest the new month of data from `/data/taxi/`. Fill in /workspace/assertions.json when done.

@@ -1,0 +1,1 @@
+There's raw NYC taxi trip data in ClickHouse (raw.yellow_trips_2024_01, raw.green_trips_2024_01). Design a proper analytics schema, define key business metrics -- average fare, total revenue, trips per day, average distance -- and expose them as API endpoints. Fill in /workspace/assertions.json when done.

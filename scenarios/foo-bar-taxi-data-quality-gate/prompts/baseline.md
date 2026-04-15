@@ -1,0 +1,1 @@
+Pull NYC taxi data for January 2024 from the TLC dataset and load it into ClickHouse, but with quality gates. Separate clean rows from bad ones -- things like missing values, impossible distances, negative fares. Fill in `/workspace/assertions.json` when done.

@@ -1,0 +1,1 @@
+There's raw NYC taxi trip data in ClickHouse -- yellow and green trip tables in the `raw` database. Design a proper analytics schema and build API endpoints so a frontend can query trip data, get fare summaries, and find top trips by fare. Fill in `/workspace/assertions.json` when done.

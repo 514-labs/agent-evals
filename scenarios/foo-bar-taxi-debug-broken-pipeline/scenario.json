@@ -1,0 +1,58 @@
+{
+  "id": "foo-bar-taxi-debug-broken-pipeline",
+  "title": "Foo Bar Taxi Debug Broken Pipeline",
+  "description": "Fix 4 bugs in a pre-scaffolded TypeScript taxi data pipeline: a type error in the schema definition, a wrong table name in the API handler, a column mismatch in the materialized view definition, and a missing import in the ingestion script.",
+  "lede": "In this scenario, an agent must diagnose and fix 4 bugs in a broken TypeScript taxi data pipeline that is supposed to ingest raw data, create materialized views, and serve an API -- but nothing works due to a type error, wrong table reference, column mismatch, and missing import.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harness": "base-rt",
+  "tasks": [
+    {
+      "id": "fix-schema-type-error",
+      "description": "Fix the type error in src/schema.ts where a ClickHouse column name uses the wrong TypeScript type (number instead of string).",
+      "category": "debugging"
+    },
+    {
+      "id": "fix-wrong-table-name",
+      "description": "Fix the wrong table name in src/api.ts that references analytics.taxi_data instead of analytics.taxi_trips.",
+      "category": "debugging"
+    },
+    {
+      "id": "fix-mv-column-mismatch",
+      "description": "Fix the column mismatch in src/mv.ts where the MV definition selects 'fare' but the target table expects 'fare_amount'.",
+      "category": "debugging"
+    },
+    {
+      "id": "fix-missing-import",
+      "description": "Fix the missing import for the ClickHouse client in src/ingest.ts.",
+      "category": "debugging"
+    }
+  ],
+  "personaPrompts": {
+    "baseline": "prompts/baseline.md",
+    "informed": "prompts/informed.md"
+  },
+  "infrastructure": {
+    "services": [
+      "clickhouse"
+    ],
+    "description": "ClickHouse pre-seeded with raw.yellow_trips_2024_01 and raw.green_trips_2024_01 staging tables. A broken TypeScript project is scaffolded in /workspace/."
+  },
+  "tags": [
+    "debugging",
+    "typescript",
+    "pipeline",
+    "nyc-taxi",
+    "bug-fix"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 2000,
+    "storageBytes": 600000000,
+    "costPerQueryUsd": 0.025
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 80,
+    "storageBytes": 200000000,
+    "costPerQueryUsd": 0.003
+  }
+}

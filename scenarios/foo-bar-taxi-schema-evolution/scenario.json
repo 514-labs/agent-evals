@@ -1,0 +1,43 @@
+{
+  "id": "foo-bar-taxi-schema-evolution",
+  "title": "Foo Bar Taxi Schema Evolution",
+  "description": "Migrate a legacy taxi trips table that is missing columns and has a wrong column type, backfill defaults for existing rows, then ingest a new month of data in the updated format.",
+  "lede": "In this scenario, an agent must evolve the schema of a 3M+ row ClickHouse table by adding missing columns (congestion_surcharge, airport_fee), converting payment_type from Int32 to String, backfilling defaults, and ingesting a second month of parquet data.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harness": "base-rt",
+  "tasks": [
+    {
+      "id": "evolve-taxi-schema",
+      "description": "Add missing columns to the legacy taxi trips table, convert payment_type from Int32 to String, backfill existing rows with defaults, and ingest Feb 2024 data from /data/taxi/.",
+      "category": "migration"
+    }
+  ],
+  "personaPrompts": {
+    "baseline": "prompts/baseline.md",
+    "informed": "prompts/informed.md"
+  },
+  "infrastructure": {
+    "services": [
+      "clickhouse"
+    ],
+    "description": "ClickHouse pre-seeded with analytics.taxi_trips_v1 containing Jan 2024 yellow taxi data (~3M rows) with a legacy schema missing congestion_surcharge and airport_fee columns, and payment_type stored as Int32. Feb 2024 parquet staged at /data/taxi/yellow_tripdata_2024-02.parquet."
+  },
+  "tags": [
+    "schema-evolution",
+    "migration",
+    "backfill",
+    "parquet",
+    "nyc-taxi"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 50,
+    "storageBytes": 5000000,
+    "costPerQueryUsd": 0.001
+  }
+}

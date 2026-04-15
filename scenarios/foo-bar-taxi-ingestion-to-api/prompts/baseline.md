@@ -1,0 +1,1 @@
+Build an end-to-end analytics pipeline for NYC taxi data: pull January 2024 yellow and green trip data from the NYC TLC public dataset, load it into ClickHouse with a good schema, pre-aggregate for common queries using materialized views, and expose API endpoints for trip stats and fare analysis. Fill in `/workspace/assertions.json` when done.

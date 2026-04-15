@@ -1,0 +1,1 @@
+We have a broken taxi data pipeline in /workspace/. It's supposed to ingest raw data from ClickHouse (raw.yellow_trips_2024_01 and raw.green_trips_2024_01), create materialized views, and serve an API. But nothing works -- the TypeScript code won't compile and the pipeline fails at every step. Can you fix it and get it running?
