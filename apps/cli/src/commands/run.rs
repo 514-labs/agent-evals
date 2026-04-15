@@ -213,6 +213,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                     &job.agent,
                     &job.model,
                     &job.harness,
+                    job.persona.as_str(),
                 ) {
                     Some(existing) => {
                         info!(
@@ -947,9 +948,9 @@ fn build_matrix_jobs(
     jobs
 }
 
-fn has_existing_result(results_dir: &str, scenario: &str, agent: &str, model: &str, harness: &str) -> Option<String> {
+fn has_existing_result(results_dir: &str, scenario: &str, agent: &str, model: &str, harness: &str, persona: &str) -> Option<String> {
     let dir = Path::new(results_dir);
-    let prefix = format!("{}-{}-{}-{}-", scenario, agent, model, harness);
+    let prefix = format!("{}-{}-{}-{}-{}-", scenario, agent, model, harness, persona);
 
     // Search top-level results dir and one level of subdirectories
     let mut dirs_to_check = vec![dir.to_path_buf()];
@@ -1135,9 +1136,21 @@ mod tests {
             "codex",
             "gpt-5.4",
             "base-rt",
+            "baseline",
         );
         assert!(found.is_some());
-        assert!(found.unwrap().contains("foo-bar-test-codex-gpt-5.4-base-rt"));
+        assert!(found.unwrap().contains("foo-bar-test-codex-gpt-5.4-base-rt-baseline"));
+
+        // Different persona should not match
+        let not_found_persona = has_existing_result(
+            temp.path().to_str().unwrap(),
+            "foo-bar-test",
+            "codex",
+            "gpt-5.4",
+            "base-rt",
+            "informed",
+        );
+        assert!(not_found_persona.is_none());
 
         let not_found = has_existing_result(
             temp.path().to_str().unwrap(),
@@ -1145,6 +1158,7 @@ mod tests {
             "cursor",
             "composer-2",
             "base-rt",
+            "baseline",
         );
         assert!(not_found.is_none());
     }
