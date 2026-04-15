@@ -99,7 +99,7 @@ struct ScenarioJson {
     description: String,
     tier: String,
     domain: String,
-    harness: String,
+    harnesses: Vec<String>,
     tasks: Vec<ScenarioTask>,
     #[serde(rename = "personaPrompts")]
     persona_prompts: Option<std::collections::BTreeMap<String, String>>,
@@ -204,8 +204,8 @@ fn validate_with_repo_root(
     if scenario.domain.trim().is_empty() {
         errors.push("`scenario.json` must include a non-empty `domain`.".to_string());
     }
-    if scenario.harness.trim().is_empty() {
-        errors.push("`scenario.json` must include a non-empty `harness`.".to_string());
+    if scenario.harnesses.is_empty() {
+        errors.push("`scenario.json` must include a non-empty `harnesses` array.".to_string());
     }
 
     if scenario.tasks.is_empty() {
@@ -273,7 +273,9 @@ fn validate_with_repo_root(
 
     validate_supervisord(&scenario_dir.join("supervisord.conf"), &mut warnings);
     validate_init_dir(&scenario_dir.join("init"), &mut errors);
-    validate_harness(&repo_root, &scenario.harness, &mut warnings);
+    for harness in &scenario.harnesses {
+        validate_harness(&repo_root, harness, &mut warnings);
+    }
 
     let registry_ready = validate_registry_inputs(
         &scenario,
@@ -540,7 +542,7 @@ mod tests {
   "description": "A valid test scenario.",
   "tier": "tier-1",
   "domain": "foo-bar",
-  "harness": "base-rt",
+  "harnesses": ["base-rt"],
   "tasks": [{"id":"task-1","description":"Do the thing","category":"ingestion"}],
   "personaPrompts": {"baseline":"prompts/baseline.md","informed":"prompts/informed.md"},
   "infrastructure": {"services": ["clickhouse"]}

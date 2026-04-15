@@ -73,9 +73,9 @@ pub struct RunArgs {
     #[arg(long, default_value = "base-rt")]
     pub harness: String,
 
-    /// Agent persona
-    #[arg(long, value_enum, default_value = "baseline")]
-    pub persona: Persona,
+    /// Agent persona (matrix mode runs both when omitted)
+    #[arg(long, value_enum)]
+    pub persona: Option<Persona>,
 
     /// Planning mode
     #[arg(long, value_enum, default_value = "no-plan")]
@@ -120,6 +120,10 @@ pub struct RunArgs {
     /// Skip runs that already have result files
     #[arg(long)]
     pub skip_existing: bool,
+
+    /// List all matrix jobs without executing them
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -164,7 +168,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         let docker = Docker::connect_with_local_defaults()
             .context("Failed to connect to Docker daemon")?;
 
-        let scenarios = load_scenarios_with_harness()?;
+        let scenarios = load_scenarios_with_harnesses()?;
         if scenarios.is_empty() {
             bail!("No scenarios found");
         }
@@ -189,29 +193,14 @@ pub async fn execute(args: RunArgs) -> Result<()> {
             None
         };
 
-        let mut jobs: Vec<MatrixJob> = vec![];
-        for scenario in &scenarios {
-            if let Some(filter) = scenario_filter {
-                if scenario.id != filter {
-                    continue;
-                }
-            }
-            if let Some(filter) = harness_filter {
-                if scenario.harness != filter {
-                    continue;
-                }
-            }
-            for (agent, model) in &agent_models {
-                jobs.push(MatrixJob {
-                    scenario_id: scenario.id.clone(),
-                    harness: scenario.harness.clone(),
-                    agent: agent.clone(),
-                    model: model.clone(),
-                    persona: args.persona.clone(),
-                    mode: args.mode.clone(),
-                });
-            }
-        }
+        let mut jobs = build_matrix_jobs(
+            &scenarios,
+            &agent_models,
+            scenario_filter,
+            harness_filter,
+            &args.persona,
+            &args.mode,
+        );
 
         // Apply --skip-existing
         let mut skipped = 0_usize;
@@ -256,6 +245,16 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
         if total == 0 {
             println!("Nothing to run.");
+            return Ok(());
+        }
+
+        if args.dry_run {
+            for (i, job) in jobs.iter().enumerate() {
+                println!(
+                    "[{}/{}] scenario={} harness={} persona={:?} agent={} model={}",
+                    i + 1, total, job.scenario_id, job.harness, job.persona, job.agent, job.model
+                );
+            }
             return Ok(());
         }
 
@@ -339,7 +338,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         &docker,
         &args,
         scenario,
-        args.persona.clone(),
+        args.persona.clone().unwrap_or(Persona::Baseline),
         args.mode.clone(),
     )
     .await?;
@@ -844,23 +843,23 @@ fn write_result_file(results_dir: &str, default_run_id: &str, value: &mut serde_
 #[derive(Debug, Deserialize)]
 struct RegistryScenario {
     id: String,
-    #[serde(default = "default_harness")]
-    harness: String,
+    #[serde(default = "default_harnesses")]
+    harnesses: Vec<String>,
 }
 
-fn default_harness() -> String {
-    "base-rt".to_string()
+fn default_harnesses() -> Vec<String> {
+    vec!["base-rt".to_string()]
 }
 
 const SCENARIO_IMPL_DIR: &str = "scenarios";
 
-fn load_scenarios_with_harness() -> Result<Vec<RegistryScenario>> {
+fn load_scenarios_with_harnesses() -> Result<Vec<RegistryScenario>> {
     let repo_root = preflight::resolve_repo_root()?;
     let impl_dir = repo_root.join(SCENARIO_IMPL_DIR);
 
     let mut scenarios = vec![];
 
-    // Prefer scenarios/*/scenario.json (has harness field)
+    // Prefer scenarios/*/scenario.json (has harnesses field)
     if impl_dir.exists() {
         for entry in fs::read_dir(&impl_dir)
             .with_context(|| format!("Failed to read {}", impl_dir.display()))?
@@ -903,6 +902,49 @@ fn load_scenarios_with_harness() -> Result<Vec<RegistryScenario>> {
 
     scenarios.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(scenarios)
+}
+
+fn build_matrix_jobs(
+    scenarios: &[RegistryScenario],
+    agent_models: &[(String, String)],
+    scenario_filter: Option<&str>,
+    harness_filter: Option<&str>,
+    persona_filter: &Option<Persona>,
+    mode: &PlanMode,
+) -> Vec<MatrixJob> {
+    let personas: Vec<Persona> = match persona_filter {
+        Some(p) => vec![p.clone()],
+        None => vec![Persona::Baseline, Persona::Informed],
+    };
+
+    let mut jobs = vec![];
+    for scenario in scenarios {
+        if let Some(filter) = scenario_filter {
+            if scenario.id != filter {
+                continue;
+            }
+        }
+        for harness in &scenario.harnesses {
+            if let Some(filter) = harness_filter {
+                if harness != filter {
+                    continue;
+                }
+            }
+            for persona in &personas {
+                for (agent, model_name) in agent_models {
+                    jobs.push(MatrixJob {
+                        scenario_id: scenario.id.clone(),
+                        harness: harness.clone(),
+                        agent: agent.clone(),
+                        model: model_name.clone(),
+                        persona: persona.clone(),
+                        mode: mode.clone(),
+                    });
+                }
+            }
+        }
+    }
+    jobs
 }
 
 fn has_existing_result(results_dir: &str, scenario: &str, agent: &str, model: &str, harness: &str) -> Option<String> {
@@ -1169,6 +1211,115 @@ mod tests {
             "__DEC_BENCH_RUN_META_JSON_END__",
         );
         assert_eq!(stripped, "a\nb\nc");
+    }
+
+    fn make_scenario(id: &str, harnesses: Vec<&str>) -> RegistryScenario {
+        RegistryScenario {
+            id: id.to_string(),
+            harnesses: harnesses.into_iter().map(String::from).collect(),
+        }
+    }
+
+    fn agent_pair(agent: &str, model: &str) -> (String, String) {
+        (agent.to_string(), model.to_string())
+    }
+
+    #[test]
+    fn matrix_expands_multiple_harnesses() {
+        let scenarios = vec![
+            make_scenario("single", vec!["base-rt"]),
+            make_scenario("multi", vec!["base-rt", "olap-for-swe"]),
+        ];
+        let agents = vec![agent_pair("claude-code", "sonnet")];
+        let jobs = build_matrix_jobs(
+            &scenarios,
+            &agents,
+            None,
+            None,
+            &Some(Persona::Baseline),
+            &PlanMode::NoPlan,
+        );
+        // single: 1 harness × 1 agent = 1, multi: 2 harnesses × 1 agent = 2
+        assert_eq!(jobs.len(), 3);
+        assert_eq!(jobs[0].harness, "base-rt");
+        assert_eq!(jobs[0].scenario_id, "single");
+        assert_eq!(jobs[1].harness, "base-rt");
+        assert_eq!(jobs[1].scenario_id, "multi");
+        assert_eq!(jobs[2].harness, "olap-for-swe");
+        assert_eq!(jobs[2].scenario_id, "multi");
+    }
+
+    #[test]
+    fn matrix_expands_both_personas_when_none() {
+        let scenarios = vec![make_scenario("s1", vec!["base-rt"])];
+        let agents = vec![agent_pair("claude-code", "sonnet")];
+        let jobs = build_matrix_jobs(
+            &scenarios,
+            &agents,
+            None,
+            None,
+            &None, // no persona filter → both
+            &PlanMode::NoPlan,
+        );
+        assert_eq!(jobs.len(), 2);
+        assert!(matches!(jobs[0].persona, Persona::Baseline));
+        assert!(matches!(jobs[1].persona, Persona::Informed));
+    }
+
+    #[test]
+    fn matrix_filters_persona_when_specified() {
+        let scenarios = vec![make_scenario("s1", vec!["base-rt"])];
+        let agents = vec![agent_pair("claude-code", "sonnet")];
+        let jobs = build_matrix_jobs(
+            &scenarios,
+            &agents,
+            None,
+            None,
+            &Some(Persona::Informed),
+            &PlanMode::NoPlan,
+        );
+        assert_eq!(jobs.len(), 1);
+        assert!(matches!(jobs[0].persona, Persona::Informed));
+    }
+
+    #[test]
+    fn matrix_filters_by_harness() {
+        let scenarios = vec![make_scenario("s1", vec!["base-rt", "olap-for-swe"])];
+        let agents = vec![agent_pair("claude-code", "sonnet")];
+        let jobs = build_matrix_jobs(
+            &scenarios,
+            &agents,
+            None,
+            Some("olap-for-swe"),
+            &Some(Persona::Baseline),
+            &PlanMode::NoPlan,
+        );
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].harness, "olap-for-swe");
+    }
+
+    #[test]
+    fn matrix_full_expansion() {
+        let scenarios = vec![
+            make_scenario("s1", vec!["base-rt", "olap-for-swe"]),
+            make_scenario("s2", vec!["classic-de"]),
+        ];
+        let agents = vec![
+            agent_pair("claude-code", "sonnet"),
+            agent_pair("codex", "gpt-5"),
+        ];
+        // No persona filter → both personas
+        let jobs = build_matrix_jobs(
+            &scenarios,
+            &agents,
+            None,
+            None,
+            &None,
+            &PlanMode::NoPlan,
+        );
+        // s1: 2 harnesses × 2 personas × 2 agents = 8
+        // s2: 1 harness × 2 personas × 2 agents = 4
+        assert_eq!(jobs.len(), 12);
     }
 
     #[test]

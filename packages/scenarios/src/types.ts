@@ -86,7 +86,7 @@ export interface Scenario {
   baselineMetrics: BaselineMetrics;
   referenceMetrics: ReferenceMetrics;
   personaPrompts: PersonaPrompts;
-  harness: Harness;
+  harnesses: BuiltInHarness[];
   datasetPath?: string;
   schemaPath?: string;
   infrastructure?: ScenarioInfrastructure;
