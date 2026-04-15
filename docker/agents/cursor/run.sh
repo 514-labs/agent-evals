@@ -74,6 +74,8 @@ const metadata = {
 fs.writeFileSync(runMetaPath, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
 '
 
+mkdir -p /workspace
+
 set +e
 CURSOR_OUTPUT="$(
   CURSOR_API_KEY="${CURSOR_API_KEY}" \
@@ -83,6 +85,7 @@ CURSOR_OUTPUT="$(
       --sandbox disabled \
       --force \
       --trust \
+      --workspace /workspace \
       --model "${CURSOR_MODEL}"
 )"
 cursor_exit_code=$?

@@ -41,7 +41,7 @@ fn create_then_registry_add_scenario_generates_registry_entry() {
       "description": "Integration flow test scenario",
       "tier": "tier-2",
       "domain": "ugc",
-      "harness": "base-rt",
+      "harnesses": ["base-rt"],
       "tasks": [
         {"id": "task-a", "description": "task", "category": "ingestion"}
       ],

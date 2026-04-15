@@ -19,9 +19,9 @@ pub struct CreateArgs {
     #[arg(short, long, value_enum, default_value = "tier-1")]
     pub tier: Tier,
 
-    /// Evaluation harness
-    #[arg(long, default_value = "base-rt")]
-    pub harness: String,
+    /// Evaluation harnesses (comma-separated, e.g. base-rt,olap-for-swe)
+    #[arg(long, default_value = "base-rt", value_delimiter = ',')]
+    pub harnesses: Vec<String>,
 
     /// Scenarios root directory
     #[arg(long, default_value = "scenarios")]
@@ -140,7 +140,7 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
         "lede": "",
         "tier": args.tier.to_string(),
         "domain": args.domain.to_string(),
-        "harness": args.harness,
+        "harnesses": args.harnesses,
         "tasks": [],
         "personaPrompts": {
             "baseline": "prompts/baseline.md",
@@ -236,7 +236,7 @@ mod tests {
             name: "sample-scenario".to_string(),
             domain: Domain::Ugc,
             tier: Tier::Tier1,
-            harness: "base-rt".to_string(),
+            harnesses: vec!["base-rt".to_string()],
             dir: temp.path().to_path_buf(),
         };
 
