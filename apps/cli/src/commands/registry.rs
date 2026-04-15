@@ -150,7 +150,7 @@ struct ScenarioJson {
     description: String,
     tier: String,
     domain: String,
-    harness: Option<String>,
+    harnesses: Option<Vec<String>>,
     tasks: Option<Vec<ScenarioTask>>,
     tags: Option<Vec<String>>,
 }
@@ -228,8 +228,8 @@ fn add_scenario(args: AddArgs) -> Result<()> {
     let task_count = tasks.len();
     let tags = scenario_json.tags.unwrap_or_default();
     let harnesses = scenario_json
-        .harness
-        .map(|h| vec![h])
+        .harnesses
+        .filter(|h| !h.is_empty())
         .unwrap_or_else(|| vec!["base-rt".to_string()]);
 
     let out_dir = match args.out {

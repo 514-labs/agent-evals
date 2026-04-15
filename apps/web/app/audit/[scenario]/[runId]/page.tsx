@@ -364,7 +364,7 @@ export default async function ScenarioAuditRunPage({
               { label: "ID", value: scenario },
               { label: "Domain", value: context?.domain ?? "—" },
               { label: "Tier", value: context?.tier ?? "—" },
-              { label: "Harness", value: context?.harness ?? manifest.harness },
+              { label: "Harness", value: manifest.harness },
             ].map((field) => (
               <div
                 key={field.label}

@@ -633,7 +633,7 @@ export interface ScenarioDefinition {
   description: string;
   tier: string;
   domain: string;
-  harness: string;
+  harnesses: string[];
   tasks: ScenarioTask[];
   personaPrompts?: Record<string, string>;
   tags?: string[];
@@ -652,7 +652,7 @@ export interface AuditScenarioContext {
   description: string;
   tier: string;
   domain: string;
-  harness: string;
+  harnesses: string[];
   tags: string[];
   tasks: ScenarioTask[];
   infrastructure?: ScenarioInfrastructure;
@@ -1264,7 +1264,7 @@ export function getScenarioAuditContext(scenarioId: string): AuditScenarioContex
     description: scenario.description,
     tier: scenario.tier,
     domain: scenario.domain,
-    harness: scenario.harness,
+    harnesses: scenario.harnesses,
     tags: scenario.tags ?? [],
     tasks: scenario.tasks ?? [],
     infrastructure: scenario.infrastructure,

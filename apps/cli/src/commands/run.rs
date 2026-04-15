@@ -164,7 +164,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         let docker = Docker::connect_with_local_defaults()
             .context("Failed to connect to Docker daemon")?;
 
-        let scenarios = load_scenarios_with_harness()?;
+        let scenarios = load_scenarios_with_harnesses()?;
         if scenarios.is_empty() {
             bail!("No scenarios found");
         }
@@ -196,20 +196,22 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                     continue;
                 }
             }
-            if let Some(filter) = harness_filter {
-                if scenario.harness != filter {
-                    continue;
+            for harness in &scenario.harnesses {
+                if let Some(filter) = harness_filter {
+                    if harness != filter {
+                        continue;
+                    }
                 }
-            }
-            for (agent, model) in &agent_models {
-                jobs.push(MatrixJob {
-                    scenario_id: scenario.id.clone(),
-                    harness: scenario.harness.clone(),
-                    agent: agent.clone(),
-                    model: model.clone(),
-                    persona: args.persona.clone(),
-                    mode: args.mode.clone(),
-                });
+                for (agent, model) in &agent_models {
+                    jobs.push(MatrixJob {
+                        scenario_id: scenario.id.clone(),
+                        harness: harness.clone(),
+                        agent: agent.clone(),
+                        model: model.clone(),
+                        persona: args.persona.clone(),
+                        mode: args.mode.clone(),
+                    });
+                }
             }
         }
 
@@ -844,23 +846,23 @@ fn write_result_file(results_dir: &str, default_run_id: &str, value: &mut serde_
 #[derive(Debug, Deserialize)]
 struct RegistryScenario {
     id: String,
-    #[serde(default = "default_harness")]
-    harness: String,
+    #[serde(default = "default_harnesses")]
+    harnesses: Vec<String>,
 }
 
-fn default_harness() -> String {
-    "base-rt".to_string()
+fn default_harnesses() -> Vec<String> {
+    vec!["base-rt".to_string()]
 }
 
 const SCENARIO_IMPL_DIR: &str = "scenarios";
 
-fn load_scenarios_with_harness() -> Result<Vec<RegistryScenario>> {
+fn load_scenarios_with_harnesses() -> Result<Vec<RegistryScenario>> {
     let repo_root = preflight::resolve_repo_root()?;
     let impl_dir = repo_root.join(SCENARIO_IMPL_DIR);
 
     let mut scenarios = vec![];
 
-    // Prefer scenarios/*/scenario.json (has harness field)
+    // Prefer scenarios/*/scenario.json (has harnesses field)
     if impl_dir.exists() {
         for entry in fs::read_dir(&impl_dir)
             .with_context(|| format!("Failed to read {}", impl_dir.display()))?

@@ -74,7 +74,7 @@ Use this shape as the working contract:
   "description": "Load five messy CSV files into clean ClickHouse tables.",
   "tier": "tier-1",
   "domain": "foo-bar",
-  "harness": "base-rt",
+  "harnesses": ["base-rt"],
   "tasks": [
     {
       "id": "ingest-csvs",
