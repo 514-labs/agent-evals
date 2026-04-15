@@ -99,6 +99,11 @@ pub fn check_image_exists(image: &str) -> Result<()> {
     }
 }
 
+// Provider API endpoints used for key validation.
+const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/models";
+const OPENAI_API_URL: &str = "https://api.openai.com/v1/models";
+const CURSOR_API_URL: &str = "https://api.cursor.com/auth/verify";
+
 /// Known agents and the API key env vars they require.
 const AGENT_KEYS: &[(&str, &[&str])] = &[
     ("claude-code", &["ANTHROPIC_API_KEY"]),
@@ -237,23 +242,20 @@ async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<()
 
     let (url, request) = match key_name {
         "ANTHROPIC_API_KEY" => {
-            let url = "https://api.anthropic.com/v1/models";
             let req = client
-                .get(url)
+                .get(ANTHROPIC_API_URL)
                 .header("x-api-key", value)
                 .header("anthropic-version", "2023-06-01");
-            (url, req)
+            (ANTHROPIC_API_URL, req)
         }
         "OPENAI_API_KEY" => {
-            let url = "https://api.openai.com/v1/models";
-            let req = client.get(url).bearer_auth(value);
-            (url, req)
+            let req = client.get(OPENAI_API_URL).bearer_auth(value);
+            (OPENAI_API_URL, req)
         }
         "CURSOR_API_KEY" => {
             // Cursor uses Basic Auth with the API key as the username.
-            let url = "https://api.cursor.com/auth/verify";
-            let req = client.get(url).basic_auth(value, Option::<&str>::None);
-            (url, req)
+            let req = client.get(CURSOR_API_URL).basic_auth(value, Option::<&str>::None);
+            (CURSOR_API_URL, req)
         }
         _ => return Ok(()),
     };
