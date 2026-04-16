@@ -29,18 +29,24 @@ Use the current schema values inline instead of guessing.
 - `tier-2`
 - `tier-3`
 
-### Task Categories
+### Task Categories vs Registry Competencies
 
-- `schema-design`
-- `query-optimization`
-- `ingestion`
-- `migration`
-- `debugging`
-- `materialized-views`
-- `partitioning`
-- `replication`
-- `compression`
-- `monitoring`
+Two separate axes. `tasks[].category` goes in `scenario.json` (per-task activity). `--competencies` is passed to `dec-bench registry add` at publish time (per-scenario leaderboard tags). No strict mapping — pick 1–3 competencies that match what the scenario actually tests.
+
+| `tasks[].category` | `--competencies` (registry) |
+|---|---|
+| `schema-design` | `environment-setup` |
+| `query-optimization` | `data-modeling-and-schema-design` |
+| `ingestion` | `data-ingestion-and-integration` |
+| `migration` | `transformation-and-semantic-modeling` |
+| `debugging` | `storage-and-data-layout` |
+| `materialized-views` | `orchestration-and-dataops` |
+| `partitioning` | `data-quality-and-observability` |
+| `replication` | `reliability-and-fault-tolerance` |
+| `compression` | `distributed-systems-and-consistency` |
+| `monitoring` | `scalability-and-performance-engineering` |
+|  | `security-privacy-and-governance` |
+|  | `technology-selection-and-architecture-tradeoffs` |
 
 ### Built-In Harnesses
 

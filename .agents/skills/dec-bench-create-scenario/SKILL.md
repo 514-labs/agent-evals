@@ -75,7 +75,7 @@ The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. It does NOT emit
   - `description`: one-line summary of the starting state
 - `tags`: searchable terms
 
-Task categories: `schema-design`, `query-optimization`, `ingestion`, `migration`, `debugging`, `materialized-views`, `partitioning`, `replication`, `compression`, `monitoring`
+Task categories: `schema-design`, `query-optimization`, `ingestion`, `migration`, `debugging`, `materialized-views`, `partitioning`, `replication`, `compression`, `monitoring`. These describe the task activity (per-task, for `scenario.json`). Broader leaderboard capability tags (`--competencies`) are set separately at registry publish time — see `guide.md`.
 
 See [references/guide.md](references/guide.md) for the full schema contract and a worked example.
 
