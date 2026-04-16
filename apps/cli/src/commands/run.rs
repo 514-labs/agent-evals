@@ -197,7 +197,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         let docker = Docker::connect_with_local_defaults()
             .context("Failed to connect to Docker daemon")?;
 
-        let scenarios = load_scenarios_with_harness()?;
+        let scenarios = load_scenarios_with_harnesses()?;
         if scenarios.is_empty() {
             bail!("No scenarios found");
         }
