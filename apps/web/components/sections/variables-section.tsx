@@ -26,17 +26,38 @@ const difficultyTiers = [
   {
     number: "T1",
     title: "Focused",
-    body: "One narrowly scoped task with minimal moving parts. Typically a single service, 3\u20135 assertions per gate. Tests whether the agent can diagnose and fix a specific problem in isolation. Example: fix a broken Postgres connection, optimize a ClickHouse ORDER BY key.",
+    body: (<>
+      The agent diagnoses and fixes a single, narrowly scoped problem.
+      <ul className="mt-2 flex flex-col gap-1 list-none p-0">
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>14 scenarios, 3{"\u2013"}5 assertions per gate</span></li>
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>Common services: ClickHouse, Postgres</span></li>
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>e.g. Broken Connection, CSV Ingest, Slow Queries, ORDER BY Optimization</span></li>
+      </ul>
+    </>),
   },
   {
     number: "T2",
     title: "Moderate",
-    body: "Requires design judgment or cross-service coordination. One or two services, 5\u201310 assertions per gate. The agent must make meaningful architectural decisions\u2014choosing schemas, wiring pipelines, or handling state across systems. Example: build an ingestion pipeline with schema validation and idempotent reruns.",
+    body: (<>
+      The agent must make meaningful architectural or design decisions.
+      <ul className="mt-2 flex flex-col gap-1 list-none p-0">
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>19 scenarios, 5{"\u2013"}10 assertions per gate</span></li>
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>Common services: Postgres + ClickHouse, Redpanda + ClickHouse</span></li>
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>e.g. Stream to OLAP, Schema Evolution, Idempotent Pipeline</span></li>
+      </ul>
+    </>),
   },
   {
     number: "T3",
     title: "Complex",
-    body: "End-to-end system reasoning under production-grade constraints. Two or more services, 10+ assertions per gate. Multiple interacting failure modes that demand the agent understand how systems compose. Example: debug a broken ELT pipeline spanning Postgres, Redpanda, and ClickHouse with latency targets.",
+    body: (<>
+      Multiple interacting failure modes that demand the agent understand how systems compose.
+      <ul className="mt-2 flex flex-col gap-1 list-none p-0">
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>5 scenarios, 10+ assertions per gate</span></li>
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>Common services: Postgres + Redpanda + ClickHouse</span></li>
+        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>e.g. Full Pipeline Debug, Cross-System Reconciliation, OLTP to OLAP Migration</span></li>
+      </ul>
+    </>),
   },
 ];
 
@@ -117,9 +138,9 @@ export function VariablesSection() {
               name: "FOCUSED",
               description: "The agent diagnoses and fixes a single, narrowly scoped problem.",
               bullets: [
-                "One task, minimal moving parts",
-                "3\u20135 assertions per gate",
-                "e.g. fix a broken Postgres connection, optimize a ClickHouse ORDER BY key",
+                "14 scenarios, 3\u20135 assertions per gate",
+                "Common services: ClickHouse, Postgres",
+                "e.g. Broken Connection, CSV Ingest, Slow Queries, ORDER BY Optimization",
               ],
             },
             {
@@ -127,9 +148,9 @@ export function VariablesSection() {
               name: "MODERATE",
               description: "The agent must make meaningful architectural or design decisions.",
               bullets: [
-                "Multiple tasks, or cross-service coordination",
-                "5\u201310 assertions per gate",
-                "e.g. build an ingestion pipeline with schema validation and idempotent reruns",
+                "19 scenarios, 5\u201310 assertions per gate",
+                "Common services: Postgres + ClickHouse, Redpanda + ClickHouse",
+                "e.g. Stream to OLAP, Schema Evolution, Idempotent Pipeline",
               ],
             },
             {
@@ -137,9 +158,9 @@ export function VariablesSection() {
               name: "COMPLEX",
               description: "Multiple interacting failure modes that demand the agent understand how systems compose.",
               bullets: [
-                "Failures propagate across system boundaries",
-                "10+ assertions per gate",
-                "e.g. debug a broken ELT pipeline spanning Postgres, Redpanda, and ClickHouse",
+                "5 scenarios, 10+ assertions per gate",
+                "Common services: Postgres + Redpanda + ClickHouse",
+                "e.g. Full Pipeline Debug, Cross-System Reconciliation, OLTP to OLAP Migration",
               ],
             },
           ]} />
