@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SectionHeading } from "../marketing/section-heading";
 import { CardStack } from "../marketing/card-stack";
+import { FiveGates } from "../marketing/five-gates";
 import { SideNote } from "../marketing/side-note";
 
 const variables = [
@@ -18,6 +19,24 @@ const variables = [
     number: "03",
     title: "Prompt Variant",
     body: "How much domain knowledge the prompt provides. Each scenario has two conditions. The baseline prompt gives minimal context: no tool names, no implementation hints, and the agent figures out the approach on its own. The informed prompt provides domain-specific guidance: it names tools, specifies targets, and sets technical constraints.",
+  },
+];
+
+const difficultyTiers = [
+  {
+    number: "T1",
+    title: "Focused",
+    body: "One narrowly scoped task with minimal moving parts. Typically a single service, 3\u20135 assertions per gate. Tests whether the agent can diagnose and fix a specific problem in isolation. Example: fix a broken Postgres connection, optimize a ClickHouse ORDER BY key.",
+  },
+  {
+    number: "T2",
+    title: "Moderate",
+    body: "Requires design judgment or cross-service coordination. One or two services, 5\u201310 assertions per gate. The agent must make meaningful architectural decisions\u2014choosing schemas, wiring pipelines, or handling state across systems. Example: build an ingestion pipeline with schema validation and idempotent reruns.",
+  },
+  {
+    number: "T3",
+    title: "Complex",
+    body: "End-to-end system reasoning under production-grade constraints. Two or more services, 10+ assertions per gate. Multiple interacting failure modes that demand the agent understand how systems compose. Example: debug a broken ELT pipeline spanning Postgres, Redpanda, and ClickHouse with latency targets.",
   },
 ];
 
@@ -67,11 +86,63 @@ export function VariablesSection() {
             optimization, and cross-system reconciliation.
           </p>
           <p>
-            Scenarios are assigned a difficulty tier. Tier 1 scenarios involve a
-            single service and one focused task. Tier 2 scenarios involve multiple
-            services or moderate design decisions. Tier 3 scenarios require
-            cross-service orchestration and production-grade constraints.
+            Each scenario is assigned a difficulty tier based on the scope of
+            infrastructure, number of tasks, and depth of reasoning required.
           </p>
+        </div>
+
+        <div className="mt-8 relative">
+          <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
+            Difficulty Tiers
+          </h3>
+        </div>
+        <div className="mt-3 relative">
+          <CardStack items={difficultyTiers} />
+          {/* TODO: Uncomment when /docs/evals/difficulty-tiers is added to PUBLISHED_SLUGS in lib/published-docs.ts
+          <SideNote>
+            <Link
+              href="/docs/evals/difficulty-tiers"
+              className="underline hover:text-[color:var(--foreground)] transition-colors"
+            >
+              Read more about tiers and gate interaction
+            </Link>
+          </SideNote>
+          */}
+        </div>
+
+        <div className="mt-8">
+          <FiveGates headerPrefix="Difficulty Tier" gates={[
+            {
+              number: "1",
+              name: "FOCUSED",
+              description: "The agent diagnoses and fixes a single, narrowly scoped problem.",
+              bullets: [
+                "One task, minimal moving parts",
+                "3\u20135 assertions per gate",
+                "e.g. fix a broken Postgres connection, optimize a ClickHouse ORDER BY key",
+              ],
+            },
+            {
+              number: "2",
+              name: "MODERATE",
+              description: "The agent must make meaningful architectural or design decisions.",
+              bullets: [
+                "Multiple tasks, or cross-service coordination",
+                "5\u201310 assertions per gate",
+                "e.g. build an ingestion pipeline with schema validation and idempotent reruns",
+              ],
+            },
+            {
+              number: "3",
+              name: "COMPLEX",
+              description: "Multiple interacting failure modes that demand the agent understand how systems compose.",
+              bullets: [
+                "Failures propagate across system boundaries",
+                "10+ assertions per gate",
+                "e.g. debug a broken ELT pipeline spanning Postgres, Redpanda, and ClickHouse",
+              ],
+            },
+          ]} />
         </div>
 
         <div className="mt-10 relative">
@@ -79,7 +150,7 @@ export function VariablesSection() {
             Example Scenarios
           </h3>
           <SideNote>
-            The full benchmark includes 37 scenarios: 13 Tier 1 (single-service,
+            The full benchmark includes 38 scenarios: 14 Tier 1 (single-service,
             isolated tasks), 19 Tier 2 (multi-service or moderate design
             decisions), and 5 Tier 3 (cross-service orchestration with
             production-grade constraints).
