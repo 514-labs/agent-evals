@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SectionHeading } from "../marketing/section-heading";
 import { CardStack } from "../marketing/card-stack";
+import { FiveGates } from "../marketing/five-gates";
 import { SideNote } from "../marketing/side-note";
 
 const variables = [
@@ -20,6 +21,27 @@ const variables = [
     body: "How much domain knowledge the prompt provides. Each scenario has two conditions. The baseline prompt gives minimal context: no tool names, no implementation hints, and the agent figures out the approach on its own. The informed prompt provides domain-specific guidance: it names tools, specifies targets, and sets technical constraints.",
   },
 ];
+
+const SERVICE_LOGOS: Record<string, string> = {
+  Postgres: "/logos/postgres.svg",
+  ClickHouse: "/logos/clickhouse.svg",
+  Redpanda: "/logos/redpanda.svg",
+};
+
+function ServiceLogoStack({ services }: { services: string[] }) {
+  return (
+    <span className="flex flex-col gap-1 mt-1.5">
+      {services.map((s) => (
+        <span key={s} className="inline-flex items-center gap-1.5">
+          <span className="size-4 inline-flex items-center justify-center bg-white/95 border border-white rounded-sm overflow-hidden shrink-0">
+            <img src={SERVICE_LOGOS[s]} alt={s} width={12} height={12} className="object-contain" />
+          </span>
+          <span>{s}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const scenarios = [
   { id: 1, name: "Broken Connection", tier: "T1", services: "Postgres", category: "Debugging" },
@@ -67,23 +89,67 @@ export function VariablesSection() {
             optimization, and cross-system reconciliation.
           </p>
           <p>
-            Scenarios are assigned a difficulty tier. Tier 1 scenarios involve a
-            single service and one focused task. Tier 2 scenarios involve multiple
-            services or moderate design decisions. Tier 3 scenarios require
-            cross-service orchestration and production-grade constraints.
+            Each scenario is assigned a difficulty tier based on the scope of
+            infrastructure, number of tasks, and depth of reasoning required.
           </p>
+        </div>
+
+        <div className="mt-8 relative">
+          <h3 id="difficulty-tiers" className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
+            Difficulty Tier Definitions
+          </h3>
+          <SideNote>
+            The full benchmark includes 38 scenarios: 14 Tier 1, 19 Tier 2,
+            and 5 Tier 3.
+            {/* TODO: Uncomment when /docs/evals/difficulty-tiers is added to PUBLISHED_SLUGS in lib/published-docs.ts
+            {" "}<Link
+              href="/docs/evals/difficulty-tiers"
+              className="underline hover:text-[color:var(--foreground)] transition-colors"
+            >
+              Read more about tiers and gate interaction.
+            </Link>
+            */}
+          </SideNote>
+        </div>
+        <div className="mt-3">
+          <FiveGates headerPrefix="Difficulty Tier" gates={[
+            {
+              number: "1",
+              name: "FOCUSED",
+              description: "The agent diagnoses and fixes a single, narrowly scoped problem.",
+              subtitle: <>1{"\u2013"}2 services of:<ServiceLogoStack services={["Postgres", "ClickHouse"]} /></>,
+              bullets: [
+                "14 scenarios, 3\u20135 assertions per gate",
+                "e.g. Broken Connection, CSV Ingest, Slow Queries, ORDER BY Optimization",
+              ],
+            },
+            {
+              number: "2",
+              name: "MODERATE",
+              description: "The agent must make meaningful architectural or design decisions.",
+              subtitle: <>1{"\u2013"}2 services of:<ServiceLogoStack services={["Postgres", "ClickHouse", "Redpanda"]} /></>,
+              bullets: [
+                "19 scenarios, 5\u201310 assertions per gate",
+                "e.g. Stream to OLAP, Schema Evolution, Idempotent Pipeline",
+              ],
+            },
+            {
+              number: "3",
+              name: "COMPLEX",
+              description: "Multiple interacting failure modes that demand the agent understand how systems compose.",
+              subtitle: <>2{"\u2013"}3+ services of:<ServiceLogoStack services={["Postgres", "Redpanda", "ClickHouse"]} /></>,
+              bullets: [
+                "5 scenarios, 10+ assertions per gate",
+                "e.g. Full Pipeline Debug, Cross-System Reconciliation, OLTP to OLAP Migration",
+              ],
+            },
+          ]} />
         </div>
 
         <div className="mt-10 relative">
           <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
             Example Scenarios
           </h3>
-          <SideNote>
-            The full benchmark includes 37 scenarios: 13 Tier 1 (single-service,
-            isolated tasks), 19 Tier 2 (multi-service or moderate design
-            decisions), and 5 Tier 3 (cross-service orchestration with
-            production-grade constraints).
-          </SideNote>
         </div>
         <div className="mt-3 overflow-x-auto">
           <div className="flex items-center h-[37px] border-b border-[color:var(--border)] min-w-[540px]">

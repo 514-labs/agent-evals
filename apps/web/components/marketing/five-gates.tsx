@@ -1,7 +1,11 @@
+import type { ReactNode } from "react";
+
 interface Gate {
   number: string;
   name: string;
   description: string;
+  subtitle?: ReactNode;
+  bullets?: ReactNode[];
 }
 
 const defaultGates: Gate[] = [
@@ -22,9 +26,10 @@ const headerColors = [
 
 interface FiveGatesProps {
   gates?: Gate[];
+  headerPrefix?: string;
 }
 
-export function FiveGates({ gates = defaultGates }: FiveGatesProps) {
+export function FiveGates({ gates = defaultGates, headerPrefix = "Gate" }: FiveGatesProps) {
   return (
     <div className="flex flex-col sm:flex-row border border-[color:var(--secondary)]">
       {gates.map((gate, i) => (
@@ -34,7 +39,7 @@ export function FiveGates({ gates = defaultGates }: FiveGatesProps) {
         >
           <div className={`${headerColors[i]} px-2 h-[22px] flex items-center`}>
             <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] leading-none">
-              Gate {gate.number}
+              {headerPrefix} {gate.number}
             </span>
           </div>
           <div className="px-[10px] py-[12px] flex flex-col gap-[10px]">
@@ -44,6 +49,21 @@ export function FiveGates({ gates = defaultGates }: FiveGatesProps) {
             <span className="font-[family-name:var(--font-display)] text-[12px] text-[color:var(--muted-foreground)] leading-normal">
               {gate.description}
             </span>
+            {gate.subtitle && (
+              <span className="font-[family-name:var(--font-display)] text-[11px] text-[color:var(--muted-foreground)] leading-normal">
+                {gate.subtitle}
+              </span>
+            )}
+            {gate.bullets && gate.bullets.length > 0 && (
+              <ul className="mt-1 flex flex-col gap-1">
+                {gate.bullets.map((b, j) => (
+                  <li key={j} className="font-[family-name:var(--font-display)] text-[11px] text-[color:var(--muted-foreground)] leading-normal flex gap-1.5">
+                    <span className="shrink-0">{"\u2022"}</span>
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       ))}
