@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 
-import type { AssertionResult } from "@dec-bench/eval-core";
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
 const WORKSPACE_ROOT = "/workspace";
 const IGNORED_DIRS = new Set([
@@ -150,6 +150,29 @@ export async function avoidsSelectStarQueries(): Promise<AssertionResult> {
       findings,
     },
   };
+}
+
+async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
+  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+  return (await (result as any).json()) as T[];
+}
+
+/**
+ * Find a user_activity table across all non-system databases.
+ * Matches snake_case (user_activity), PascalCase (UserActivity, UserActivityEvent),
+ * and other naming conventions to support both raw ClickHouse and Moose-created tables.
+ */
+export async function findUserActivityTable(
+  ctx: AssertionContext,
+): Promise<{ database: string; table: string } | null> {
+  const rows = await queryRows<{ database: string; name: string }>(
+    ctx,
+    `SELECT database, name FROM system.tables
+     WHERE (lower(name) LIKE '%user_activity%' OR lower(name) LIKE '%useractivity%')
+       AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
+     ORDER BY length(name) ASC`,
+  );
+  return rows.length > 0 ? { database: rows[0].database, table: rows[0].name } : null;
 }
 
 function collectWorkspaceTextFiles(): WorkspaceTextFile[] {

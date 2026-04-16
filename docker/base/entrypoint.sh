@@ -144,18 +144,33 @@ ensure_clickhouse_for_assertions() {
     fi
   fi
 
+  # Check if ClickHouse is listening (accept 401 as "running but needs auth")
+  clickhouse_is_up() {
+    local probe_url="$1"
+    local http_code
+    http_code="$(curl -sS --max-time 2 -o /dev/null -w '%{http_code}' "${probe_url}/?query=SELECT%201" 2>/dev/null)" || true
+    [[ "${http_code}" =~ ^[2-4][0-9][0-9]$ ]]
+  }
+
   # Already reachable? Nothing to do.
-  if curl -fsS --max-time 2 "${url%/}/?query=SELECT%201" >/dev/null 2>&1; then
+  if clickhouse_is_up "${url%/}"; then
     return 0
   fi
 
-  # Also check default port -- agent may have started ClickHouse on 8123
-  # while CLICKHOUSE_URL points to a different port (e.g. Moose on 18123)
-  if curl -fsS --max-time 2 "http://localhost:8123/?query=SELECT%201" >/dev/null 2>&1; then
-    echo "ClickHouse is running on default port 8123; redirecting assertions there."
-    export CLICKHOUSE_URL="http://localhost:8123"
-    return 0
-  fi
+  # Check common ports -- agent may have started ClickHouse on a different port
+  # than CLICKHOUSE_URL specifies (e.g. Moose uses 18123, system default is 8123)
+  for probe_port in 8123 18123; do
+    if clickhouse_is_up "http://localhost:${probe_port}"; then
+      echo "ClickHouse is running on port ${probe_port}; redirecting assertions there."
+      # Try with Moose default credentials first, fall back to no-auth
+      if curl -fsS --max-time 2 "http://panda:pandapass@localhost:${probe_port}/?query=SELECT%201" >/dev/null 2>&1; then
+        export CLICKHOUSE_URL="http://panda:pandapass@localhost:${probe_port}"
+      else
+        export CLICKHOUSE_URL="http://localhost:${probe_port}"
+      fi
+      return 0
+    fi
+  done
 
   echo "ClickHouse unreachable at ${url}; attempting recovery for assertions..."
 
@@ -177,7 +192,7 @@ ensure_clickhouse_for_assertions() {
   for candidate in \
     /var/lib/clickhouse \
     /workspace/*/.moose/native_infra/clickhouse \
-    /workspace/.moose/native_infra/clickhouse; do
+    /*/.moose/native_infra/clickhouse; do
     if clickhouse_data_exists "${candidate}"; then
       data_dir="${candidate}"
       break
@@ -186,7 +201,10 @@ ensure_clickhouse_for_assertions() {
   # Broader search if not found in known paths
   if [[ -z "${data_dir}" ]]; then
     local found
-    found="$(find /workspace /root /opt /tmp -maxdepth 8 -type d -name 'data' -path '*clickhouse*' 2>/dev/null | head -1)"
+    found="$(find / -maxdepth 8 -type d -name 'data' -path '*native_infra/clickhouse*' 2>/dev/null | head -1)"
+    if [[ -z "${found}" ]]; then
+      found="$(find / -maxdepth 6 -type d -name 'data' -path '*clickhouse*' ! -path '/proc/*' ! -path '/sys/*' 2>/dev/null | head -1)"
+    fi
     if [[ -n "${found}" ]]; then
       data_dir="$(dirname "${found}")"
     fi
@@ -202,12 +220,25 @@ ensure_clickhouse_for_assertions() {
   # Remove stale lock from unclean shutdown
   rm -f "${data_dir}/status" "${data_dir}/data/status" 2>/dev/null || true
 
-  # If Moose left its own config.xml next to the data, reuse it
-  local cfg="${data_dir}/config.xml"
-  if [[ ! -f "${cfg}" ]]; then
-    # Generate minimal recovery config
-    cfg="/tmp/clickhouse-recovery.xml"
-    cat > "${cfg}" <<CHXML
+  # Extract port from Moose's config.xml if present
+  if [[ -f "${data_dir}/config.xml" ]]; then
+    local cfg_port
+    cfg_port="$(sed -n 's|.*<http_port>\([0-9]*\)</http_port>.*|\1|p' "${data_dir}/config.xml" | head -1)"
+    if [[ -n "${cfg_port}" ]]; then
+      port="${cfg_port}"
+    fi
+  fi
+
+  # Resolve the data path -- Moose nests data under data/ subdirectory
+  local ch_path="${data_dir}/"
+  if [[ -d "${data_dir}/data" ]]; then
+    ch_path="${data_dir}/data/"
+  fi
+
+  # Always generate a minimal recovery config (Moose's config has keeper/users.xml
+  # dependencies that may not survive the agent exiting)
+  local cfg="/tmp/clickhouse-recovery.xml"
+  cat > "${cfg}" <<CHXML
 <?xml version="1.0"?>
 <clickhouse>
   <logger>
@@ -217,10 +248,10 @@ ensure_clickhouse_for_assertions() {
   </logger>
   <http_port>${port}</http_port>
   <tcp_port>19876</tcp_port>
-  <path>${data_dir}/</path>
-  <tmp_path>${data_dir}/tmp/</tmp_path>
-  <user_files_path>${data_dir}/user_files/</user_files_path>
-  <format_schema_path>${data_dir}/format_schemas/</format_schema_path>
+  <path>${ch_path}</path>
+  <tmp_path>${ch_path}tmp/</tmp_path>
+  <user_files_path>${ch_path}user_files/</user_files_path>
+  <format_schema_path>${ch_path}format_schemas/</format_schema_path>
   <listen_host>127.0.0.1</listen_host>
   <mark_cache_size>524288000</mark_cache_size>
   <profiles><default/></profiles>
@@ -236,12 +267,11 @@ ensure_clickhouse_for_assertions() {
   <quotas><default><interval><duration>3600</duration><queries>0</queries><errors>0</errors><result_rows>0</result_rows><read_rows>0</read_rows><execution_time>0</execution_time></interval></default></quotas>
 </clickhouse>
 CHXML
-  fi
 
   # Find a ClickHouse binary: prefer Moose's cached binary, fall back to system
   local ch_bin="clickhouse-server"
   local moose_bin
-  moose_bin="$(find /root/.moose/versions /workspace -maxdepth 6 -name 'clickhouse' -type f -executable 2>/dev/null | head -1)"
+  moose_bin="$(find /root/.moose/binaries /root/.moose/versions /workspace -maxdepth 6 -name 'clickhouse' -type f -executable 2>/dev/null | head -1)"
   if [[ -n "${moose_bin}" ]]; then
     ch_bin="${moose_bin} server"
     echo "Using Moose ClickHouse binary: ${moose_bin}"
@@ -255,7 +285,7 @@ CHXML
 
   # Wait for ready
   for _ in $(seq 1 30); do
-    if curl -fsS --max-time 2 "http://localhost:${port}/?query=SELECT%201" >/dev/null 2>&1; then
+    if clickhouse_is_up "http://localhost:${port}"; then
       echo "Recovery ClickHouse ready on port ${port}."
       return 0
     fi
@@ -310,8 +340,11 @@ agent_exit_code=0
 if [[ -x /opt/dec-bench/agent/run.sh ]]; then
   set +e
   echo "${AGENT_STDOUT_START}"
-  /opt/dec-bench/agent/run.sh 2>&1 | tee "${SESSION_LOG_PATH}"
-  agent_exit_code="${PIPESTATUS[0]}"
+  # Use process substitution instead of a pipeline so that backgrounded child
+  # processes (e.g. moose dev --dockerless &) don't block exit by holding FDs.
+  /opt/dec-bench/agent/run.sh > >(tee "${SESSION_LOG_PATH}") 2>&1
+  agent_exit_code=$?
+  sleep 1  # let tee flush
   echo "${AGENT_STDOUT_END}"
   set -e
 else

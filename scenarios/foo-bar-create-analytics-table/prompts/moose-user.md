@@ -1,11 +1,10 @@
-Create a ClickHouse table `analytics.user_activity` to store user activity events. A sample of the data is in `/data/samples/user_activity_sample.csv` — use it to determine column types.
+I want to set up a Moose project to model user activity events and get them into ClickHouse. There's sample data in `/data/samples/user_activity_sample.csv` showing the shape of the events.
 
-The table needs to efficiently support two query patterns:
-1. **Activity counts per user over a date range**: `SELECT user_id, count() FROM analytics.user_activity WHERE event_ts BETWEEN '2026-01-15' AND '2026-01-16' GROUP BY user_id`
-2. **Total duration per action type**: `SELECT action, sum(duration_ms) FROM analytics.user_activity GROUP BY action`
+Start by creating a new Moose project with `moose init --template typescript-empty`, then define a data model that captures the fields from the CSV. Run `moose dev --dockerless` in the project to start the stack, load the sample data through Moose, and make sure the resulting ClickHouse table is optimized for two query patterns:
 
-Choose an appropriate ORDER BY key that makes both patterns fast. Nullable duration values should default to 0.
+1. Activity counts per user over a date range
+2. Total duration per action type
 
-Verify by loading the sample data and running both queries.
+Nullable duration values should default to 0.
 
-Use MooseStack skills, framework and MCP.
+Verify everything works by running both queries against ClickHouse after the data is loaded.

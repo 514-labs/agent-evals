@@ -1,20 +1,14 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { findUserActivityTable } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
-async function findTable(ctx: AssertionContext): Promise<{ database: string; table: string } | null> {
-  const rows = await queryRows<{ database: string; name: string }>(
-    ctx,
-    "SELECT database, name FROM system.tables WHERE name = 'user_activity' AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')",
-  );
-  return rows.length > 0 ? { database: rows[0].database, table: rows[0].name } : null;
-}
-
 export async function table_has_expected_columns(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findTable(ctx);
+  const found = await findUserActivityTable(ctx);
   if (!found) {
     return { passed: false, message: "Table user_activity not found.", details: {} };
   }
@@ -22,26 +16,35 @@ export async function table_has_expected_columns(ctx: AssertionContext): Promise
     ctx,
     `SELECT name, type FROM system.columns WHERE database = '${found.database}' AND table = '${found.table}' ORDER BY name`,
   );
-  const columnNames = rows.map((r) => r.name).sort();
-  const expected = ["action", "duration_ms", "event_id", "event_ts", "user_id"];
-  const passed = JSON.stringify(columnNames) === JSON.stringify(expected);
+  const columnNames = rows.map((r) => r.name.toLowerCase()).sort();
+  // Accept both snake_case (event_id) and camelCase (eventid) column names
+  const expectedGroups = [
+    ["action"],
+    ["duration_ms", "durationms"],
+    ["event_id", "eventid"],
+    ["event_ts", "eventts"],
+    ["user_id", "userid"],
+  ];
+  const passed = expectedGroups.every((group) =>
+    group.some((col) => columnNames.includes(col)),
+  );
   return {
     passed,
     message: passed
       ? "Table has all expected columns."
-      : `Expected columns ${JSON.stringify(expected)}, got ${JSON.stringify(columnNames)}.`,
-    details: { expected, actual: columnNames },
+      : `Expected columns ${JSON.stringify(expectedGroups.map((g) => g[0]))}, got ${JSON.stringify(columnNames)}.`,
+    details: { expectedGroups, actual: columnNames },
   };
 }
 
 export async function column_types_are_compatible(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findTable(ctx);
+  const found = await findUserActivityTable(ctx);
   if (!found) {
     return { passed: false, message: "Table user_activity not found.", details: {} };
   }
   const rows = await queryRows<{ name: string; type: string }>(
     ctx,
-    `SELECT name, type FROM system.columns WHERE database = '${found.database}' AND table = '${found.table}'`,
+    `SELECT lower(name) AS name, type FROM system.columns WHERE database = '${found.database}' AND table = '${found.table}'`,
   );
   const typeMap: Record<string, string> = {};
   for (const row of rows) {
@@ -53,11 +56,12 @@ export async function column_types_are_compatible(ctx: AssertionContext): Promis
   const dateLike = (t: string) => /datetime/i.test(t);
   const numericLike = (t: string) => /float|decimal|int|uint/i.test(t);
 
-  checks.push({ column: "event_id", ok: stringLike(typeMap["event_id"] ?? ""), actual: typeMap["event_id"] ?? "missing" });
-  checks.push({ column: "event_ts", ok: dateLike(typeMap["event_ts"] ?? ""), actual: typeMap["event_ts"] ?? "missing" });
-  checks.push({ column: "user_id", ok: stringLike(typeMap["user_id"] ?? ""), actual: typeMap["user_id"] ?? "missing" });
-  checks.push({ column: "action", ok: stringLike(typeMap["action"] ?? ""), actual: typeMap["action"] ?? "missing" });
-  checks.push({ column: "duration_ms", ok: numericLike(typeMap["duration_ms"] ?? ""), actual: typeMap["duration_ms"] ?? "missing" });
+  const col = (name: string) => typeMap[name] ?? typeMap[name.replace(/_/g, "")] ?? "missing";
+  checks.push({ column: "event_id", ok: stringLike(col("event_id")), actual: col("event_id") });
+  checks.push({ column: "event_ts", ok: dateLike(col("event_ts")), actual: col("event_ts") });
+  checks.push({ column: "user_id", ok: stringLike(col("user_id")), actual: col("user_id") });
+  checks.push({ column: "action", ok: stringLike(col("action")), actual: col("action") });
+  checks.push({ column: "duration_ms", ok: numericLike(col("duration_ms")), actual: col("duration_ms") });
 
   const failures = checks.filter((c) => !c.ok);
   const passed = failures.length === 0;
@@ -71,7 +75,7 @@ export async function column_types_are_compatible(ctx: AssertionContext): Promis
 }
 
 export async function sample_data_loaded(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findTable(ctx);
+  const found = await findUserActivityTable(ctx);
   if (!found) {
     return { passed: false, message: "Table user_activity not found.", details: {} };
   }
