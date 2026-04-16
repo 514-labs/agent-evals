@@ -20,7 +20,7 @@ pub struct CreateArgs {
     pub tier: Tier,
 
     /// Evaluation harnesses (comma-separated, e.g. base-rt,olap-for-swe)
-    #[arg(long, default_value = "base-rt", value_delimiter = ',')]
+    #[arg(long, default_value = "base-rt,classic-de,olap-for-swe", value_delimiter = ',')]
     pub harnesses: Vec<String>,
 
     /// Scenarios root directory
@@ -236,7 +236,7 @@ mod tests {
             name: "sample-scenario".to_string(),
             domain: Domain::Ugc,
             tier: Tier::Tier1,
-            harnesses: vec!["base-rt".to_string()],
+            harnesses: vec!["base-rt".to_string(), "classic-de".to_string(), "olap-for-swe".to_string()],
             dir: temp.path().to_path_buf(),
         };
 

@@ -3,18 +3,9 @@ title: "Add a Scenario"
 description: "Design a data engineering task, define how it is measured, and publish it to the benchmark."
 ---
 
-A DEC Bench evaluation runs every combination of four independent variables:
+This guide walks through creating and testing a new scenario locally, then publishing it to DEC Bench via pull request.
 
-| Variable | What it is |
-|----------|-----------|
-| **Scenario** | The data engineering task: infrastructure, seed data, and success criteria |
-| **Agent / Model** | The AI coding agent and the LLM behind it (Claude Code, Codex, Cursor) |
-| **Harness** | The tools available to the agent (base-rt, classic-de, olap-for-swe) |
-| **Persona** | The type of user giving instructions (baseline or informed) |
-
-For each combination, the benchmark measures gate achievement (how far through the five quality gates the agent gets) and efficiency (wall-clock time, token usage, cost).
-
-Adding a scenario means defining a new task that can be run across all agents, harnesses, and personas. As part of this, you define:
+Each scenario is a self-contained data engineering task that runs across all agents, harnesses, and personas. To create one, you define:
 
 1. The scenario itself: infrastructure, seed data, and the problem statement
 2. The prompts used by each persona
@@ -22,21 +13,12 @@ Adding a scenario means defining a new task that can be run across all agents, h
 
 Before creating a new scenario, check whether a similar one already exists. The [scenarios directory](https://github.com/514-labs/agent-evals/tree/main/scenarios) contains all current scenarios. Use an LLM to search through them if you are unsure.
 
-This guide covers:
-
-1. Creating and testing a new scenario locally
-2. Publishing it to DEC Bench via pull request
-
 ## Prerequisites
 
-- The `dec-bench` CLI installed (see [Quickstart](/docs))
-- [Docker](https://docs.docker.com/get-started/get-docker/) installed and running
-- Local clone of the [repository](https://github.com/514-labs/agent-evals)
-- Node.js >= 20 and `pnpm` >= 10.4
-
-```bash title="Install workspace dependencies"
-pnpm install
-```
+- [Docker](https://docs.docker.com/get-docker/) installed and running
+- [Node.js](https://nodejs.org/) >= 20 and [`pnpm`](https://pnpm.io/) >= 10.4
+- The `dec-bench` CLI: `curl -fsSL https://decbench.ai/install.sh | sh` (see [Quickstart](/docs))
+- A local clone of the repo: `git clone https://github.com/514-labs/agent-evals.git && cd agent-evals && pnpm install`
 
 ## 1. Design the problem
 
@@ -52,38 +34,33 @@ Define success in concrete, pass/fail terms. Good evals produce deterministic ou
 
 ## 2. Scaffold the scenario
 
-Once you know what you are building, the CLI generates all required files and directories.
+### 2a. Run the scaffold
+
+The CLI generates all required files and directories.
 
 ```bash title="Scaffold a new scenario"
 dec-bench create \
-  --name <my-scenario> \
-  --domain <my-domain> \
-  --tier tier-1
+  --name <my-scenario> \        # required — scenario ID, used as directory name
+  --domain <my-domain> \        # required — business domain (foo-bar for v0.1)
+  --tier tier-1 \               # difficulty tier: tier-1, tier-2, tier-3 (see homepage)
+  --harnesses base-rt           # comma-separated: base-rt, classic-de, olap-for-swe
 ```
-
-| Flag | Required | Default | Description |
-|------|----------|---------|-------------|
-| `--name` / `-n` | yes | | Scenario ID, used as directory name and JSON id |
-| `--domain` / `-d` | yes | | Business domain (`foo-bar` for v0.1) |
-| `--tier` / `-t` | no | `tier-1` | Difficulty tier (`tier-1`, `tier-2`, `tier-3`) |
-| `--harness` | no | `base-rt` | Evaluation harness profile |
-| `--dir` | no | `scenarios` | Root directory for scenario output |
 
 This generates:
 
 <Files>
   <Folder name="scenarios/<my-scenario>" defaultOpen>
-    <Folder name="assertions" defaultOpen>
+    <Folder name="assertions">
       <File name="correct.ts" />
       <File name="functional.ts" />
       <File name="performant.ts" />
       <File name="production.ts" />
       <File name="robust.ts" />
     </Folder>
-    <Folder name="init" defaultOpen>
+    <Folder name="init">
       <File name="postgres-setup.sql" />
     </Folder>
-    <Folder name="prompts" defaultOpen>
+    <Folder name="prompts">
       <File name="baseline.md" />
       <File name="informed.md" />
     </Folder>
@@ -94,20 +71,47 @@ This generates:
 
 | Path | Purpose |
 |------|---------|
-| `assertions/` | One TypeScript file per gate (functional, correct, robust, performant, production). Each exports named assertion functions that return pass/fail results. See [step 5](#5-write-gate-assertions) below and [Writing Assertions](/docs/add-eval/writing-assertions) for details. |
-| `init/` | Shell scripts and SQL files that run before the agent starts. Use these to seed data, create schemas, or introduce intentional defects. |
-| `prompts/` | Two markdown files, one per persona. `baseline.md` gives the agent minimal guidance; `informed.md` provides explicit technical context. |
-| `scenario.json` | Metadata: scenario ID, domain, tier, harness, task descriptions, and tags. This is how the CLI and registry identify the scenario. |
-| `supervisord.conf` | Declares which services ([Postgres](https://www.postgresql.org/), [ClickHouse](https://clickhouse.com/), [Redpanda](https://redpanda.com/)) start inside the container and in what order. Managed by [supervisord](http://supervisord.org/). |
+| `assertions/` | Pass/fail checks per quality gate — see [step 5](#5-write-gate-assertions) |
+| `init/` | SQL and scripts to seed data before the agent starts — see [step 4](#4-set-up-infrastructure-and-seed-data) |
+| `prompts/` | What the agent is told to do (one per persona) — see [step 3](#3-write-the-persona-prompts) |
+| `scenario.json` | Scenario metadata — see [2b](#2b-complete-scenario-metadata) below |
+| `supervisord.conf` | Which services start in the container — see [step 4](#4-set-up-infrastructure-and-seed-data) |
 
-All files are pre-populated with the right structure and placeholder comments.
+### 2b. Complete scenario metadata
+
+The scaffold command creates `scenario.json` and pre-fills `id`, `domain`, `tier`, and `harnesses` from your flags. The CLI reads this file to build the Docker image, select which harnesses and personas to run, and display results. Open it and fill in the rest:
+
+```diff title="scenario.json"
+ {
+   "id": "foo-bar-csv-ingest",
++  "title": "Foo Bar CSV Ingest",
++  "description": "Load five messy CSV files into clean ClickHouse tables.",
+   "tier": "tier-1",
+   "domain": "foo-bar",
+   "harnesses": ["base-rt", "classic-de", "olap-for-swe"],
++  "tasks": [
++    {
++      "id": "ingest-csvs",
++      "description": "Create a ClickHouse table and load all five CSV files.",
++      "category": "ingestion"
++    }
++  ],
+   "personaPrompts": {
+     "baseline": "prompts/baseline.md",
+     "informed": "prompts/informed.md"
+   },
++  "tags": ["csv", "ingestion", "data-cleaning", "type-coercion"]
+ }
+```
 
 ## 3. Write the persona prompts
 
-Each scenario has two prompts in `prompts/`, one per persona. The persona is an independent variable in the benchmark: every scenario is run separately with each prompt, and the results are compared to measure how much the agent's performance depends on the quality of guidance it receives.
+Each scenario tests two prompts, one per persona.
 
-- **`baseline.md`**: plain language, no tool names or implementation hints. Tests what the agent figures out on its own.
-- **`informed.md`**: names specific tools, sets explicit targets, provides technical constraints. Tests whether domain knowledge changes the outcome.
+- **`prompts/baseline.md`**: plain language, no tool names or implementation hints. Tests what the agent figures out on its own.
+- **`prompts/informed.md`**: names specific tools, sets explicit targets, provides technical constraints. Tests whether domain knowledge changes the outcome.
+
+Examples:
 
 ```markdown title="prompts/baseline.md"
 I have a bunch of CSV files that need to go into ClickHouse.
@@ -174,19 +178,9 @@ For more details, see [Adding Multiple Services](/docs/add-eval/adding-multiple-
 
 ## 5. Write gate assertions
 
-Gates are evaluated sequentially: a scenario must pass all assertions in one gate before the next gate runs. The framework includes core assertions that run for every scenario (e.g. `process_exits_clean`, `no_unhandled_errors` in the functional gate). Your scenario's assertion files in `assertions/` add scenario-specific checks on top of these.
+Each scenario has five assertion files in `assertions/`, one per [quality gate](/#introduction). The framework includes core assertions that run for every scenario (e.g. `process_exits_clean`, `no_unhandled_errors`). Your files add scenario-specific checks on top of these.
 
-For inspiration, browse the [assertions in existing scenarios](https://github.com/514-labs/agent-evals/tree/main/scenarios). Each scenario's `assertions/` directory shows real examples of gate checks.
-
-| Gate | Question it answers | Typical checks |
-|------|-------------------|----------------|
-| Functional | Did it run? | Process exits cleanly, target table exists |
-| Correct | Is the output right? | Row counts, checksums, schema/type expectations |
-| Robust | Does it handle edge cases? | Nulls, duplicates, idempotent reruns |
-| Performant | Is it fast enough? | Query latency, pipeline runtime thresholds |
-| Production | Would you ship this? | No hardcoded secrets, tests present |
-
-Each assertion returns an `AssertionResult` with `passed`, plus optional `message` and `details` fields.
+Each assertion returns an `AssertionResult` with `passed`, plus optional `message` and `details` fields. See [assertions in existing scenarios](https://github.com/514-labs/agent-evals/tree/main/scenarios) for reference.
 
 ```ts title="assertions/functional.ts"
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
@@ -210,46 +204,20 @@ One check per function, actionable failure messages, deterministic results.
 
 For more details, see [Writing Assertions](/docs/add-eval/writing-assertions).
 
-## 6. Select a harness
+## 6. Select harnesses
 
-The harness determines what tools are available to the agent. Like the persona, the harness is a variable in the benchmark: the same scenario can be run with different harnesses to measure how tool availability affects performance. Use an existing profile when possible.
+The benchmark runs every scenario against each harness to compare results. By default, your scenario should support all three harnesses: `base-rt`, `classic-de`, and `olap-for-swe`.
 
-| Harness | What it installs |
-|---------|-----------------|
-| `base-rt` | Base infrastructure (ClickHouse, Redpanda, Postgres) with Python, Node.js, database CLIs |
-| `classic-de` | dbt-core, dbt-postgres, dbt-clickhouse, apache-airflow, pyspark |
-| `olap-for-swe` | [MooseStack](https://www.moosestack.com/), an agent harness for data engineering over ClickHouse, Postgres, and Redpanda |
+To exclude a harness, pass only the ones you want when scaffolding or edit the `harnesses` array in `scenario.json`.
 
-## 7. Register the scenario
-
-The `scenario.json` file is how the CLI and the [scenario registry](https://decbench.ai) identify and describe your scenario. The scaffold step pre-fills `id`, `domain`, `tier`, and `harness` from the flags you passed. Complete the remaining fields: `title`, `description`, `tasks`, and `tags`.
-
-```json title="scenario.json"
-{
-  "id": "foo-bar-csv-ingest",
-  "title": "Foo Bar CSV Ingest",
-  "description": "Load five messy CSV files into clean ClickHouse tables.",
-  "tier": "tier-1",
-  "domain": "foo-bar",
-  "harness": "base-rt",
-  "tasks": [
-    {
-      "id": "ingest-csvs",
-      "description": "Create a ClickHouse table and load all five CSV files.",
-      "category": "ingestion"
-    }
-  ],
-  "personaPrompts": {
-    "baseline": "prompts/baseline.md",
-    "informed": "prompts/informed.md"
-  },
-  "tags": ["csv", "ingestion", "data-cleaning", "type-coercion"]
-}
+```bash title="Exclude a harness"
+dec-bench create \
+  --name <my-scenario> \
+  --domain foo-bar \
+  --harnesses base-rt,olap-for-swe   # omit classic-de
 ```
 
-See `packages/scenarios/src/types.ts` for the full schema contract.
-
-## 8. Run and validate locally
+## 7. Run and validate locally
 
 Test with a single agent/harness/persona combination. The benchmark will run all combinations once the scenario is published.
 
