@@ -23,6 +23,8 @@ EVAL_RESULT_START="__DEC_BENCH_EVAL_RESULT_JSON_START__"
 EVAL_RESULT_END="__DEC_BENCH_EVAL_RESULT_JSON_END__"
 ASSERTION_LOG_START="__DEC_BENCH_ASSERTION_LOG_JSON_START__"
 ASSERTION_LOG_END="__DEC_BENCH_ASSERTION_LOG_JSON_END__"
+SERVICE_LOGS_START="__DEC_BENCH_SERVICE_LOGS_JSON_START__"
+SERVICE_LOGS_END="__DEC_BENCH_SERVICE_LOGS_JSON_END__"
 
 mkdir -p "${OUTPUT_DIR}" /workspace
 
@@ -297,6 +299,112 @@ CHXML
   return 0
 }
 
+collect_service_logs() {
+  # Collect logs from all known services into a JSON object keyed by service name.
+  # Each value is the tail of that service's log (capped to avoid bloating stdout).
+  local max_lines=200
+
+  node -e '
+const fs = require("node:fs");
+const path = require("node:path");
+const maxLines = Number(process.argv[1]) || 200;
+
+// Known log locations: [serviceName, ...candidatePaths]
+const sources = [
+  ["clickhouse", "/tmp/clickhouse.log", "/tmp/clickhouse.err.log", "/tmp/clickhouse-recovery.log", "/tmp/clickhouse-recovery.err.log"],
+  ["postgres", "/tmp/postgres.log", "/tmp/postgres.err.log"],
+  ["redpanda", "/tmp/redpanda.log", "/tmp/redpanda.err.log"],
+  ["supervisord", "/tmp/supervisord.log"],
+];
+
+// Discover Moose CLI logs from ~/.moose/*.log
+try {
+  const home = process.env.HOME || "/root";
+  const mooseDir = path.join(home, ".moose");
+  if (fs.existsSync(mooseDir)) {
+    const cliLogs = fs.readdirSync(mooseDir)
+      .filter(f => f.endsWith("-cli.log"))
+      .map(f => path.join(mooseDir, f));
+    if (cliLogs.length > 0) {
+      sources.push(["moose-cli", ...cliLogs]);
+    }
+  }
+} catch {}
+
+// Discover Moose native_infra logs (ClickHouse/Temporal started by moose dev --dockerless)
+try {
+  const findMooseLogs = (dir, depth) => {
+    if (depth > 5) return [];
+    const found = [];
+    try {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isFile() && /\.(log|err\.log)$/.test(entry.name)) {
+          found.push(full);
+        } else if (entry.isDirectory() && !["node_modules", ".git", "dist"].includes(entry.name)) {
+          found.push(...findMooseLogs(full, depth + 1));
+        }
+      }
+    } catch {}
+    return found;
+  };
+
+  for (const root of ["/workspace", "/"]) {
+    try {
+      for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const mooseDir = path.join(root, entry.name, ".moose", "native_infra");
+        if (fs.existsSync(mooseDir)) {
+          const logs = findMooseLogs(mooseDir, 0);
+          if (logs.length > 0) {
+            sources.push(["moose-infra", ...logs]);
+          }
+        }
+      }
+    } catch {}
+  }
+} catch {}
+
+// Also grab any agent-started service logs from /tmp
+try {
+  for (const f of fs.readdirSync("/tmp")) {
+    if (!/\.log$/.test(f)) continue;
+    const full = path.join("/tmp", f);
+    // Skip already-known files
+    if (sources.some(([, ...paths]) => paths.includes(full))) continue;
+    // Add as "other" service
+    const svc = f.replace(/\.(err\.)?log$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+    sources.push([svc, full]);
+  }
+} catch {}
+
+const result = {};
+for (const [service, ...paths] of sources) {
+  const entries = {};
+  for (const p of paths) {
+    try {
+      const stat = fs.statSync(p);
+      if (!stat.isFile() || stat.size === 0) continue;
+      const content = fs.readFileSync(p, "utf8");
+      const lines = content.split("\n");
+      const tail = lines.slice(-maxLines).join("\n");
+      entries[path.basename(p)] = {
+        path: p,
+        totalLines: lines.length,
+        truncated: lines.length > maxLines,
+        content: tail,
+      };
+    } catch {}
+  }
+  if (Object.keys(entries).length > 0) {
+    result[service] = entries;
+  }
+}
+
+process.stdout.write(JSON.stringify(result, null, 2) + "\n");
+' "${max_lines}"
+}
+
 run_init_scripts() {
   if [[ ! -d /scenario/init ]]; then
     return 0
@@ -438,5 +546,9 @@ if [[ -f "${ASSERTION_LOG_PATH}" ]]; then
   cat "${ASSERTION_LOG_PATH}"
   echo "${ASSERTION_LOG_END}"
 fi
+
+echo "${SERVICE_LOGS_START}"
+collect_service_logs
+echo "${SERVICE_LOGS_END}"
 
 exit "${agent_exit_code}"
