@@ -25,7 +25,7 @@ pub struct BuildArgs {
     pub model: String,
 
     /// Image version suffix
-    #[arg(long, default_value = "v0.1.0")]
+    #[arg(long, default_value = "v0.2.0")]
     pub version: String,
 
     /// Base image tag used for the layered build

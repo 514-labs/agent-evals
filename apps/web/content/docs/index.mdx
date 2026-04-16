@@ -6,13 +6,10 @@ description: "Install the CLI, build and run a benchmark scenario, view results,
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-started/get-docker/) installed and running
-- An API key for the agent under test
-
-| Agent | Environment variable | Get a key |
-|-------|---------------------|-----------|
-| Claude Code | `ANTHROPIC_API_KEY` | [Anthropic Console](https://console.anthropic.com/) |
-| Codex | `OPENAI_API_KEY` or `CODEX_API_KEY` | [OpenAI Platform](https://platform.openai.com/api-keys) |
-| Cursor | `CURSOR_API_KEY` | [Cursor Settings](https://cursor.com/settings) |
+- An API key for the agent you want to test:
+  - Claude Code: `export ANTHROPIC_API_KEY=<key>` ([get one](https://console.anthropic.com/))
+  - Codex: `export OPENAI_API_KEY=<key>` ([get one](https://platform.openai.com/api-keys))
+  - Cursor: `export CURSOR_API_KEY=<key>` ([get one](https://cursor.com/settings))
 
 ## 1. Clone the repository
 
@@ -29,21 +26,43 @@ cd agent-evals
 curl -fsSL https://decbench.ai/install.sh | sh
 ```
 
-## 3. Build the scenario image
+## 3. Install agent skills
 
-This step packages the scenario into a Docker image containing the infrastructure, seed data, agent tooling, and validation harness.
+DEC Bench ships skills that let your coding agent handle building, running, and creating scenarios. Install them for whichever agents you use:
 
-```bash title="Build the scenario image"
-dec-bench build --scenario foo-bar-csv-ingest
+| Skill | What it does |
+|-------|-------------|
+| `dec-bench-quickstart` | Validates your setup and runs your first scenario |
+| `dec-bench-run` | Runs scenarios, compares agents, and handles complex multi-scenario test requests |
+| `dec-bench-create-scenario` | Walks you through creating a new scenario from scratch |
+
+```bash title="Install skills"
+npx skills add . --skill dec-bench-quickstart -a claude-code -a cursor -a codex
+npx skills add . --skill dec-bench-run -a claude-code -a cursor -a codex
+npx skills add . --skill dec-bench-create-scenario -a claude-code -a cursor -a codex
 ```
 
-## 4. Run the benchmark
+Once installed, open your agent in the repo directory (e.g. `claude` for Claude Code, or open the folder in Cursor) and try:
 
-Export the API key for your agent, then run the scenario.
+```text title="Example prompt"
+Help me get started with DEC Bench — build and run
+the foo-bar-csv-ingest scenario with Claude Code
+```
 
-```bash title="Set the API key and run"
+Your agent will walk through steps 4–6 below, including setting up the API key, building the image, running the benchmark, and showing you results. If you prefer to do it manually, continue below.
+
+## 4. Build and run the benchmark
+
+Export the API key for your agent, then build and run. You can do this via the CLI or by asking your agent:
+
+```bash title="CLI"
 export ANTHROPIC_API_KEY=<your-key>
+dec-bench build --scenario foo-bar-csv-ingest
 dec-bench run --scenario foo-bar-csv-ingest
+```
+
+```text title="Or ask your agent"
+Run the foo-bar-csv-ingest scenario with Claude Code
 ```
 
 The CLI starts a container, launches the agent against the scenario prompt, runs the validation gates, and writes result artifacts. At the end it prints a run summary with the `Run ID`. Copy this for the next steps.
@@ -98,6 +117,12 @@ dec-bench audit open \
   --scenario foo-bar-csv-ingest \
   --run-id <run-id>
 ```
+
+## Next steps
+
+- **Run more scenarios**: `dec-bench list` shows all available scenarios, or ask your agent to run one for you
+- **Create your own scenarios**: see [Add a Scenario](/docs/add-eval)
+- **Run the full matrix**: `dec-bench run --matrix --parallel auto` runs all agent/harness/persona combinations
 
 ## Troubleshooting
 

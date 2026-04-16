@@ -50,8 +50,8 @@ Use the current schema values inline instead of guessing.
 
 ### Personas
 
-- `naive`
-- `savvy`
+- `baseline`
+- `informed`
 
 ### Planning Modes
 
@@ -74,7 +74,7 @@ Use this shape as the working contract:
   "description": "Load five messy CSV files into clean ClickHouse tables.",
   "tier": "tier-1",
   "domain": "foo-bar",
-  "harnesses": ["base-rt"],
+  "harnesses": ["base-rt", "classic-de", "olap-for-swe"],
   "tasks": [
     {
       "id": "ingest-csvs",
@@ -83,8 +83,8 @@ Use this shape as the working contract:
     }
   ],
   "personaPrompts": {
-    "naive": "prompts/naive.md",
-    "savvy": "prompts/savvy.md"
+    "baseline": "prompts/baseline.md",
+    "informed": "prompts/informed.md"
   },
   "infrastructure": {
     "services": ["clickhouse"],
@@ -111,7 +111,7 @@ Field notes:
 - `description`: concrete task and failure surface, not marketing copy.
 - `tier`: use the smallest tier that still exercises the target competency.
 - `domain`: use one of the current enum values above.
-- `harness`: pick a built-in harness unless tooling needs force a custom one.
+- `harnesses`: array of harness profiles. Default to all three unless you have a reason to exclude one.
 - `tasks[]`: one or more concrete tasks with a current task category.
 - `personaPrompts`: always point to both prompt files.
 - `infrastructure`: required in practice for clear starting-state docs, even if some code paths do not enforce it yet.
@@ -139,13 +139,13 @@ Heuristics:
 
 Both personas must ask for the same outcome.
 
-### Naive Example
+### Baseline Example
 
 ```markdown
 I have five CSV files with event data in /data/csv/. They need to go into ClickHouse but I think some of the files have problems. Can you get all the data into a clean table?
 ```
 
-### Savvy Example
+### Informed Example
 
 ```markdown
 Ingest five CSV files from /data/csv/ into a single ClickHouse table `analytics.events`.
@@ -166,8 +166,8 @@ Target schema:
 
 Prompt rules:
 
-- Naive uses plain language and avoids naming tools unless a real user would.
-- Savvy can name schemas, tables, commands, and explicit constraints.
+- Baseline uses plain language and avoids naming tools unless a real user would.
+- Informed can name schemas, tables, commands, and explicit constraints.
 - Both prompts must preserve the same scoring bar.
 
 ## Assertion Design
@@ -322,7 +322,7 @@ Authoring flow:
 ```bash
 dec-bench create --name <id> --domain <domain> --tier <tier>
 dec-bench validate --scenario <id>
-dec-bench run --scenario <id> --harness <harness> --persona naive --mode no-plan
+dec-bench run --scenario <id> --harness <harness> --persona baseline --mode no-plan
 dec-bench results --latest --scenario <id>
 dec-bench audit open --scenario <id> --run-id <run-id>
 dec-bench registry add --scenario scenarios/<id>
@@ -368,16 +368,16 @@ Use it when you need a clean reference for prompt style, assertion granularity, 
 
 ## Skill Distribution
 
-This skill is packaged under `.agents/skills/dec-bench-evals/`, which is discoverable by the `skills` CLI and compatible with skills.sh.
+This reference is shared across the DEC Bench skills:
 
-Typical install command from a repository that contains this skill:
+From the repo root:
 
 ```bash
-npx skills add 514-labs/agent-evals --skill dec-bench-evals
+npx skills add . -a claude-code -a cursor -a codex
 ```
 
-To list discoverable skills in that repository without installing:
+To list available skills without installing:
 
 ```bash
-npx skills add 514-labs/agent-evals --list
+npx skills add . --list
 ```
