@@ -33,20 +33,9 @@ Use the current schema values inline instead of guessing.
 
 Two separate axes. `tasks[].category` goes in `scenario.json` (per-task activity). `--competencies` is passed to `dec-bench registry add` at publish time (per-scenario leaderboard tags). No strict mapping — pick 1–3 competencies that match what the scenario actually tests.
 
-| `tasks[].category` | `--competencies` (registry) |
-|---|---|
-| `schema-design` | `environment-setup` |
-| `query-optimization` | `data-modeling-and-schema-design` |
-| `ingestion` | `data-ingestion-and-integration` |
-| `migration` | `transformation-and-semantic-modeling` |
-| `debugging` | `storage-and-data-layout` |
-| `materialized-views` | `orchestration-and-dataops` |
-| `partitioning` | `data-quality-and-observability` |
-| `replication` | `reliability-and-fault-tolerance` |
-| `compression` | `distributed-systems-and-consistency` |
-| `monitoring` | `scalability-and-performance-engineering` |
-|  | `security-privacy-and-governance` |
-|  | `technology-selection-and-architecture-tradeoffs` |
+**Task categories** (`tasks[].category`): `schema-design`, `query-optimization`, `ingestion`, `migration`, `debugging`, `materialized-views`, `partitioning`, `replication`, `compression`, `monitoring`.
+
+**Registry competencies** (`--competencies`): `environment-setup`, `data-modeling-and-schema-design`, `data-ingestion-and-integration`, `transformation-and-semantic-modeling`, `storage-and-data-layout`, `orchestration-and-dataops`, `data-quality-and-observability`, `reliability-and-fault-tolerance`, `distributed-systems-and-consistency`, `scalability-and-performance-engineering`, `security-privacy-and-governance`, `technology-selection-and-architecture-tradeoffs`.
 
 ### Built-In Harnesses
 
