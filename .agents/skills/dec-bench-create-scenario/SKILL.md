@@ -118,6 +118,10 @@ This is too vague, doesn't specify infrastructure, and doesn't set testable acce
 
 ## Step 6: Set up infrastructure and seed data
 
+A scenario controls its runtime environment through three files: `supervisord.conf` (which services start), `init/` (schema and seed data), and optionally `env.sh` (ports and connection strings). The base image (`docker/base/Dockerfile`) already includes Postgres, ClickHouse, Redpanda, Node.js, and Python — you do not install them.
+
+### `supervisord.conf` — which services start
+
 Edit `supervisord.conf` to start only the services the scenario needs:
 
 ```ini
@@ -127,12 +131,74 @@ autostart=true
 autorestart=false
 ```
 
-Add init scripts in `init/` to create schemas and seed data. These run after services are ready but before the agent starts.
+Use `priority` to order startup when multiple services depend on each other. See [Adding Multiple Services](https://decbench.ai/docs/add-eval/adding-multiple-services) for the full multi-service pattern (Postgres → Redpanda → ClickHouse).
+
+For scenarios where the agent is expected to start services itself (e.g. `moose dev --dockerless`), leave `supervisord.conf` empty of `[program:*]` blocks. `scenarios/foo-bar-moose-csv-ingest/supervisord.conf` is the reference example.
+
+### `init/` — schema and seed data
+
+Add init scripts in `init/`. These run after services pass readiness checks but before the agent starts.
 
 - For broken/incomplete starts: seed defects (misconfigured connections, missing indexes, schema drift)
 - For greenfield starts: seed healthy infrastructure and source data
 
-Keep all seed data deterministic and reproducible.
+Keep all seed data deterministic and reproducible — every run must start from the same state.
+
+### `env.sh` — custom ports and connection strings (optional)
+
+Add `env.sh` at the scenario root when the scenario uses non-default ports, non-default credentials, or needs to expose connection strings to init scripts, the agent, and assertions. The container entrypoint (`docker/base/entrypoint.sh`) sources `env.sh` before readiness checks, init scripts, agent execution, and assertions — so every layer sees the same values.
+
+```bash
+#!/usr/bin/env bash
+
+export CLICKHOUSE_URL="http://panda:pandapass@localhost:18123"
+export CLICKHOUSE_HOST="localhost"
+export CLICKHOUSE_PORT="18123"
+export CLICKHOUSE_USER="panda"
+export CLICKHOUSE_PASSWORD="pandapass"
+```
+
+Reference example: `scenarios/foo-bar-moose-csv-ingest/env.sh` (Moose dockerless on port 18123 with non-default credentials). Omit `env.sh` entirely if the scenario uses the default ports and credentials.
+
+## Step 6b: When no built-in harness fits
+
+The three built-in harnesses (`base-rt`, `classic-de`, `olap-for-swe`) live as JSON files at `apps/web/data/harnesses/<id>.json`. They define what gets installed on top of the base image, the network policy, and the tool manifest shown in the audit UI. Pick an existing one when its tool list covers your scenario.
+
+Create a **custom harness** only when:
+
+- No built-in harness provides the packages or tool versions you need.
+- The scenario requires outbound network restrictions beyond the harness default.
+- Tool installation itself is part of the benchmark contract.
+
+To add one, drop a new JSON file next to the built-ins:
+
+```json title="apps/web/data/harnesses/my-custom.json"
+{
+  "id": "my-custom",
+  "title": "My Custom Harness",
+  "tagline": "Short pitch.",
+  "description": "What the harness adds on top of the base image.",
+  "installScript": "pip3 install --no-cache-dir --break-system-packages dbt-core==1.10.19 && npm install -g some-cli@1.2.3",
+  "networkPolicy": "open",
+  "allowlistedEndpoints": [],
+  "tools": [
+    { "name": "dbt-core", "version": "1.10.19", "category": "framework" },
+    { "name": "some-cli", "version": "1.2.3", "category": "cli" }
+  ]
+}
+```
+
+Then list it in your scenario's `harnesses` array:
+
+```json
+"harnesses": ["my-custom"]
+```
+
+The `installScript` runs once at image-build time (see `docker/build.sh` and `docker/harness/Dockerfile`). Pin versions, keep the surface area small, and avoid long-running installs — build time directly hits the author's feedback loop.
+
+See [Creating a Custom Harness](https://decbench.ai/docs/add-eval/creating-a-custom-harness) for the full docs and `apps/web/data/harnesses/olap-for-swe.json` for a non-trivial worked example (Moose install, pinned versions, MCP config).
+
+**Note on tool versions in built-in harnesses:** as of today, tool versions in each built-in harness are shared across every scenario that selects that harness. If you need a different Moose/dbt/514 version for one specific scenario, forking to a custom harness is the only supported path.
 
 ## Step 7: Write gate assertions
 
@@ -212,9 +278,14 @@ Verify:
 4. **Making the informed prompt easier by changing the required outcome.** Both prompts must target the same acceptance criteria.
 5. **Using non-deterministic seed data.** Every run must start from the same state.
 6. **Generating a flat file structure.** The directory structure must match what `dec-bench create` produces.
+7. **Hard-coding non-default ports in init scripts and prompts.** Put them in `env.sh` instead so init, agent, and assertions all see the same values.
+8. **Pinning tool versions inside a prompt.** Tool versions belong in the harness JSON (`apps/web/data/harnesses/<id>.json`). If you need a different version than the built-in harness provides, add a custom harness — do not instruct the agent to `npm install` at runtime.
 
 ## Reference
 
-For the full schema contract, all enum values, assertion examples for every gate, and a worked example, see [references/guide.md](references/guide.md).
+For the full schema contract, all enum values, `env.sh` and harness JSON schemas, and assertion examples for every gate, see [references/guide.md](references/guide.md).
 
-For a complete real scenario to study, read the files in `scenarios/foo-bar-csv-ingest/`.
+For complete real scenarios to study:
+- `scenarios/foo-bar-csv-ingest/` — minimal tier-1, `base-rt` harness, default ports.
+- `scenarios/foo-bar-moose-csv-ingest/` — `olap-for-swe` harness, custom ports via `env.sh`, agent bootstraps services itself.
+- `scenarios/foo-bar-cross-system-reconciliation/` — multi-service with supervisord priorities across Postgres, Redpanda, and ClickHouse.
