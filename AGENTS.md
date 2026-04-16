@@ -2,10 +2,18 @@
 
 DEC Bench is an open-source benchmark for evaluating AI agents on real-world data engineering tasks. Monorepo containing a Rust CLI, Next.js marketing site with leaderboard and audit tools, and a TypeScript scoring framework.
 
+## When to use which skill
+
+| User intent | Skill | Install |
+|-------------|-------|---------|
+| "Get started", "install", "set up", "first run" | `dec-bench-quickstart` | `npx skills add 514-labs/agent-evals --skill dec-bench-quickstart` |
+| "Run scenario", "run eval", "benchmark", "compare agents" | `dec-bench-run` | `npx skills add 514-labs/agent-evals --skill dec-bench-run` |
+| "Create scenario", "new scenario", "add eval", "write a benchmark for" | `dec-bench-create-scenario` | `npx skills add 514-labs/agent-evals --skill dec-bench-create-scenario` |
+
 ## Linear Defaults
 
 - **Team:** Fiveonefour
-- **Project:** Harness Evaluations 0.1
+- **Project:** DecBench 0.2: enable 514 comparisons
 
 ## Conventions
 
@@ -13,10 +21,6 @@ DEC Bench is an open-source benchmark for evaluating AI agents on real-world dat
 - Issues follow the delegation contract format: Context, Goal, Scope, Acceptance Criteria, Key Files, Out of Scope, Relevant Skills.
 - Estimates use T-shirt sizes (XS=1, S=2, M=3, L=5, XL=8) set on the Linear `estimate` field, not in the description body.
 - The Out of Scope section is required on every issue. Do not skip it.
-
-## Project Skills
-
-- **dec-bench-evals** (`.agents/skills/dec-bench-evals/`) -- Author, validate, run, and publish DEC Bench evaluation scenarios. Read the skill before creating or extending scenarios.
 
 ## Global Skills
 
