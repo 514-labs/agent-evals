@@ -95,19 +95,21 @@ export function VariablesSection() {
         </div>
 
         <div className="mt-8 relative">
-          <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
+          <h3 id="difficulty-tiers" className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
             Difficulty Tiers
           </h3>
-          {/* TODO: Uncomment when /docs/evals/difficulty-tiers is added to PUBLISHED_SLUGS in lib/published-docs.ts
           <SideNote>
-            <Link
+            The full benchmark includes 38 scenarios: 14 Tier 1, 19 Tier 2,
+            and 5 Tier 3.
+            {/* TODO: Uncomment when /docs/evals/difficulty-tiers is added to PUBLISHED_SLUGS in lib/published-docs.ts
+            {" "}<Link
               href="/docs/evals/difficulty-tiers"
               className="underline hover:text-[color:var(--foreground)] transition-colors"
             >
-              Read more about tiers and gate interaction
+              Read more about tiers and gate interaction.
             </Link>
+            */}
           </SideNote>
-          */}
         </div>
         <div className="mt-3">
           <FiveGates headerPrefix="Difficulty Tier" gates={[
@@ -148,12 +150,6 @@ export function VariablesSection() {
           <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
             Example Scenarios
           </h3>
-          <SideNote>
-            The full benchmark includes 38 scenarios: 14 Tier 1 (single-service,
-            isolated tasks), 19 Tier 2 (multi-service or moderate design
-            decisions), and 5 Tier 3 (cross-service orchestration with
-            production-grade constraints).
-          </SideNote>
         </div>
         <div className="mt-3 overflow-x-auto">
           <div className="flex items-center h-[37px] border-b border-[color:var(--border)] min-w-[540px]">
