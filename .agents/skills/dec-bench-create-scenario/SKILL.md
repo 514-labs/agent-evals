@@ -159,6 +159,8 @@ Assertion context provides:
 - `ctx.postgres` for Postgres queries
 - `ctx.env()` for environment variables
 
+Shared helpers are available at `scenarios/_shared/assertion-helpers.ts` — read this file before writing production-gate assertions. It includes reusable checks like `scanWorkspaceForHardcodedConnections`, `hasReadmeOrDocs`, and `avoidsSelectStarQueries`.
+
 See [references/guide.md](references/guide.md) for examples of all five gates.
 
 ## Step 7: Validate and test
