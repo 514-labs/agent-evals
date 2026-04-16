@@ -102,7 +102,7 @@ pub struct RunArgs {
     pub agent_models: Vec<AgentModel>,
 
     /// Image version suffix
-    #[arg(long, default_value = "v0.1.0")]
+    #[arg(long, default_value = "v0.2.0")]
     pub version: String,
 
     /// Directory where run outputs are persisted
