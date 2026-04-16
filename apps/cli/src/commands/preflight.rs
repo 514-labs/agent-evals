@@ -379,7 +379,7 @@ mod tests {
 
     #[tokio::test]
     async fn missing_key_is_rejected() {
-        std::env::remove_var("CODEX_API_KEY");
+        std::env::remove_var("ANTHROPIC_API_KEY");
         let result = validate_agent_model_keys(&[("claude-code", "claude-sonnet-4-6")]).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
@@ -389,6 +389,7 @@ mod tests {
     #[tokio::test]
     async fn multiple_errors_reported_together() {
         // codex + claude model = wrong model AND missing key
+        std::env::remove_var("OPENAI_API_KEY");
         let result = validate_agent_model_keys(&[
             ("codex", "claude-sonnet-4-6"),
         ]).await;

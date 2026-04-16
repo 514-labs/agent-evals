@@ -130,6 +130,7 @@ pub struct RunArgs {
 pub enum Persona {
     Baseline,
     Informed,
+    MooseUser,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -1045,6 +1046,7 @@ impl Persona {
         match self {
             Self::Baseline => "baseline",
             Self::Informed => "informed",
+            Self::MooseUser => "moose-user",
         }
     }
 }
