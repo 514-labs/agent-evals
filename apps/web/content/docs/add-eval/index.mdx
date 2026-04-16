@@ -79,16 +79,19 @@ This generates:
 
 ### 2b. Complete scenario metadata
 
-The scaffold command creates `scenario.json` and pre-fills `id`, `domain`, `tier`, and `harnesses` from your flags. The CLI reads this file to build the Docker image, select which harnesses and personas to run, and display results. Open it and fill in the rest:
+The scaffold command creates `scenario.json` and pre-fills `id`, `domain`, `tier`, and `harnesses` from your flags. The CLI reads this file to build the Docker image, select which harnesses and personas to run, and display results. Open it and fill in `title`, `description`, `tasks`, and `tags`:
 
 ```diff title="scenario.json"
  {
    "id": "foo-bar-csv-ingest",
+-  "title": "",
+-  "description": "",
 +  "title": "Foo Bar CSV Ingest",
 +  "description": "Load five messy CSV files into clean ClickHouse tables.",
    "tier": "tier-1",
    "domain": "foo-bar",
    "harnesses": ["base-rt", "classic-de", "olap-for-swe"],
+-  "tasks": [],
 +  "tasks": [
 +    {
 +      "id": "ingest-csvs",
@@ -100,6 +103,7 @@ The scaffold command creates `scenario.json` and pre-fills `id`, `domain`, `tier
      "baseline": "prompts/baseline.md",
      "informed": "prompts/informed.md"
    },
+-  "tags": []
 +  "tags": ["csv", "ingestion", "data-cleaning", "type-coercion"]
  }
 ```
@@ -204,20 +208,7 @@ One check per function, actionable failure messages, deterministic results.
 
 For more details, see [Writing Assertions](/docs/add-eval/writing-assertions).
 
-## 6. Select harnesses
-
-The benchmark runs every scenario against each harness to compare results. By default, your scenario should support all three harnesses: `base-rt`, `classic-de`, and `olap-for-swe`.
-
-To exclude a harness, pass only the ones you want when scaffolding or edit the `harnesses` array in `scenario.json`.
-
-```bash title="Exclude a harness"
-dec-bench create \
-  --name <my-scenario> \
-  --domain foo-bar \
-  --harnesses base-rt,olap-for-swe   # omit classic-de
-```
-
-## 7. Run and validate locally
+## 6. Run and validate locally
 
 Test with a single agent/harness/persona combination. The benchmark will run all combinations once the scenario is published.
 
@@ -232,16 +223,12 @@ Verify the output:
 - Failures are actionable from assertion messages
 - Results are stable across repeated runs
 
-## PR checklist
+## Publishing to DEC Bench
 
-- Prompts are specific, scoped, and testable
-- All five gate assertion files exist and export valid functions
-- Deterministic seed data is included
-- No hardcoded secrets or credentials
-- Scenario metadata matches allowed `tier`, `domain`, and `harness` values
+At this point your scenario runs locally — you can build, run, and iterate on it independently. If you'd like it included in the DEC Bench reference scenario suite, open a pull request to the [repository](https://github.com/514-labs/agent-evals). First-time contributors will be asked to sign a Contributor License Agreement (CLA) — the bot will prompt you on your PR. Your PR should:
 
-```bash title="Validation checks"
-pnpm --filter @dec-bench/scenarios check-types
-pnpm --filter @dec-bench/scenarios lint
-pnpm lint
-```
+- Pass validation checks: `pnpm --filter @dec-bench/scenarios check-types && pnpm lint`
+- Include deterministic seed data (no external dependencies or hidden state)
+- Have prompts that are specific, scoped, and testable
+- Include all five gate assertion files with exported functions
+- Contain no hardcoded secrets or credentials
