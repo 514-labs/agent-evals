@@ -272,14 +272,48 @@ Gate model:
 4. **Performant**: meets latency/throughput targets
 5. **Production**: you would ship it (no hardcoded secrets, tests present)
 
-Assertion context provides:
+### How a gate passes
+
+Each gate combines **core assertions** (framework-provided, you don't write them) with **scenario assertions** (the functions you export). A gate passes when:
+
+1. **All core assertions pass** (not 80% — all of them).
+2. **Scenario assertion pass rate ≥ 0.8** (80% threshold, `PASS_THRESHOLD` in `packages/eval-core/src/runner.ts`).
+
+A failed gate blocks every subsequent gate in the scenario — downstream gates get marked as not-run. This is why assertion authoring discipline matters most at the earliest gates.
+
+If a scenario assertion file exports zero functions, its score is treated as 1.0 (vacuous truth) and the gate's pass/fail reduces to the core assertions. Empty files are valid but wasteful — you're letting the framework's core do all the work.
+
+### What core assertions already cover (you do not write these)
+
+| Gate | Core assertions | What they cover |
+|---|---:|---|
+| Functional | 2 | `process_exits_clean`, `no_unhandled_errors` (scans session log for tracebacks / panics) |
+| Correct | 0 | none — all checks are scenario-authored |
+| Robust | 1 | `idempotent_rerun` (second run against the same seed produces the same state) |
+| Performant | 0 | none — all checks are scenario-authored |
+| Production | 12 | env-var use, secret scan, output line count, dead-code markers, file size, debug artifacts, compiler errors, lint errors, type safety, focused functions, deep nesting |
+
+Production is where the framework does the heaviest lifting. Your scenario-authored production assertions should be surgical (README presence, no hardcoded connections, no SELECT *) — do not duplicate core checks. Shared helpers for these live at `scenarios/_shared/assertion-helpers.ts` (`scanWorkspaceForHardcodedConnections`, `hasReadmeOrDocs`, `avoidsSelectStarQueries`) — read that file before writing production assertions.
+
+### How many functions per file
+
+Typical scenarios ship **1–3 exported functions per gate file**. Observed across `foo-bar-csv-ingest`, `foo-bar-moose-csv-ingest`, `foo-bar-cross-system-reconciliation`, `foo-bar-clickhouse-materialized-view`, `foo-bar-slow-queries`:
+
+- `functional.ts`: 1–2 (beyond the 2 core checks)
+- `correct.ts`: 1–3 (this is where most scenario-specific correctness lives)
+- `robust.ts`: 2–3 (beyond `idempotent_rerun`)
+- `performant.ts`: 2–3
+- `production.ts`: 3–5 (on top of 12 core checks)
+
+If you find yourself writing 8+ functions in a single gate file, split the scenario.
+
+### Assertion context
+
 - `ctx.clickhouse` — ClickHouse client (use `ctx.clickhouse.query({ query, format: "JSONEachRow" })`)
 - `ctx.pg` — Postgres client (use `ctx.pg.query(sql, params)`)
 - `ctx.env(key)` — reads environment variables set by `env.sh` or the container
 
-Shared helpers are available at `scenarios/_shared/assertion-helpers.ts` — read this file before writing production-gate assertions. It includes reusable checks like `scanWorkspaceForHardcodedConnections`, `hasReadmeOrDocs`, and `avoidsSelectStarQueries`.
-
-See [references/guide.md](references/guide.md) for examples of all five gates.
+See [references/guide.md](references/guide.md) for assertion examples at every gate.
 
 ## Step 8: Validate and test
 
