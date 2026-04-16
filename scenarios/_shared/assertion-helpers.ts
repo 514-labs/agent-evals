@@ -175,6 +175,23 @@ export async function findUserActivityTable(
   return rows.length > 0 ? { database: rows[0].database, table: rows[0].name } : null;
 }
 
+/**
+ * Find an events table across all non-system databases.
+ * Matches variations like events, Events, EventData, etc.
+ */
+export async function findEventsTable(
+  ctx: AssertionContext,
+): Promise<{ database: string; table: string } | null> {
+  const rows = await queryRows<{ database: string; name: string }>(
+    ctx,
+    `SELECT database, name FROM system.tables
+     WHERE (lower(name) LIKE '%event%')
+       AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
+     ORDER BY length(name) ASC`,
+  );
+  return rows.length > 0 ? { database: rows[0].database, table: rows[0].name } : null;
+}
+
 function collectWorkspaceTextFiles(): WorkspaceTextFile[] {
   const files: WorkspaceTextFile[] = [];
   const visit = (current: string, relativePrefix = "") => {

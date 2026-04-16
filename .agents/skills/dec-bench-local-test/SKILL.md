@@ -186,7 +186,7 @@ node -e "
 | Scenario | Harnesses | Notes |
 |----------|-----------|-------|
 | `foo-bar-create-analytics-table` | `base-rt`, `olap-for-swe` | Has `moose-user` persona for Moose testing |
-| `foo-bar-moose-csv-ingest` | `olap-for-swe` | Moose-only, port 18123, has env.sh |
+| `foo-bar-csv-ingest` | `base-rt`, `olap-for-swe` | Has `moose-user` persona; supervised CH on base-rt |
 | `foo-bar-csv-ingest` | `base-rt`, `olap-for-swe` | Supervised ClickHouse |
 | `foo-bar-table-layout` | `base-rt`, `olap-for-swe` | Supervised ClickHouse |
 

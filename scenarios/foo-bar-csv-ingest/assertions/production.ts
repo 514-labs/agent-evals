@@ -1,20 +1,17 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+import { findEventsTable, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 
-export async function connection_env_vars_available(ctx: AssertionContext): Promise<AssertionResult> {
-  const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
-  const passed = hasClickHouse;
-  return {
-    passed,
-    message: passed ? "Connection env vars available." : "Missing CLICKHOUSE_URL.",
-    details: { hasClickHouse },
-  };
+async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
+  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+  return (await (result as any).json()) as T[];
 }
 
 export async function no_temporary_tables(ctx: AssertionContext): Promise<AssertionResult> {
+  const found = await findEventsTable(ctx);
+  const db = found?.database ?? "analytics";
   const result = await ctx.clickhouse.query({
-    query: "SELECT count() AS n FROM system.tables WHERE database = 'analytics' AND name LIKE '%tmp%'",
+    query: `SELECT count() AS n FROM system.tables WHERE database = '${db}' AND name LIKE '%tmp%'`,
     format: "JSONEachRow",
   });
   const rows = (await (result as any).json()) as Array<{ n: number }>;

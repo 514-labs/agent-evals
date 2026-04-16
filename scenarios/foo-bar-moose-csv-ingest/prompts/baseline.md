@@ -1,1 +1,0 @@
-I have five CSV files with event data in /data/csv/. Load them into a clean ClickHouse analytics table using the Moose framework. The `moose` CLI is installed globally, and you should start in /workspace. Some of the files have messy dates, nulls, duplicate headers, and trailing delimiters.
