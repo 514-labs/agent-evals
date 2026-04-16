@@ -9,7 +9,18 @@ Create a new DEC Bench evaluation scenario. This skill gathers context from the 
 
 **CRITICAL: Never generate scenario files from scratch.** Always use `dec-bench create` to scaffold. The scaffold enforces the correct directory structure, file naming, and JSON shape. Generating files manually is how agents produce wrong output.
 
-## Step 1: Gather context from the user
+## Step 1: Check for similar scenarios
+
+Before creating anything, scan the existing scenarios to avoid duplicating work:
+
+```bash
+dec-bench list
+ls scenarios/
+```
+
+Read the `scenario.json` of any scenarios that look similar to what the user is asking for. If a close match exists, tell the user and ask whether they want to extend the existing scenario or create a new one.
+
+## Step 2: Gather context from the user
 
 Before scaffolding, you MUST confirm these with the user:
 
@@ -24,7 +35,7 @@ Before scaffolding, you MUST confirm these with the user:
 
 Do NOT proceed until you have clear answers to these. Ask follow-up questions if the task is vague.
 
-## Step 2: Scaffold with the CLI
+## Step 3: Scaffold with the CLI
 
 Run `dec-bench create` with the gathered context:
 
@@ -49,7 +60,7 @@ scenarios/<scenario-id>/
   supervisord.conf  # which services start in the container
 ```
 
-## Step 3: Complete scenario.json
+## Step 4: Complete scenario.json
 
 The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. Fill in the rest:
 
@@ -65,7 +76,7 @@ Task categories: `schema-design`, `query-optimization`, `ingestion`, `migration`
 
 See [references/guide.md](references/guide.md) for the full schema contract and a worked example.
 
-## Step 4: Write persona prompts
+## Step 5: Write persona prompts
 
 Each scenario has two prompts — both must target the same outcome.
 
@@ -105,7 +116,7 @@ Write a script that loads CSV files into a database and handles errors.
 
 This is too vague, doesn't specify infrastructure, and doesn't set testable acceptance criteria.
 
-## Step 5: Set up infrastructure and seed data
+## Step 6: Set up infrastructure and seed data
 
 Edit `supervisord.conf` to start only the services the scenario needs:
 
@@ -123,9 +134,25 @@ Add init scripts in `init/` to create schemas and seed data. These run after ser
 
 Keep all seed data deterministic and reproducible.
 
-## Step 6: Write gate assertions
+## Step 7: Write gate assertions
 
 Each scenario has five assertion files in `assertions/`, one per quality gate. The framework provides core assertions — you add scenario-specific checks.
+
+The API types:
+
+```typescript
+interface AssertionResult {
+  passed: boolean;
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+interface AssertionContext {
+  pg: { query: (text: string, params?: unknown[]) => Promise<QueryResult> };
+  clickhouse: ClickHouseClient;
+  env: (key: string) => string | undefined;
+}
+```
 
 Each exported async function tests one thing and returns `AssertionResult`:
 
@@ -163,7 +190,7 @@ Shared helpers are available at `scenarios/_shared/assertion-helpers.ts` — rea
 
 See [references/guide.md](references/guide.md) for examples of all five gates.
 
-## Step 7: Validate and test
+## Step 8: Validate and test
 
 ```bash
 dec-bench validate --scenario <scenario-id>
