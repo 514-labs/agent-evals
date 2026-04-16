@@ -49,6 +49,8 @@ dec-bench create \
 
 The scenario ID should be lowercase, hyphenated, and specific to the task (e.g. `foo-bar-csv-ingest`, not `data-test`).
 
+> **CLI version note.** If your installed CLI errors with `unexpected argument '--harnesses'`, you are on an older release that uses singular `--harness <id>` and emits `"harness": "<id>"` (string) in `scenario.json`. Newer releases use `--harnesses <csv>` and emit `"harnesses": ["<id>", ...]` (array). Validation in this repo requires the plural array form — convert the scaffolded key by hand if needed, or upgrade the CLI.
+
 This generates the correct directory structure:
 
 ```
@@ -62,14 +64,15 @@ scenarios/<scenario-id>/
 
 ## Step 4: Complete scenario.json
 
-The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. Fill in the rest:
+The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. It does NOT emit `infrastructure` — you must add it by hand. Fill in:
 
 - `title`: human-readable name
 - `description`: concrete task description
 - `lede`: "In this scenario, an agent must..."
 - `tasks[]`: one or more tasks with `id`, `description`, and `category`
-- `infrastructure.services`: which services the scenario uses
-- `infrastructure.description`: what the starting state looks like
+- `infrastructure` (add this block yourself):
+  - `services`: array of service ids the scenario uses (`clickhouse`, `postgres`, `redpanda`, or `[]` for agent-bootstrapped)
+  - `description`: one-line summary of the starting state
 - `tags`: searchable terms
 
 Task categories: `schema-design`, `query-optimization`, `ingestion`, `migration`, `debugging`, `materialized-views`, `partitioning`, `replication`, `compression`, `monitoring`
@@ -120,6 +123,15 @@ This is too vague, doesn't specify infrastructure, and doesn't set testable acce
 
 A scenario controls its runtime environment through three files: `supervisord.conf` (which services start), `init/` (schema and seed data), and optionally `env.sh` (ports and connection strings). The base image (`docker/base/Dockerfile`) already includes Postgres, ClickHouse, Redpanda, Node.js, and Python — you do not install them.
 
+### What the scaffold gives you
+
+`dec-bench create` ships an opinionated Postgres-flavored starting point:
+
+- `supervisord.conf` with a `[program:postgres]` block that auto-starts Postgres.
+- `init/postgres-setup.sql` (placeholder).
+
+For ClickHouse-only, Redpanda-only, Moose-dockerless, or multi-service scenarios, overwrite or delete these — do not leave unused Postgres startup in place.
+
 ### `supervisord.conf` — which services start
 
 Edit `supervisord.conf` to start only the services the scenario needs:
@@ -133,20 +145,33 @@ autorestart=false
 
 Use `priority` to order startup when multiple services depend on each other. See [Adding Multiple Services](https://decbench.ai/docs/add-eval/adding-multiple-services) for the full multi-service pattern (Postgres → Redpanda → ClickHouse).
 
-For scenarios where the agent is expected to start services itself (e.g. `moose dev --dockerless`), leave `supervisord.conf` empty of `[program:*]` blocks. `scenarios/foo-bar-moose-csv-ingest/supervisord.conf` is the reference example.
+For scenarios where the agent is expected to start services itself (e.g. `moose dev --dockerless`), leave `supervisord.conf` with just the `[supervisord]` header and no `[program:*]` blocks. `scenarios/foo-bar-moose-csv-ingest/supervisord.conf` is the reference example.
 
 ### `init/` — schema and seed data
 
-Add init scripts in `init/`. These run after services pass readiness checks but before the agent starts.
+Add init scripts in `init/`. The entrypoint runs them after services pass readiness checks and before the agent starts. `.sql` files are piped into their service's client; `.sh` files are executed with bash.
 
-- For broken/incomplete starts: seed defects (misconfigured connections, missing indexes, schema drift)
-- For greenfield starts: seed healthy infrastructure and source data
+- For broken/incomplete starts: seed defects (misconfigured connections, missing indexes, schema drift).
+- For greenfield starts: seed healthy infrastructure and source data.
 
-Keep all seed data deterministic and reproducible — every run must start from the same state.
+**Source files (CSV, JSON, fixtures) live inside the container, not the scenario directory.** Write an `init/setup-*.sh` that creates `/data/<...>` and writes the files inline with heredocs so every run starts from a deterministic state:
+
+```bash
+#!/bin/bash
+mkdir -p /data/csv
+
+cat > /data/csv/events_01.csv << 'EOF'
+event_id,event_ts,user_id,event_type,value
+evt_001,2026-01-15T10:00:00Z,usr_01,click,1.5
+evt_002,2026-01-15T10:05:00Z,usr_02,purchase,42.0
+EOF
+```
+
+Reference: `scenarios/foo-bar-csv-ingest/init/setup-csvs.sh`. Keep all seed data deterministic — every run must start from the same state.
 
 ### `env.sh` — custom ports and connection strings (optional)
 
-Add `env.sh` at the scenario root when the scenario uses non-default ports, non-default credentials, or needs to expose connection strings to init scripts, the agent, and assertions. The container entrypoint (`docker/base/entrypoint.sh`) sources `env.sh` before readiness checks, init scripts, agent execution, and assertions — so every layer sees the same values.
+Add `env.sh` at the scenario root when the scenario uses non-default ports, non-default credentials, or needs to expose connection strings to init scripts, the agent, and assertions. The container entrypoint (`docker/base/entrypoint.sh`) **sources** `env.sh` (`. /scenario/env.sh`) before readiness checks, init scripts, agent execution, and assertions — so every layer sees the same values. No executable bit needed.
 
 ```bash
 #!/usr/bin/env bash
@@ -158,7 +183,7 @@ export CLICKHOUSE_USER="panda"
 export CLICKHOUSE_PASSWORD="pandapass"
 ```
 
-Reference example: `scenarios/foo-bar-moose-csv-ingest/env.sh` (Moose dockerless on port 18123 with non-default credentials). Omit `env.sh` entirely if the scenario uses the default ports and credentials.
+Keep `env.sh` side-effect free: exports only, no waits, no network calls, no writes. Reference: `scenarios/foo-bar-moose-csv-ingest/env.sh`. Omit the file entirely if the scenario uses default ports and credentials.
 
 ## Step 6b: When no built-in harness fits
 
@@ -248,9 +273,9 @@ Gate model:
 5. **Production**: you would ship it (no hardcoded secrets, tests present)
 
 Assertion context provides:
-- `ctx.clickhouse` for ClickHouse queries
-- `ctx.postgres` for Postgres queries
-- `ctx.env()` for environment variables
+- `ctx.clickhouse` — ClickHouse client (use `ctx.clickhouse.query({ query, format: "JSONEachRow" })`)
+- `ctx.pg` — Postgres client (use `ctx.pg.query(sql, params)`)
+- `ctx.env(key)` — reads environment variables set by `env.sh` or the container
 
 Shared helpers are available at `scenarios/_shared/assertion-helpers.ts` — read this file before writing production-gate assertions. It includes reusable checks like `scanWorkspaceForHardcodedConnections`, `hasReadmeOrDocs`, and `avoidsSelectStarQueries`.
 
