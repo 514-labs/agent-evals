@@ -96,7 +96,7 @@ export function VariablesSection() {
 
         <div className="mt-8 relative">
           <h3 id="difficulty-tiers" className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
-            Difficulty Tiers
+            Difficulty Tier Definitions
           </h3>
           <SideNote>
             The full benchmark includes 38 scenarios: 14 Tier 1, 19 Tier 2,
@@ -117,7 +117,7 @@ export function VariablesSection() {
               number: "1",
               name: "FOCUSED",
               description: "The agent diagnoses and fixes a single, narrowly scoped problem.",
-              subtitle: <>1{"\u2013"}2 services of:<ServiceLogoStack services={["ClickHouse", "Postgres"]} /></>,
+              subtitle: <>1{"\u2013"}2 services of:<ServiceLogoStack services={["Postgres", "ClickHouse"]} /></>,
               bullets: [
                 "14 scenarios, 3\u20135 assertions per gate",
                 "e.g. Broken Connection, CSV Ingest, Slow Queries, ORDER BY Optimization",
