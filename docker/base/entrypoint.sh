@@ -127,6 +127,146 @@ wait_for_redpanda() {
   return 1
 }
 
+clickhouse_data_exists() {
+  local dir="$1"
+  [[ -d "${dir}/store" ]] || [[ -d "${dir}/data" ]] || [[ -d "${dir}/metadata" ]]
+}
+
+ensure_clickhouse_for_assertions() {
+  local url="${CLICKHOUSE_URL:-}"
+
+  # If no CLICKHOUSE_URL, check if ClickHouse data exists on disk
+  if [[ -z "${url}" ]]; then
+    if clickhouse_data_exists "/var/lib/clickhouse"; then
+      url="http://localhost:8123"
+    else
+      return 0
+    fi
+  fi
+
+  # Already reachable? Nothing to do.
+  if curl -fsS --max-time 2 "${url%/}/?query=SELECT%201" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # Also check default port -- agent may have started ClickHouse on 8123
+  # while CLICKHOUSE_URL points to a different port (e.g. Moose on 18123)
+  if curl -fsS --max-time 2 "http://localhost:8123/?query=SELECT%201" >/dev/null 2>&1; then
+    echo "ClickHouse is running on default port 8123; redirecting assertions there."
+    export CLICKHOUSE_URL="http://localhost:8123"
+    return 0
+  fi
+
+  echo "ClickHouse unreachable at ${url}; attempting recovery for assertions..."
+
+  # Strip auth from URL (recovery server has no auth)
+  local noauth_url
+  noauth_url="$(echo "${url}" | sed -E 's|://[^@]+@|://|')"
+
+  # Extract port from URL using pure bash
+  local hostport="${url#*://}"
+  hostport="${hostport#*@}"
+  hostport="${hostport%%/*}"
+  local port="${hostport##*:}"
+  if [[ "${port}" == "${hostport}" ]] || [[ -z "${port}" ]]; then
+    port="8123"
+  fi
+
+  # Find ClickHouse data directory (check store/, data/, or metadata/ as markers)
+  local data_dir=""
+  for candidate in \
+    /var/lib/clickhouse \
+    /workspace/*/.moose/native_infra/clickhouse \
+    /workspace/.moose/native_infra/clickhouse; do
+    if clickhouse_data_exists "${candidate}"; then
+      data_dir="${candidate}"
+      break
+    fi
+  done
+  # Broader search if not found in known paths
+  if [[ -z "${data_dir}" ]]; then
+    local found
+    found="$(find /workspace /root /opt /tmp -maxdepth 8 -type d -name 'data' -path '*clickhouse*' 2>/dev/null | head -1)"
+    if [[ -n "${found}" ]]; then
+      data_dir="$(dirname "${found}")"
+    fi
+  fi
+
+  if [[ -z "${data_dir}" ]]; then
+    echo "No ClickHouse data directory found; skipping recovery."
+    return 0
+  fi
+
+  echo "Found ClickHouse data at ${data_dir}"
+
+  # Remove stale lock from unclean shutdown
+  rm -f "${data_dir}/status" "${data_dir}/data/status" 2>/dev/null || true
+
+  # If Moose left its own config.xml next to the data, reuse it
+  local cfg="${data_dir}/config.xml"
+  if [[ ! -f "${cfg}" ]]; then
+    # Generate minimal recovery config
+    cfg="/tmp/clickhouse-recovery.xml"
+    cat > "${cfg}" <<CHXML
+<?xml version="1.0"?>
+<clickhouse>
+  <logger>
+    <level>warning</level>
+    <log>/tmp/clickhouse-recovery.log</log>
+    <errorlog>/tmp/clickhouse-recovery.err.log</errorlog>
+  </logger>
+  <http_port>${port}</http_port>
+  <tcp_port>19876</tcp_port>
+  <path>${data_dir}/</path>
+  <tmp_path>${data_dir}/tmp/</tmp_path>
+  <user_files_path>${data_dir}/user_files/</user_files_path>
+  <format_schema_path>${data_dir}/format_schemas/</format_schema_path>
+  <listen_host>127.0.0.1</listen_host>
+  <mark_cache_size>524288000</mark_cache_size>
+  <profiles><default/></profiles>
+  <users>
+    <default>
+      <password></password>
+      <networks><ip>::/0</ip></networks>
+      <profile>default</profile>
+      <quota>default</quota>
+      <access_management>1</access_management>
+    </default>
+  </users>
+  <quotas><default><interval><duration>3600</duration><queries>0</queries><errors>0</errors><result_rows>0</result_rows><read_rows>0</read_rows><execution_time>0</execution_time></interval></default></quotas>
+</clickhouse>
+CHXML
+  fi
+
+  # Find a ClickHouse binary: prefer Moose's cached binary, fall back to system
+  local ch_bin="clickhouse-server"
+  local moose_bin
+  moose_bin="$(find /root/.moose/versions /workspace -maxdepth 6 -name 'clickhouse' -type f -executable 2>/dev/null | head -1)"
+  if [[ -n "${moose_bin}" ]]; then
+    ch_bin="${moose_bin} server"
+    echo "Using Moose ClickHouse binary: ${moose_bin}"
+  fi
+
+  chown -R clickhouse:clickhouse "${data_dir}" 2>/dev/null || true
+  su -s /bin/bash clickhouse -c "${ch_bin} --config-file=${cfg} --daemon" 2>/tmp/clickhouse-recovery-start.err || true
+
+  # Update env for the assertion process
+  export CLICKHOUSE_URL="${noauth_url:-http://localhost:${port}}"
+
+  # Wait for ready
+  for _ in $(seq 1 30); do
+    if curl -fsS --max-time 2 "http://localhost:${port}/?query=SELECT%201" >/dev/null 2>&1; then
+      echo "Recovery ClickHouse ready on port ${port}."
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Recovery ClickHouse failed to start; assertions will proceed without it." >&2
+  tail -20 /tmp/clickhouse-recovery.err.log 2>/dev/null || true
+  return 0
+}
+
 run_init_scripts() {
   if [[ ! -d /scenario/init ]]; then
     return 0
@@ -252,6 +392,8 @@ if [[ -f "${TRACE_PATH}" ]]; then
   cat "${TRACE_PATH}"
   echo "${AGENT_TRACE_END}"
 fi
+
+ensure_clickhouse_for_assertions
 
 tsx /opt/dec-bench/eval-core/src/cli.ts /scenario/assertions > "${RESULT_JSON_PATH}"
 echo "${EVAL_RESULT_START}"
