@@ -22,44 +22,26 @@ const variables = [
   },
 ];
 
-const difficultyTiers = [
-  {
-    number: "T1",
-    title: "Focused",
-    body: (<>
-      The agent diagnoses and fixes a single, narrowly scoped problem.
-      <ul className="mt-2 flex flex-col gap-1 list-none p-0">
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>14 scenarios, 3{"\u2013"}5 assertions per gate</span></li>
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>Common services: ClickHouse, Postgres</span></li>
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>e.g. Broken Connection, CSV Ingest, Slow Queries, ORDER BY Optimization</span></li>
-      </ul>
-    </>),
-  },
-  {
-    number: "T2",
-    title: "Moderate",
-    body: (<>
-      The agent must make meaningful architectural or design decisions.
-      <ul className="mt-2 flex flex-col gap-1 list-none p-0">
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>19 scenarios, 5{"\u2013"}10 assertions per gate</span></li>
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>Common services: Postgres + ClickHouse, Redpanda + ClickHouse</span></li>
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>e.g. Stream to OLAP, Schema Evolution, Idempotent Pipeline</span></li>
-      </ul>
-    </>),
-  },
-  {
-    number: "T3",
-    title: "Complex",
-    body: (<>
-      Multiple interacting failure modes that demand the agent understand how systems compose.
-      <ul className="mt-2 flex flex-col gap-1 list-none p-0">
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>5 scenarios, 10+ assertions per gate</span></li>
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>Common services: Postgres + Redpanda + ClickHouse</span></li>
-        <li className="flex gap-1.5"><span>{"\u2022"}</span><span>e.g. Full Pipeline Debug, Cross-System Reconciliation, OLTP to OLAP Migration</span></li>
-      </ul>
-    </>),
-  },
-];
+const SERVICE_LOGOS: Record<string, string> = {
+  Postgres: "/logos/postgres.svg",
+  ClickHouse: "/logos/clickhouse.svg",
+  Redpanda: "/logos/redpanda.svg",
+};
+
+function ServiceLogoStack({ services }: { services: string[] }) {
+  return (
+    <span className="flex flex-col gap-1 mt-1.5">
+      {services.map((s) => (
+        <span key={s} className="inline-flex items-center gap-1.5">
+          <span className="size-4 inline-flex items-center justify-center bg-white/95 border border-white rounded-sm overflow-hidden shrink-0">
+            <img src={SERVICE_LOGOS[s]} alt={s} width={12} height={12} className="object-contain" />
+          </span>
+          <span>{s}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const scenarios = [
   { id: 1, name: "Broken Connection", tier: "T1", services: "Postgres", category: "Debugging" },
@@ -116,9 +98,6 @@ export function VariablesSection() {
           <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-[color:var(--foreground)]">
             Difficulty Tiers
           </h3>
-        </div>
-        <div className="mt-3 relative">
-          <CardStack items={difficultyTiers} />
           {/* TODO: Uncomment when /docs/evals/difficulty-tiers is added to PUBLISHED_SLUGS in lib/published-docs.ts
           <SideNote>
             <Link
@@ -130,16 +109,15 @@ export function VariablesSection() {
           </SideNote>
           */}
         </div>
-
-        <div className="mt-8">
+        <div className="mt-3">
           <FiveGates headerPrefix="Difficulty Tier" gates={[
             {
               number: "1",
               name: "FOCUSED",
               description: "The agent diagnoses and fixes a single, narrowly scoped problem.",
+              subtitle: <>1{"\u2013"}2 services of:<ServiceLogoStack services={["ClickHouse", "Postgres"]} /></>,
               bullets: [
                 "14 scenarios, 3\u20135 assertions per gate",
-                "Common services: ClickHouse, Postgres",
                 "e.g. Broken Connection, CSV Ingest, Slow Queries, ORDER BY Optimization",
               ],
             },
@@ -147,9 +125,9 @@ export function VariablesSection() {
               number: "2",
               name: "MODERATE",
               description: "The agent must make meaningful architectural or design decisions.",
+              subtitle: <>1{"\u2013"}2 services of:<ServiceLogoStack services={["Postgres", "ClickHouse", "Redpanda"]} /></>,
               bullets: [
                 "19 scenarios, 5\u201310 assertions per gate",
-                "Common services: Postgres + ClickHouse, Redpanda + ClickHouse",
                 "e.g. Stream to OLAP, Schema Evolution, Idempotent Pipeline",
               ],
             },
@@ -157,9 +135,9 @@ export function VariablesSection() {
               number: "3",
               name: "COMPLEX",
               description: "Multiple interacting failure modes that demand the agent understand how systems compose.",
+              subtitle: <>2{"\u2013"}3+ services of:<ServiceLogoStack services={["Postgres", "Redpanda", "ClickHouse"]} /></>,
               bullets: [
                 "5 scenarios, 10+ assertions per gate",
-                "Common services: Postgres + Redpanda + ClickHouse",
                 "e.g. Full Pipeline Debug, Cross-System Reconciliation, OLTP to OLAP Migration",
               ],
             },

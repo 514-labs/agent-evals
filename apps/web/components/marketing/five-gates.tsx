@@ -1,8 +1,11 @@
+import type { ReactNode } from "react";
+
 interface Gate {
   number: string;
   name: string;
   description: string;
-  bullets?: string[];
+  subtitle?: ReactNode;
+  bullets?: ReactNode[];
 }
 
 const defaultGates: Gate[] = [
@@ -46,6 +49,11 @@ export function FiveGates({ gates = defaultGates, headerPrefix = "Gate" }: FiveG
             <span className="font-[family-name:var(--font-display)] text-[12px] text-[color:var(--muted-foreground)] leading-normal">
               {gate.description}
             </span>
+            {gate.subtitle && (
+              <span className="font-[family-name:var(--font-display)] text-[11px] text-[color:var(--muted-foreground)] leading-normal">
+                {gate.subtitle}
+              </span>
+            )}
             {gate.bullets && gate.bullets.length > 0 && (
               <ul className="mt-1 flex flex-col gap-1">
                 {gate.bullets.map((b, j) => (
