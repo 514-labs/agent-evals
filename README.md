@@ -116,9 +116,7 @@ Refer to the [documentation](https://decbench.ai/docs/supported-agents) for deta
 Install DEC Bench skills for your agent:
 
 ```bash
-npx skills add 514-labs/agent-evals --skill dec-bench-quickstart -a claude-code -a cursor -a codex
-npx skills add 514-labs/agent-evals --skill dec-bench-run -a claude-code -a cursor -a codex
-npx skills add 514-labs/agent-evals --skill dec-bench-create-scenario -a claude-code -a cursor -a codex
+npx skills add 514-labs/agent-evals -a claude-code -a cursor -a codex
 ```
 
 ## Testing

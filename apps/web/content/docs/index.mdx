@@ -6,13 +6,10 @@ description: "Install the CLI, build and run a benchmark scenario, view results,
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-started/get-docker/) installed and running
-- An API key for the agent under test
-
-| Agent | Environment variable | Get a key |
-|-------|---------------------|-----------|
-| Claude Code | `ANTHROPIC_API_KEY` | [Anthropic Console](https://console.anthropic.com/) |
-| Codex | `OPENAI_API_KEY` or `CODEX_API_KEY` | [OpenAI Platform](https://platform.openai.com/api-keys) |
-| Cursor | `CURSOR_API_KEY` | [Cursor Settings](https://cursor.com/settings) |
+- An API key for the agent you want to test:
+  - Claude Code: `export ANTHROPIC_API_KEY=<key>` ([get one](https://console.anthropic.com/))
+  - Codex: `export OPENAI_API_KEY=<key>` ([get one](https://platform.openai.com/api-keys))
+  - Cursor: `export CURSOR_API_KEY=<key>` ([get one](https://cursor.com/settings))
 
 ## 1. Clone the repository
 
@@ -29,7 +26,24 @@ cd agent-evals
 curl -fsSL https://decbench.ai/install.sh | sh
 ```
 
-## 3. Build the scenario image
+## 3. Install agent skills
+
+DEC Bench ships skills that let your coding agent handle building, running, and creating scenarios. Install them for whichever agents you use:
+
+```bash title="Install skills"
+npx skills add 514-labs/agent-evals -a claude-code -a cursor -a codex
+```
+
+Once installed, open your agent in the repo directory (e.g. `claude` for Claude Code, or open the folder in Cursor) and try:
+
+```text title="Example prompt"
+Help me get started with DEC Bench — build and run
+the foo-bar-csv-ingest scenario with Claude Code
+```
+
+Your agent will walk through steps 4–6 below, including setting up the API key, building the image, running the benchmark, and showing you results. If you prefer to do it manually, continue below.
+
+## 4. Build the scenario image
 
 This step packages the scenario into a Docker image containing the infrastructure, seed data, agent tooling, and validation harness.
 
@@ -37,7 +51,7 @@ This step packages the scenario into a Docker image containing the infrastructur
 dec-bench build --scenario foo-bar-csv-ingest
 ```
 
-## 4. Run the benchmark
+## 5. Run the benchmark
 
 Export the API key for your agent, then run the scenario.
 
@@ -55,7 +69,7 @@ Gate/score: highest gate 0 | normalized score 0.100
 Result file: results/foo-bar-csv-ingest-...-1776118371671.json
 ```
 
-## 5. View results
+## 6. View results
 
 Print gate scores and artifact paths from the terminal:
 
