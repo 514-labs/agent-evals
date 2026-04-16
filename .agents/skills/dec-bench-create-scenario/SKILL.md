@@ -49,7 +49,7 @@ dec-bench create \
 
 The scenario ID should be lowercase, hyphenated, and specific to the task (e.g. `foo-bar-csv-ingest`, not `data-test`).
 
-> **CLI version note.** If your installed CLI errors with `unexpected argument '--harnesses'`, you are on an older release that uses singular `--harness <id>` and emits `"harness": "<id>"` (string) in `scenario.json`. Newer releases use `--harnesses <csv>` and emit `"harnesses": ["<id>", ...]` (array). Validation in this repo requires the plural array form — convert the scaffolded key by hand if needed, or upgrade the CLI.
+> **CLI version note.** This skill targets `dec-bench` v0.2.0 or later (`--harnesses` plural, `"harnesses": [...]` array in `scenario.json`). If your CLI errors with `unexpected argument '--harnesses'`, you are on v0.1.0 — upgrade with `curl -fsSL https://decbench.ai/install.sh | sh`.
 
 This generates the correct directory structure:
 
