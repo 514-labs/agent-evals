@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findUserActivityTable } from "../../_shared/assertion-helpers";
+import { findTables, findUserActivityTable } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -38,27 +38,30 @@ export async function base_table_has_rows(ctx: AssertionContext): Promise<Assert
 }
 
 export async function at_least_one_materialized_view_exists(ctx: AssertionContext): Promise<AssertionResult> {
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    `SELECT name FROM system.tables
-     WHERE engine LIKE '%MergeTree%'
-       AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
-       AND name != (SELECT name FROM system.tables WHERE lower(name) LIKE '%user_activity%' OR lower(name) LIKE '%useractivity%' LIMIT 1)`,
-  );
-  // Also check for actual MV objects
-  const mvRows = await queryRows<{ name: string }>(
-    ctx,
-    `SELECT name FROM system.tables
-     WHERE engine = 'MaterializedView'
-       AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')`,
-  );
-  const allTargets = [...new Set([...rows.map((r) => r.name), ...mvRows.map((r) => r.name)])];
-  const passed = allTargets.length >= 1;
+  const base = await findUserActivityTable(ctx);
+  // Candidate MV target tables: any non-base MergeTree-family table or any MaterializedView
+  const dailyMatches = await findTables(ctx, { concepts: ["daily"] });
+  const topMatches = await findTables(ctx, { concepts: ["top"] });
+  const summaryMatches = await findTables(ctx, { concepts: ["summar"] });
+  const leaderboardMatches = await findTables(ctx, { concepts: ["leaderboard"] });
+
+  const all = [...dailyMatches, ...topMatches, ...summaryMatches, ...leaderboardMatches];
+  // Dedupe by database.table, exclude the base table
+  const seen = new Set<string>();
+  const targets = all.filter((t) => {
+    const key = `${t.database}.${t.table}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    if (base && t.database === base.database && t.table === base.table) return false;
+    return true;
+  });
+
+  const passed = targets.length >= 1;
   return {
     passed,
     message: passed
-      ? `Found ${allTargets.length} MV target(s): ${allTargets.join(", ")}.`
-      : "No materialized view targets found.",
-    details: { tables: allTargets },
+      ? `Found ${targets.length} MV target(s): ${targets.map((t) => t.table).join(", ")}.`
+      : "No materialized view target tables found.",
+    details: { tables: targets.map((t) => `${t.database}.${t.table}`) },
   };
 }

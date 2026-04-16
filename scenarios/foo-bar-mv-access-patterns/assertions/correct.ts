@@ -1,26 +1,14 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { findTable } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
-async function findTableByPattern(
-  ctx: AssertionContext,
-  pattern: string,
-): Promise<{ database: string; table: string } | null> {
-  const rows = await queryRows<{ database: string; name: string }>(
-    ctx,
-    `SELECT database, name FROM system.tables
-     WHERE lower(name) LIKE '${pattern}'
-       AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
-     ORDER BY length(name) ASC`,
-  );
-  return rows.length > 0 ? { database: rows[0].database, table: rows[0].name } : null;
-}
-
 export async function daily_summary_has_rows(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findTableByPattern(ctx, "%daily%summar%");
+  const found = await findTable(ctx, { concepts: ["daily", "summar"] });
   if (!found) {
     return { passed: false, message: "Daily summary table/view not found (expected name containing 'daily' and 'summar').", details: {} };
   }
@@ -38,7 +26,7 @@ export async function daily_summary_has_rows(ctx: AssertionContext): Promise<Ass
 }
 
 export async function daily_summary_has_expected_columns(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findTableByPattern(ctx, "%daily%summar%");
+  const found = await findTable(ctx, { concepts: ["daily", "summar"] });
   if (!found) {
     return { passed: false, message: "Daily summary table not found.", details: {} };
   }
@@ -63,7 +51,7 @@ export async function daily_summary_has_expected_columns(ctx: AssertionContext):
 }
 
 export async function top_users_has_rows(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findTableByPattern(ctx, "%top%user%");
+  const found = await findTable(ctx, { concepts: ["top", "user"] });
   if (!found) {
     return { passed: false, message: "Top users table/view not found (expected name containing 'top' and 'user').", details: {} };
   }
@@ -81,7 +69,7 @@ export async function top_users_has_rows(ctx: AssertionContext): Promise<Asserti
 }
 
 export async function top_users_has_duration_column(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findTableByPattern(ctx, "%top%user%");
+  const found = await findTable(ctx, { concepts: ["top", "user"] });
   if (!found) {
     return { passed: false, message: "Top users table not found.", details: {} };
   }

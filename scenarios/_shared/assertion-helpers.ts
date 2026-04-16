@@ -157,39 +157,149 @@ async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   return (await (result as any).json()) as T[];
 }
 
-/**
- * Find a user_activity table across all non-system databases.
- * Matches snake_case (user_activity), PascalCase (UserActivity, UserActivityEvent),
- * and other naming conventions to support both raw ClickHouse and Moose-created tables.
- */
-export async function findUserActivityTable(
-  ctx: AssertionContext,
-): Promise<{ database: string; table: string } | null> {
-  const rows = await queryRows<{ database: string; name: string }>(
-    ctx,
-    `SELECT database, name FROM system.tables
-     WHERE (lower(name) LIKE '%user_activity%' OR lower(name) LIKE '%useractivity%')
-       AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
-     ORDER BY length(name) ASC`,
-  );
-  return rows.length > 0 ? { database: rows[0].database, table: rows[0].name } : null;
+const SYSTEM_DATABASES = ["system", "INFORMATION_SCHEMA", "information_schema"];
+
+export interface TableRef {
+  database: string;
+  table: string;
+  engine?: string;
+  total_rows?: number;
+}
+
+/** Normalize a table/column name for comparison: lowercase + strip underscores. */
+function normalize(name: string): string {
+  return name.toLowerCase().replace(/_/g, "");
 }
 
 /**
- * Find an events table across all non-system databases.
- * Matches variations like events, Events, EventData, etc.
+ * Find tables in ClickHouse by fuzzy-matching against one or more concept terms.
+ *
+ * Concepts are matched against the table name after normalization (lowercase +
+ * underscore-stripped), so "user_activity", "UserActivity", and "useractivity"
+ * all match the concept "user_activity".
+ *
+ * Results are ranked:
+ *  1. Tables containing ALL concepts score higher than partial matches.
+ *  2. Shorter table names rank before longer ones (closer to the core concept).
+ *  3. Non-MV targets (.inner_id.*) are de-ranked.
+ *
+ * @example
+ *   findTables(ctx, { concepts: ["user", "activity"] })
+ *   findTables(ctx, { concepts: ["product", "event"], engines: ["MergeTree"] })
+ *   findTables(ctx, { concepts: ["top", "product"], excludeInternal: true })
  */
-export async function findEventsTable(
+export async function findTables(
   ctx: AssertionContext,
-): Promise<{ database: string; table: string } | null> {
-  const rows = await queryRows<{ database: string; name: string }>(
+  options: {
+    concepts: string[];
+    engines?: string[];
+    excludeInternal?: boolean;
+    database?: string;
+  },
+): Promise<TableRef[]> {
+  const whereClauses: string[] = [
+    `database NOT IN (${SYSTEM_DATABASES.map((d) => `'${d}'`).join(",")})`,
+  ];
+  if (options.database) {
+    whereClauses.push(`database = '${options.database}'`);
+  }
+  if (options.excludeInternal !== false) {
+    // ClickHouse internal MV storage tables look like `.inner_id.<uuid>`
+    whereClauses.push(`name NOT LIKE '.inner%'`);
+  }
+
+  const rows = await queryRows<{ database: string; name: string; engine: string; total_rows: number | null }>(
     ctx,
-    `SELECT database, name FROM system.tables
-     WHERE (lower(name) LIKE '%event%')
-       AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
-     ORDER BY length(name) ASC`,
+    `SELECT database, name, engine, total_rows
+     FROM system.tables
+     WHERE ${whereClauses.join(" AND ")}`,
   );
-  return rows.length > 0 ? { database: rows[0].database, table: rows[0].name } : null;
+
+  // Normalize concepts and rank each table
+  const normalizedConcepts = options.concepts.map(normalize);
+  const scored = rows
+    .map((row) => {
+      const norm = normalize(row.name);
+      const matchedConcepts = normalizedConcepts.filter((c) => norm.includes(c));
+      if (matchedConcepts.length === 0) return null;
+      if (options.engines && options.engines.length > 0) {
+        const engineOk = options.engines.some((e) => row.engine.includes(e));
+        if (!engineOk) return null;
+      }
+      // Score: full concept match bonus + shorter name bonus
+      const conceptScore = matchedConcepts.length / normalizedConcepts.length;
+      const lengthPenalty = row.name.length / 100; // longer names score slightly lower
+      const score = conceptScore - lengthPenalty;
+      return {
+        ref: {
+          database: row.database,
+          table: row.name,
+          engine: row.engine,
+          total_rows: row.total_rows ?? undefined,
+        } as TableRef,
+        score,
+      };
+    })
+    .filter((x): x is { ref: TableRef; score: number } => x !== null)
+    .sort((a, b) => b.score - a.score);
+
+  return scored.map((s) => s.ref);
+}
+
+/** Find the single best table match, or null. */
+export async function findTable(
+  ctx: AssertionContext,
+  options: Parameters<typeof findTables>[1],
+): Promise<TableRef | null> {
+  const matches = await findTables(ctx, options);
+  return matches.length > 0 ? matches[0] : null;
+}
+
+/**
+ * Find a column whose name matches one of the candidates (fuzzy: case-insensitive,
+ * underscore-insensitive). Returns the actual column name (preserving case) or null.
+ *
+ * @example
+ *   resolveColumn(ctx, "analytics", "events", "event_id", "eventId")
+ *   resolveColumn(ctx, db, table, "duration_ms", "durationMs", "duration")
+ */
+export async function resolveColumn(
+  ctx: AssertionContext,
+  database: string,
+  table: string,
+  ...candidates: string[]
+): Promise<string | null> {
+  const normalizedCandidates = candidates.map(normalize);
+  const rows = await queryRows<{ name: string }>(
+    ctx,
+    `SELECT name FROM system.columns WHERE database = '${database}' AND table = '${table}'`,
+  );
+  for (const row of rows) {
+    if (normalizedCandidates.includes(normalize(row.name))) {
+      return row.name;
+    }
+  }
+  return null;
+}
+
+// --- Domain-specific wrappers (back-compat + convenience) ---
+
+/**
+ * Find a user_activity table across all non-system databases.
+ * Matches user_activity, UserActivity, UserActivityEvent, etc.
+ */
+export async function findUserActivityTable(ctx: AssertionContext): Promise<TableRef | null> {
+  return findTable(ctx, { concepts: ["user", "activity"] });
+}
+
+/** Find an events table across all non-system databases. */
+export async function findEventsTable(ctx: AssertionContext): Promise<TableRef | null> {
+  return findTable(ctx, { concepts: ["event"] });
+}
+
+/** Find a product_events table (product + event). */
+export async function findProductEventsTable(ctx: AssertionContext): Promise<TableRef | null> {
+  return findTable(ctx, { concepts: ["product", "event"] });
 }
 
 function collectWorkspaceTextFiles(): WorkspaceTextFile[] {
