@@ -1,82 +1,43 @@
 ---
 name: dec-bench-quickstart
-description: Get set up with DEC Bench from scratch — install the CLI, clone the repo, build and run your first scenario, and inspect results. Use when a user says "get started", "set up", "install dec-bench", "quickstart", or "first run".
+description: Validate your DEC Bench setup and run your first scenario. Use when a user says "get started", "first run", "test my setup", or "run a quick benchmark".
 ---
 
 # DEC Bench Quickstart
 
-Walk the user through their first DEC Bench run from zero. This skill handles setup only — not scenario authoring or advanced usage.
+Validate the user's setup and run their first benchmark scenario.
 
-## Before you start
+## Step 1: Validate setup
 
-Confirm the user has:
-- Docker installed and running
-- An API key for the agent they want to test (default: `ANTHROPIC_API_KEY` for Claude Code)
+Check that everything is in place before running:
 
-If Docker is not running, tell them to start Docker Desktop and retry. If they don't have an API key, point them to:
-- Anthropic: https://console.anthropic.com/
-- OpenAI: https://platform.openai.com/api-keys
-- Cursor: https://cursor.com/settings
+1. **Docker**: run `docker info` — if it fails, tell the user to start Docker Desktop
+2. **CLI**: run `dec-bench list` — if it fails, tell the user to install with `curl -fsSL https://decbench.ai/install.sh | sh`
+3. **Repo**: check that `scenarios/foo-bar-csv-ingest/scenario.json` exists — if not, the user isn't in the repo root
+4. **API key**: check that `ANTHROPIC_API_KEY` is set (or `OPENAI_API_KEY` / `CURSOR_API_KEY` depending on which agent they want to use) — if not, ask them to export it
 
-## Steps
+If anything is missing, tell the user exactly what to fix and stop. Don't proceed with a broken setup.
 
-### 1. Install the CLI
+## Step 2: Build and run
 
-```bash
-curl -fsSL https://decbench.ai/install.sh | sh
-```
-
-Verify it works:
-
-```bash
-dec-bench list
-```
-
-`dec-bench list` works without Docker or API keys. If this fails, the install didn't work.
-
-### 2. Clone the repo
-
-```bash
-git clone https://github.com/514-labs/agent-evals.git
-cd agent-evals
-pnpm install
-```
-
-The CLI needs a local checkout for scenario definitions and build scripts.
-
-### 3. Export the API key
-
-```bash
-export ANTHROPIC_API_KEY=<their-key>
-```
-
-Swap for `OPENAI_API_KEY` or `CURSOR_API_KEY` if using a different agent.
-
-### 4. Build and run a scenario
-
-Start with `foo-bar-csv-ingest` — it's a fast tier-1 scenario.
+Once setup is validated, run the first scenario:
 
 ```bash
 dec-bench build --scenario foo-bar-csv-ingest
 dec-bench run --scenario foo-bar-csv-ingest
 ```
 
-### 5. Inspect results
+## Step 3: Show results
 
 ```bash
 dec-bench results --latest --scenario foo-bar-csv-ingest
 ```
 
-To open the visual audit UI:
-
-```bash
-dec-bench audit open --scenario foo-bar-csv-ingest --run-id <run-id>
-```
-
-The run ID is printed at the end of `dec-bench run`.
+Explain the output: which gate the agent reached, the normalized score, and where the artifacts are.
 
 ## Done
 
-The user has a working DEC Bench setup. From here they can:
-- Run more scenarios: use the `dec-bench-run` skill
-- Create their own scenarios: use the `dec-bench-create-scenario` skill
+The user has a working setup and their first result. Point them to:
+- `dec-bench list` to see all available scenarios
+- The `dec-bench-run` skill to run more scenarios
+- The `dec-bench-create-scenario` skill to create their own

@@ -370,14 +370,14 @@ Use it when you need a clean reference for prompt style, assertion granularity, 
 
 This reference is shared across the DEC Bench skills:
 
+From the repo root:
+
 ```bash
-npx skills add 514-labs/agent-evals --skill dec-bench-quickstart
-npx skills add 514-labs/agent-evals --skill dec-bench-run
-npx skills add 514-labs/agent-evals --skill dec-bench-create-scenario
+npx skills add . -a claude-code -a cursor -a codex
 ```
 
-To list all available skills:
+To list available skills without installing:
 
 ```bash
-npx skills add 514-labs/agent-evals --list
+npx skills add . --list
 ```

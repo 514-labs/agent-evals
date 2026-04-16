@@ -25,6 +25,17 @@ dec-bench list
 
 This shows all scenarios with their tier, domain, and description.
 
+## Key values
+
+**Agents and models:**
+- `claude-code`: `claude-sonnet-4-20250514`, `claude-sonnet-4-6`, `claude-opus-4-6`
+- `codex`: `gpt-5.4`
+- `cursor`: `composer-2`
+
+**Personas:** `baseline` (plain language, no hints) or `informed` (specific tools, schemas, constraints)
+
+**Harnesses:** `base-rt`, `classic-de`, `olap-for-swe`
+
 ## Run a single scenario
 
 ```bash
