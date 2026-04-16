@@ -185,6 +185,22 @@ export CLICKHOUSE_PASSWORD="pandapass"
 
 Keep `env.sh` side-effect free: exports only, no waits, no network calls, no writes. Reference: `scenarios/foo-bar-moose-csv-ingest/env.sh`. Omit the file entirely if the scenario uses default ports and credentials.
 
+#### Bad example — DO NOT do this
+
+```bash
+#!/usr/bin/env bash
+
+export CLICKHOUSE_URL="http://localhost:18123"
+
+# BAD: blocks every lifecycle phase, turns env.sh into a readiness probe.
+until curl -sf http://localhost:18123/ping; do sleep 1; done
+
+# BAD: writes state on each sourcing (entrypoint, init, agent, assertions).
+echo "ClickHouse ready at $(date)" >> /tmp/startup.log
+```
+
+`env.sh` is sourced at the start of every lifecycle phase. Work belongs in `supervisord.conf` (readiness) or `init/*.sh` (one-time seeding), not here.
+
 ## Step 6b: When no built-in harness fits
 
 The three built-in harnesses (`base-rt`, `classic-de`, `olap-for-swe`) live as JSON files at `apps/web/data/harnesses/<id>.json`. They define what gets installed on top of the base image, the network policy, and the tool manifest shown in the audit UI. Pick an existing one when its tool list covers your scenario.
@@ -313,6 +329,49 @@ If you find yourself writing 8+ functions in a single gate file, split the scena
 - `ctx.pg` — Postgres client (use `ctx.pg.query(sql, params)`)
 - `ctx.env(key)` — reads environment variables set by `env.sh` or the container
 
+### Good vs bad assertions
+
+Assertions must be **deterministic and exact**. Every run of the same scenario state must produce the same pass/fail result.
+
+Good — exact count, deterministic, useful failure detail:
+
+```typescript
+export async function all_fifteen_events_loaded(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events");
+  const count = Number(rows[0]?.n ?? 0);
+  return {
+    passed: count === 15,
+    message: count === 15 ? "All 15 events loaded." : `Expected 15, got ${count}.`,
+    details: { expected: 15, actual: count },
+  };
+}
+```
+
+Bad — text similarity / LLM-as-judge / subjective rubric:
+
+```typescript
+// DO NOT do this
+export async function data_looks_right(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows(ctx, "SELECT * FROM events LIMIT 5");
+  const passed = JSON.stringify(rows).includes("evt_") && rows.length > 0;
+  return { passed, message: passed ? "Looks good." : "Doesn't look right." };
+}
+```
+
+Bad — time-dependent / flaky:
+
+```typescript
+// DO NOT do this
+export async function latency_ok(ctx: AssertionContext): Promise<AssertionResult> {
+  const start = Date.now();
+  await ctx.clickhouse.query({ query: "SELECT count() FROM analytics.events", format: "JSONEachRow" });
+  const elapsed = Date.now() - start;
+  return { passed: elapsed < 50, message: `Took ${elapsed}ms.` };
+}
+```
+
+The second version is flaky because network latency, cache state, and concurrent load make 50ms arbitrary. If you need a latency bound, choose one that survives retries (e.g. `< 500` for a simple count, not `< 50`) and average across a small number of runs in the assertion itself.
+
 See [references/guide.md](references/guide.md) for assertion examples at every gate.
 
 ## Step 8: Validate and test
@@ -344,7 +403,16 @@ Verify:
 
 For the full schema contract, all enum values, `env.sh` and harness JSON schemas, and assertion examples for every gate, see [references/guide.md](references/guide.md).
 
-For complete real scenarios to study:
-- `scenarios/foo-bar-csv-ingest/` — minimal tier-1, `base-rt` harness, default ports.
-- `scenarios/foo-bar-moose-csv-ingest/` — `olap-for-swe` harness, custom ports via `env.sh`, agent bootstraps services itself.
-- `scenarios/foo-bar-cross-system-reconciliation/` — multi-service with supervisord priorities across Postgres, Redpanda, and ClickHouse.
+For a scenario "that looks like mine," browse by shape rather than grepping `scenarios/`:
+
+- **Single-service ClickHouse, greenfield** — `foo-bar-csv-ingest`, `foo-bar-clickhouse-ttl-lifecycle`, `foo-bar-table-layout`
+- **Single-service ClickHouse, broken / seeded** — `foo-bar-slow-queries`, `foo-bar-clickhouse-materialized-view`, `foo-bar-clickhouse-historical-backfill`, `foo-bar-clickhouse-live-schema-migration`
+- **Single-service Postgres** — `foo-bar-postgres-index-tuning`, `foo-bar-postgres-readiness-race`, `foo-bar-postgres-table-partitioning`
+- **Single-service Redpanda** — `foo-bar-stream-schema-evolution`
+- **Two-service Redpanda → ClickHouse (stream to OLAP)** — `foo-bar-stream-to-olap`, `foo-bar-dlq-setup`, `foo-bar-consumer-lag-fix`, `foo-bar-topic-misconfiguration`
+- **Two-service Postgres + ClickHouse (OLTP + OLAP)** — `foo-bar-idempotent-pipeline`, `foo-bar-consistent-metrics-layer`, `foo-bar-ingest-to-api`, `foo-bar-schema-evolution`
+- **Two-service Postgres → Redpanda (CDC)** — `foo-bar-cdc-postgres-to-redpanda`, `foo-bar-event-sourcing-replay`
+- **Three-service full pipeline (Postgres → Redpanda → ClickHouse)** — `foo-bar-cross-system-reconciliation`, `foo-bar-full-pipeline-debug`, `foo-bar-realtime-streaming-metrics`
+- **Moose dockerless, agent bootstraps its own services** — `foo-bar-moose-csv-ingest`
+- **Multi-task (multiple categories in one scenario)** — `ecommerce-pipeline-recovery` (ingestion + debugging + monitoring), `foo-bar-ingest-to-api` (ingestion + materialized-views + schema-design)
+- **Custom `env.sh` for non-default ports / credentials** — `foo-bar-moose-csv-ingest`
