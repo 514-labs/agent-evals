@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findEventsTable } from "../../_shared/assertion-helpers";
+import { findUserActivityTable } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -8,21 +8,21 @@ async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
 }
 
 export async function target_table_exists(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findEventsTable(ctx);
+  const found = await findUserActivityTable(ctx);
   const passed = found !== null;
   return {
     passed,
     message: passed
       ? `Target table exists at ${found!.database}.${found!.table}.`
-      : "Events table not found in any database.",
+      : "Table user_activity not found in any database.",
     details: { found },
   };
 }
 
 export async function table_has_rows(ctx: AssertionContext): Promise<AssertionResult> {
-  const found = await findEventsTable(ctx);
+  const found = await findUserActivityTable(ctx);
   if (!found) {
-    return { passed: false, message: "Events table not found.", details: {} };
+    return { passed: false, message: "Table user_activity not found.", details: {} };
   }
   const rows = await queryRows<{ n: number }>(
     ctx,

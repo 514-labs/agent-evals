@@ -1,0 +1,66 @@
+{
+  "id": "foo-bar-full-olap-pipeline",
+  "title": "Foo Bar Full OLAP Pipeline",
+  "description": "Build a complete real-time analytics pipeline: HTTP ingestion endpoint, Redpanda buffer, ClickHouse landing, materialized views, and egress APIs. Seed data is posted through the agent's own ingestion endpoint.",
+  "lede": "In this scenario, an agent must build an end-to-end streaming pipeline from HTTP ingestion through Redpanda to ClickHouse with materialized views and egress APIs.",
+  "tier": "tier-3",
+  "domain": "foo-bar",
+  "harnesses": [
+    "base-rt",
+    "olap-for-swe"
+  ],
+  "tasks": [
+    {
+      "id": "http-ingest",
+      "description": "Stand up an HTTP endpoint that accepts JSON event POSTs and forwards them to a Redpanda topic.",
+      "category": "ingestion"
+    },
+    {
+      "id": "stream-to-clickhouse",
+      "description": "Consume the Redpanda topic and land events in a ClickHouse base table.",
+      "category": "ingestion"
+    },
+    {
+      "id": "build-aggregations",
+      "description": "Create pre-aggregated tables or materialized views for top products, conversion funnel, and hourly activity.",
+      "category": "materialized-views"
+    },
+    {
+      "id": "serve-egress-apis",
+      "description": "Expose three HTTP endpoints that serve pre-aggregated insights under 200ms.",
+      "category": "schema-design"
+    }
+  ],
+  "personaPrompts": {
+    "baseline": "prompts/baseline.md",
+    "informed": "prompts/informed.md",
+    "moose-user": "prompts/moose-user.md"
+  },
+  "infrastructure": {
+    "services": [],
+    "description": "ClickHouse and Redpanda installed but not running. 40 product interaction events as JSON files in /data/events/ that the agent must POST through their own ingestion endpoint."
+  },
+  "tags": [
+    "api",
+    "ingestion",
+    "streaming",
+    "egress",
+    "http",
+    "materialized-views",
+    "redpanda",
+    "end-to-end",
+    "swe",
+    "lab",
+    "de"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 150,
+    "storageBytes": 100000000,
+    "costPerQueryUsd": 0.005
+  }
+}

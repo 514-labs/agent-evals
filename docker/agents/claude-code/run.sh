@@ -28,7 +28,7 @@ CLAUDE_ARGS=(
   --model "${MODEL:-claude-sonnet-4-20250514}"
   --dangerously-skip-permissions
   --append-system-prompt "${SYSTEM_PROMPT}"
-  --max-turns 50
+  --max-turns 100
   --output-format json
 )
 
@@ -63,9 +63,17 @@ const metadata = {
 fs.writeFileSync(runMetaPath, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
 '
 
+CLAUDE_EXIT=0
 CLAUDE_OUTPUT="$(
   IS_SANDBOX="${IS_SANDBOX:-1}" claude "${CLAUDE_ARGS[@]}"
-)"
+)" || CLAUDE_EXIT=$?
+
+if [[ -z "${CLAUDE_OUTPUT}" && ${CLAUDE_EXIT} -ne 0 ]]; then
+  echo "Claude exited with code ${CLAUDE_EXIT} and produced no output." >&2
+  # Write minimal metrics so downstream processing doesn't break
+  echo '{"agentSteps":0,"tokensUsed":0,"llmApiCostUsd":0,"llmApiCostSource":"agent-reported","inputTokens":0,"outputTokens":0,"cachedInputTokens":0,"cacheCreationTokens":0,"cacheReadTokens":0,"cacheWriteTokens":0}' > "${METRICS_PATH}"
+  exit "${CLAUDE_EXIT}"
+fi
 
 printf '%s' "${CLAUDE_OUTPUT}" | node -e '
 const fs = require("node:fs");
@@ -83,7 +91,16 @@ try {
   parsed = JSON.parse(raw);
 } catch (err) {
   process.stderr.write(`Failed to parse claude JSON output: ${String(err)}\n`);
-  process.exit(1);
+  // Write fallback metrics and exit gracefully so assertions still run
+  const metricsPath = process.env.METRICS_PATH;
+  if (metricsPath) {
+    fs.writeFileSync(metricsPath, JSON.stringify({
+      agentSteps: 0, tokensUsed: 0, llmApiCostUsd: 0, llmApiCostSource: "agent-reported",
+      inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, cacheCreationTokens: 0,
+      cacheReadTokens: 0, cacheWriteTokens: 0,
+    }, null, 2) + "\n", "utf8");
+  }
+  process.exit(0);
 }
 
 const usage =

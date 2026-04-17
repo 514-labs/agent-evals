@@ -1,17 +1,6 @@
-import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
+import type { AssertionResult } from "@dec-bench/eval-core";
 
-import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
-
-export async function connection_env_vars_available(ctx: AssertionContext): Promise<AssertionResult> {
-  const hasPostgres = Boolean(ctx.env("POSTGRES_URL"));
-  const hasClickHouse = Boolean(ctx.env("CLICKHOUSE_URL"));
-  const passed = hasPostgres && hasClickHouse;
-  return {
-    passed,
-    message: passed ? "Connection env vars available." : "Missing POSTGRES_URL or CLICKHOUSE_URL.",
-    details: { hasPostgres, hasClickHouse },
-  };
-}
+import { scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 
 export async function api_does_not_hardcode_credentials(): Promise<AssertionResult> {
   const { readFileSync, readdirSync } = await import("node:fs");

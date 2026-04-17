@@ -35,6 +35,8 @@ const EVAL_RESULT_START: &str = "__DEC_BENCH_EVAL_RESULT_JSON_START__";
 const EVAL_RESULT_END: &str = "__DEC_BENCH_EVAL_RESULT_JSON_END__";
 const ASSERTION_LOG_START: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_START__";
 const ASSERTION_LOG_END: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_END__";
+const SERVICE_LOGS_START: &str = "__DEC_BENCH_SERVICE_LOGS_JSON_START__";
+const SERVICE_LOGS_END: &str = "__DEC_BENCH_SERVICE_LOGS_JSON_END__";
 const SENSITIVE_ENV_KEYS: [&str; 4] = [
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
@@ -130,6 +132,7 @@ pub struct RunArgs {
 pub enum Persona {
     Baseline,
     Informed,
+    MooseUser,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -566,6 +569,7 @@ async fn run_single(
     let session_jsonl = extract_marked_block(&stdout_buffer, SESSION_JSONL_START, SESSION_JSONL_END);
     let marked_result_json = extract_marked_block(&stdout_buffer, EVAL_RESULT_START, EVAL_RESULT_END);
     let assertion_log_json = extract_marked_block(&stdout_buffer, ASSERTION_LOG_START, ASSERTION_LOG_END);
+    let service_logs_json = extract_marked_block(&stdout_buffer, SERVICE_LOGS_START, SERVICE_LOGS_END);
 
     let mut cleaned_stdout = stdout_buffer.clone();
     for (start, end) in [
@@ -576,6 +580,7 @@ async fn run_single(
         (SESSION_JSONL_START, SESSION_JSONL_END),
         (EVAL_RESULT_START, EVAL_RESULT_END),
         (ASSERTION_LOG_START, ASSERTION_LOG_END),
+        (SERVICE_LOGS_START, SERVICE_LOGS_END),
     ] {
         cleaned_stdout = strip_marked_block(&cleaned_stdout, start, end);
     }
@@ -656,6 +661,13 @@ async fn run_single(
         fs::write(&assertion_log_path, ensure_trailing_newline(&content))
             .with_context(|| format!("Failed to write {}", assertion_log_path.display()))?;
         println!("Wrote assertion log: {}", assertion_log_path.display());
+    }
+
+    if let Some(content) = service_logs_json.filter(|value| !value.trim().is_empty()) {
+        let service_logs_path = output_path.with_extension("service-logs.json");
+        fs::write(&service_logs_path, ensure_trailing_newline(&content))
+            .with_context(|| format!("Failed to write {}", service_logs_path.display()))?;
+        println!("Wrote service logs: {}", service_logs_path.display());
     }
 
     if !stderr_buffer.is_empty() {
@@ -1045,6 +1057,7 @@ impl Persona {
         match self {
             Self::Baseline => "baseline",
             Self::Informed => "informed",
+            Self::MooseUser => "moose-user",
         }
     }
 }
