@@ -4,6 +4,8 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
+use bollard::Docker;
+use bollard::API_DEFAULT_VERSION;
 
 pub fn resolve_repo_root() -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("Failed to determine current directory")?;
@@ -79,6 +81,64 @@ pub fn check_docker() -> Result<()> {
              Install Docker: https://docs.docker.com/get-docker/"
         ),
     }
+}
+
+/// Resolve the Docker daemon endpoint using Docker CLI context resolution.
+///
+/// Returns `None` when bollard's `connect_with_local_defaults` is sufficient
+/// (i.e. `DOCKER_HOST` is already set, or context inspection fails).
+pub fn resolve_docker_host() -> Option<String> {
+    // If DOCKER_HOST is explicitly set, bollard already handles it.
+    if std::env::var("DOCKER_HOST")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .is_some()
+    {
+        return None;
+    }
+
+    let output = Command::new("docker")
+        .args(["context", "inspect", "--format", "{{.Endpoints.docker.Host}}"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let host = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if host.is_empty() {
+        None
+    } else {
+        Some(host)
+    }
+}
+
+/// Connect to the Docker daemon, respecting Docker CLI context configuration.
+///
+/// Needed for Colima and other setups where the socket is not at the default
+/// `/var/run/docker.sock` path. Falls back to bollard defaults when context
+/// resolution is unnecessary or fails.
+pub fn connect_docker() -> Result<Docker> {
+    if let Some(host) = resolve_docker_host() {
+        if let Some(socket_path) = host.strip_prefix("unix://") {
+            return Docker::connect_with_socket(socket_path, 120, API_DEFAULT_VERSION).context(
+                format!("Failed to connect to Docker socket at '{socket_path}' (from context)"),
+            );
+        }
+        if host.starts_with("tcp://") || host.starts_with("http://") {
+            return Docker::connect_with_http(&host, 120, API_DEFAULT_VERSION)
+                .context(format!("Failed to connect to Docker at '{host}' (from context)"));
+        }
+        tracing::warn!(
+            "Docker context returned unrecognized host '{}'; falling back to defaults",
+            host
+        );
+    }
+
+    Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")
 }
 
 pub fn check_image_exists(image: &str) -> Result<()> {

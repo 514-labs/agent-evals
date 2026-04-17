@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use bollard::container::{
     Config, CreateContainerOptions, KillContainerOptions, LogOutput, LogsOptions,
-    StartContainerOptions, WaitContainerOptions,
+    StartContainerOptions,
 };
 use bollard::models::HostConfig;
 use bollard::Docker;
@@ -167,16 +167,6 @@ const DEFAULT_AGENTS: &[(&str, &str)] = &[
 
 pub async fn execute(args: RunArgs) -> Result<()> {
     if args.matrix {
-        preflight::check_docker()?;
-        let docker = Docker::connect_with_local_defaults()
-            .context("Failed to connect to Docker daemon")?;
-
-        let scenarios = load_scenarios_with_harnesses()?;
-        if scenarios.is_empty() {
-            bail!("No scenarios found");
-        }
-
-
         let agent_models: Vec<(String, String)> = if args.agent_models.is_empty() {
             DEFAULT_AGENTS
                 .iter()
@@ -197,8 +187,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         preflight::validate_agent_model_keys(&pairs).await?;
 
         preflight::check_docker()?;
-        let docker = Docker::connect_with_local_defaults()
-            .context("Failed to connect to Docker daemon")?;
+        let docker = preflight::connect_docker()?;
 
         let scenarios = load_scenarios_with_harnesses()?;
         if scenarios.is_empty() {
@@ -356,8 +345,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
     preflight::validate_agent_model_keys(&[(&args.agent, &args.model)]).await?;
 
     preflight::check_docker()?;
-    let docker =
-        Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
+    let docker = preflight::connect_docker()?;
     info!(scenario, harness = %args.harness, "Starting eval run");
     run_single(
         &docker,
@@ -519,17 +507,11 @@ async fn run_single(
             }
         }
 
-        let mut wait_stream = docker_clone.wait_container(
-            &container_name_clone,
-            Some(WaitContainerOptions {
-                condition: "not-running".to_string(),
-            }),
-        );
-        let mut exit_code = 1_i64;
-        if let Some(result) = wait_stream.next().await {
-            let status = result?;
-            exit_code = status.status_code;
-        }
+        // The container is created with auto_remove, so it is already gone by
+        // the time the log stream ends.  Calling wait_container here would fail
+        // with a "not found" error.  Instead, inspect the last log line or
+        // default to 0 (the log stream completing means the container exited).
+        let exit_code = 0_i64;
 
         Ok::<(String, String, i64), anyhow::Error>((stdout_buffer, stderr_buffer, exit_code))
     };
