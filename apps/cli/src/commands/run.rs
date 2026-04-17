@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use bollard::container::{
     Config, CreateContainerOptions, KillContainerOptions, LogOutput, LogsOptions,
-    StartContainerOptions,
+    RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
 };
 use bollard::models::HostConfig;
 use bollard::Docker;
@@ -435,10 +435,7 @@ async fn run_single(
                 env: Some(env),
                 attach_stdout: Some(true),
                 attach_stderr: Some(true),
-                host_config: Some(HostConfig {
-                    auto_remove: Some(true),
-                    ..Default::default()
-                }),
+                host_config: Some(HostConfig::default()),
                 ..Default::default()
             },
         )
@@ -507,11 +504,17 @@ async fn run_single(
             }
         }
 
-        // The container is created with auto_remove, so it is already gone by
-        // the time the log stream ends.  Calling wait_container here would fail
-        // with a "not found" error.  Instead, inspect the last log line or
-        // default to 0 (the log stream completing means the container exited).
-        let exit_code = 0_i64;
+        let mut wait_stream = docker_clone.wait_container(
+            &container_name_clone,
+            Some(WaitContainerOptions {
+                condition: "not-running".to_string(),
+            }),
+        );
+        let mut exit_code = 1_i64;
+        if let Some(result) = wait_stream.next().await {
+            let status = result?;
+            exit_code = status.status_code;
+        }
 
         Ok::<(String, String, i64), anyhow::Error>((stdout_buffer, stderr_buffer, exit_code))
     };
@@ -531,8 +534,15 @@ async fn run_single(
                         Some(KillContainerOptions { signal: "SIGKILL" }),
                     )
                     .await;
-                // Brief pause for container cleanup
-                tokio::time::sleep(Duration::from_secs(2)).await;
+                let _ = docker
+                    .remove_container(
+                        &container_name,
+                        Some(RemoveContainerOptions {
+                            force: true,
+                            ..Default::default()
+                        }),
+                    )
+                    .await;
                 bail!(
                     "Run timed out after {} minutes for scenario '{}'",
                     args.timeout,
@@ -543,6 +553,16 @@ async fn run_single(
     } else {
         run_container.await?
     };
+
+    let _ = docker
+        .remove_container(
+            &container_name,
+            Some(RemoveContainerOptions {
+                force: true,
+                ..Default::default()
+            }),
+        )
+        .await;
 
     let agent_stdout = extract_marked_block(&stdout_buffer, AGENT_STDOUT_START, AGENT_STDOUT_END);
     let agent_raw_json = extract_marked_block(&stdout_buffer, AGENT_RAW_START, AGENT_RAW_END);
