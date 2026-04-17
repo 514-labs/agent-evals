@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useMemo } from "react"
 
+import { Search } from "lucide-react"
 import { useDocsSearch } from "fumadocs-core/search/client"
 
 export function DocsSearch() {
@@ -19,12 +20,11 @@ export function DocsSearch() {
   return (
     <div className="relative">
       <div className="flex items-center gap-2 bg-[color:var(--secondary)] border border-[color:var(--border)] rounded-[3px] px-2.5 py-1.5">
-        <span
+        <Search
           aria-hidden="true"
-          className="text-[color:var(--chart-4)] text-[16px] leading-none w-4 h-4 flex items-center justify-center shrink-0"
-        >
-          ⌕
-        </span>
+          strokeWidth={2}
+          className="w-4 h-4 shrink-0 text-[color:var(--chart-4)]"
+        />
         <input
           type="search"
           value={search}
