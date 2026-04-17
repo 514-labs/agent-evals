@@ -272,7 +272,12 @@ fn validate_with_repo_root(
     );
 
     validate_supervisord(&scenario_dir.join("supervisord.conf"), &mut warnings);
-    validate_init_dir(&scenario_dir.join("init"), &mut errors);
+    validate_init_dir(
+        &scenario_dir.join("init"),
+        &scenario.harnesses,
+        &mut errors,
+        &mut warnings,
+    );
     for harness in &scenario.harnesses {
         validate_harness(&repo_root, harness, &mut warnings);
     }
@@ -407,21 +412,69 @@ fn validate_supervisord(path: &Path, warnings: &mut Vec<String>) {
     }
 }
 
-fn validate_init_dir(path: &Path, errors: &mut Vec<String>) {
+fn validate_init_dir(
+    path: &Path,
+    declared_harnesses: &[String],
+    errors: &mut Vec<String>,
+    warnings: &mut Vec<String>,
+) {
     if !path.is_dir() {
         errors.push(format!("Init directory not found: {}", path.display()));
         return;
     }
 
-    let has_file = fs::read_dir(path)
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| entry.ok())
-        .any(|entry| entry.path().is_file());
-    if !has_file {
+    let entries: Vec<_> = match fs::read_dir(path) {
+        Ok(rd) => rd.filter_map(|entry| entry.ok()).collect(),
+        Err(_) => {
+            errors.push(format!("Cannot read init directory: {}", path.display()));
+            return;
+        }
+    };
+
+    let mut total_files: usize = 0;
+
+    for entry in &entries {
+        let entry_path = entry.path();
+        if entry_path.is_file() {
+            total_files += 1;
+            continue;
+        }
+        if !entry_path.is_dir() {
+            continue;
+        }
+
+        let subdir_name = entry_path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        let subdir_files: usize = fs::read_dir(&entry_path)
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|sub| sub.ok())
+            .filter(|sub| sub.path().is_file())
+            .count();
+        total_files += subdir_files;
+
+        if !declared_harnesses.iter().any(|harness| harness == &subdir_name) {
+            warnings.push(format!(
+                "Init subdirectory '{}' does not match any harness in `harnesses[]`. Files in this subdir will never run.",
+                subdir_name
+            ));
+        }
+
+        if subdir_files == 0 {
+            warnings.push(format!(
+                "Init subdirectory '{}' is empty.",
+                subdir_name
+            ));
+        }
+    }
+
+    if total_files == 0 {
         errors.push(format!(
-            "Init directory does not contain any files: {}",
+            "Init directory does not contain any files (flat or in harness subdirs): {}",
             path.display()
         ));
     }
@@ -607,5 +660,111 @@ mod tests {
             .warnings
             .iter()
             .any(|warning| warning.contains("Registry readiness was not fully validated")));
+    }
+
+    #[test]
+    fn validate_accepts_per_harness_init_subdirs() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        seed_valid_scenario(temp.path());
+        let scenario_dir = temp.path().join("scenarios/test-scenario");
+
+        // Switch the scenario to declare two harnesses and add a matching subdir.
+        write_file(
+            &scenario_dir.join("scenario.json"),
+            r#"{
+  "id": "test-scenario",
+  "title": "Test Scenario",
+  "description": "Multi-harness test scenario.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harnesses": ["base-rt", "olap-for-swe"],
+  "tasks": [{"id":"task-1","description":"Do the thing","category":"ingestion"}],
+  "personaPrompts": {"baseline":"prompts/baseline.md","informed":"prompts/informed.md"},
+  "infrastructure": {"services": ["clickhouse"]}
+}"#,
+        );
+        write_file(
+            &temp.path().join("apps/web/data/harnesses/olap-for-swe.json"),
+            "{}\n",
+        );
+        write_file(
+            &scenario_dir.join("init/olap-for-swe/seed-workspace.sh"),
+            "#!/usr/bin/env bash\n",
+        );
+
+        let args = ValidateArgs {
+            scenario: "test-scenario".to_string(),
+            competencies: None,
+            features: None,
+            starting_state: None,
+            services: None,
+            format: OutputFormat::Table,
+        };
+        let report =
+            validate_at_dir(&scenario_dir, &args).expect("validate");
+
+        assert!(report.passed, "errors: {:?}", report.errors);
+        // No subdir-mismatch warning should fire for `olap-for-swe`.
+        assert!(!report
+            .warnings
+            .iter()
+            .any(|w| w.contains("does not match any harness")));
+    }
+
+    #[test]
+    fn validate_warns_when_init_subdir_does_not_match_a_harness() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        seed_valid_scenario(temp.path());
+        let scenario_dir = temp.path().join("scenarios/test-scenario");
+
+        // Subdir name `not-a-harness` is not in the scenario's harnesses array.
+        write_file(
+            &scenario_dir.join("init/not-a-harness/seed.sh"),
+            "#!/usr/bin/env bash\n",
+        );
+
+        let args = ValidateArgs {
+            scenario: "test-scenario".to_string(),
+            competencies: None,
+            features: None,
+            starting_state: None,
+            services: None,
+            format: OutputFormat::Table,
+        };
+        let report =
+            validate_at_dir(&scenario_dir, &args).expect("validate");
+
+        assert!(report.passed, "should still pass; subdir mismatch is a warning");
+        assert!(report
+            .warnings
+            .iter()
+            .any(|w| w.contains("'not-a-harness'") && w.contains("does not match any harness")));
+    }
+
+    #[test]
+    fn validate_accepts_subdir_only_init_without_flat_files() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        seed_valid_scenario(temp.path());
+        let scenario_dir = temp.path().join("scenarios/test-scenario");
+
+        // Remove the flat init file; rely entirely on a subdir.
+        fs::remove_file(scenario_dir.join("init/setup.sh")).expect("remove flat init");
+        write_file(
+            &scenario_dir.join("init/base-rt/seed.sh"),
+            "#!/usr/bin/env bash\n",
+        );
+
+        let args = ValidateArgs {
+            scenario: "test-scenario".to_string(),
+            competencies: None,
+            features: None,
+            starting_state: None,
+            services: None,
+            format: OutputFormat::Table,
+        };
+        let report =
+            validate_at_dir(&scenario_dir, &args).expect("validate");
+
+        assert!(report.passed, "errors: {:?}", report.errors);
     }
 }
