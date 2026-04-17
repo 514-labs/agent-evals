@@ -1,103 +1,37 @@
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarInset,
-  SidebarTrigger,
-  SidebarSeparator,
-} from "@workspace/ui/components/sidebar";
-
-import type { Node, Root } from "fumadocs-core/page-tree";
-
+import { DocsBreadcrumbBar } from "@/components/docs-breadcrumb-bar";
 import { DocsSearch } from "@/components/docs-search";
 import { DocsTreeNav } from "@/components/docs-tree-nav";
 import { Nav } from "@/components/nav";
-import { isPublished } from "@/lib/published-docs";
-import { docsSource } from "@/lib/source";
-
-function slugFromUrl(url: string): string[] {
-  return url.replace(/^\/docs\/?/, "").split("/").filter(Boolean);
-}
-
-function filterTree(nodes: Node[]): Node[] {
-  const filtered: Node[] = [];
-
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i]!;
-
-    if (node.type === "separator") {
-      // Only keep a separator if there's visible content before the next separator
-      const section: Node[] = [];
-      for (let j = i + 1; j < nodes.length; j++) {
-        if (nodes[j]!.type === "separator") break;
-        section.push(nodes[j]!);
-      }
-      if (filterTree(section).length > 0) filtered.push(node);
-      continue;
-    }
-
-    if (node.type === "page") {
-      if (isPublished(slugFromUrl(node.url))) filtered.push(node);
-      continue;
-    }
-
-    if (node.type === "folder") {
-      const children = filterTree(node.children);
-      const indexVisible = node.index ? isPublished(slugFromUrl(node.index.url)) : false;
-      if (children.length > 0 || indexVisible) {
-        filtered.push({ ...node, children });
-      }
-    }
-  }
-
-  return filtered;
-}
-
-function getPublishedTree(): Root {
-  const tree = docsSource.pageTree;
-  return { ...tree, children: filterTree(tree.children) };
-}
+import { getPublishedTree } from "@/lib/docs-navigation";
 
 export default function DocsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const tree = getPublishedTree();
+
   return (
-    <div className="min-h-screen bg-[#F9F7F3] text-[#1C1917] font-[family-name:var(--font-display)] overscroll-none">
+    <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)] font-[family-name:var(--font-display)]">
       <Nav activeItem="docs" sticky={true} fullWidth={true} />
 
-      <SidebarProvider
-        defaultOpen={true}
-        style={{ "--sidebar-width": "16rem" } as React.CSSProperties}
-      >
-        <Sidebar
-          collapsible="offcanvas"
-          className="top-[60px] h-[calc(100svh-60px)] border-r-[3px] border-[#1C1917]"
-        >
-          <SidebarHeader className="px-4 pt-4 pb-2">
-            <DocsSearch />
-          </SidebarHeader>
-          <SidebarSeparator />
-          <SidebarContent className="px-2">
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <DocsTreeNav tree={getPublishedTree()} />
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-        </Sidebar>
+      <DocsBreadcrumbBar tree={tree} />
 
-        <SidebarInset>
-          <div className="md:hidden border-b border-[#D6D3D1] px-4 py-2">
-            <SidebarTrigger />
+      <div className="mx-auto w-full max-w-[1420px] flex flex-col lg:flex-row items-stretch">
+        <aside
+          className="shrink-0 w-full lg:w-[260px] border-b lg:border-b-0 lg:border-r border-[color:var(--border)] px-4 pt-6 lg:pt-10 pb-6 lg:pb-12 lg:sticky lg:top-[60px] lg:self-start lg:max-h-[calc(100vh-60px)] lg:overflow-y-auto"
+          aria-label="Docs navigation"
+        >
+          <div className="pb-5 lg:pb-6">
+            <DocsSearch />
           </div>
+          <DocsTreeNav tree={tree} />
+        </aside>
+
+        <div className="flex-1 min-w-0">
           {children}
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,24 +2,9 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useState } from "react"
-import { ChevronRight } from "lucide-react"
+import { useEffect, useState } from "react"
 import type { Node, Root } from "fumadocs-core/page-tree"
 import type { ReactNode } from "react"
-
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@workspace/ui/components/collapsible"
-import {
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-} from "@workspace/ui/components/sidebar"
 
 function hasActiveChild(node: Node, currentUrl: string): boolean {
   if (node.type === "page") return node.url === currentUrl
@@ -44,143 +29,179 @@ function getFolderTargetUrl(node: Node & { type: "folder" }): string | undefined
   return undefined
 }
 
-function FolderNode({ node, currentUrl, depth }: { node: Node & { type: "folder" }; currentUrl: string; depth: number }) {
-  const router = useRouter()
-  const targetUrl = getFolderTargetUrl(node)
-  const isActive = node.index?.url === currentUrl
-  const [open, setOpen] = useState(hasActiveChild(node, currentUrl))
+// Keep the base class color-free so active/inactive states don't collide
+// (Tailwind can't pick a winner between two arbitrary-value color utilities
+// at the same specificity, which previously made the active state unreliable).
+const linkBase =
+  "flex items-center justify-between w-full px-4 py-[5px] font-[family-name:var(--font-display)] text-[14px] leading-[26px] transition-colors border-l-2"
 
-  function handleLabelClick(e: React.MouseEvent) {
+const linkInactive =
+  "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] border-transparent"
+
+const linkActive =
+  "text-[color:var(--accent)] font-semibold border-[color:var(--accent)] bg-[color:var(--secondary)]"
+
+function GroupLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="pb-1 pt-0">
+      <span className="font-[family-name:var(--font-display)] text-[14px] leading-[26px] font-normal text-[color:var(--foreground)]">
+        {children}
+      </span>
+    </div>
+  )
+}
+
+function PageLink({
+  href,
+  label,
+  active,
+  hasChildren = false,
+}: {
+  href: string
+  label: ReactNode
+  active: boolean
+  hasChildren?: boolean
+}) {
+  return (
+    <Link href={href} className={`${linkBase} ${active ? linkActive : linkInactive}`}>
+      <span className="truncate">{label}</span>
+      {hasChildren ? (
+        <span className="shrink-0 text-[color:var(--chart-4)] text-[14px] leading-none pl-2">›</span>
+      ) : null}
+    </Link>
+  )
+}
+
+function FolderBranch({
+  node,
+  currentUrl,
+  depth,
+}: {
+  node: Node & { type: "folder" }
+  currentUrl: string
+  depth: number
+}) {
+  const router = useRouter()
+  const target = getFolderTargetUrl(node)
+  const isActive = node.index?.url === currentUrl
+  const containsActive = hasActiveChild(node, currentUrl)
+  const [open, setOpen] = useState(containsActive)
+
+  useEffect(() => {
+    if (containsActive) setOpen(true)
+  }, [containsActive])
+
+  const toggleOrNavigate = (e: React.MouseEvent) => {
     e.preventDefault()
-    e.stopPropagation()
-    setOpen(true)
-    if (targetUrl) {
-      router.push(targetUrl)
-    }
+    const nextOpen = !open
+    setOpen(nextOpen)
+    if (nextOpen && target) router.push(target)
   }
 
   return (
-    <Collapsible asChild open={open} onOpenChange={setOpen}>
-      <SidebarMenuItem>
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={targetUrl ? handleLabelClick : () => setOpen((prev) => !prev)}
-            className={`text-xs tracking-wide border-l-[3px] cursor-pointer flex-1 p-1.5 rounded-md text-left ${
-              isActive
-                ? "font-bold text-black border-[#B91C1C]"
-                : "text-black/90 hover:text-black border-transparent"
-            }`}
-          >
-            {node.name}
-          </button>
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="p-1 text-black/40 hover:text-black transition-colors"
-            >
-              <ChevronRight className="size-3.5 transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
-            </button>
-          </CollapsibleTrigger>
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={toggleOrNavigate}
+        className={`${linkBase} ${isActive ? linkActive : linkInactive}`}
+        aria-expanded={open}
+      >
+        <span className="truncate">{node.name}</span>
+        <span
+          className={`shrink-0 text-[color:var(--chart-4)] text-[14px] leading-none pl-2 transition-transform ${
+            open ? "rotate-90" : ""
+          }`}
+        >
+          ›
+        </span>
+      </button>
+      {open ? (
+        <div className="flex flex-col">
+          {node.children.map((child) => (
+            <div key={keyFor(child, depth + 1)} className="pl-3">
+              {renderNode(child, currentUrl, depth + 1)}
+            </div>
+          ))}
         </div>
-        <CollapsibleContent>
-          <SidebarMenuSub className="ml-[11px] mr-0 px-0 translate-x-0 border-l-0">
-            {node.children.map((child) => renderNode(child, currentUrl, depth + 1))}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
+      ) : null}
+    </div>
   )
+}
+
+function keyFor(node: Node, depth: number): string {
+  if (node.type === "separator") return `sep-${depth}-${String(node.name)}`
+  if (node.type === "page") return node.$id ?? node.url
+  return node.$id ?? `folder-${depth}-${String(node.name)}`
 }
 
 function renderNode(node: Node, currentUrl: string, depth = 0): ReactNode {
   if (node.type === "separator") {
-    return (
-      <li
-        key={node.$id ?? `${depth}-${String(node.name)}`}
-        className="pt-4 pb-1 first:pt-0"
-      >
-        <span className="text-xs font-bold uppercase tracking-[0.3em] text-black/40 px-2">
-          {node.name ?? "Section"}
-        </span>
-      </li>
-    )
+    return <GroupLabel>{node.name ?? "Section"}</GroupLabel>
   }
 
   if (node.type === "page") {
     const isActive = node.url === currentUrl
-
-    if (depth > 0) {
-      return (
-        <SidebarMenuSubItem key={node.$id ?? node.url}>
-          <SidebarMenuSubButton
-            asChild
-            isActive={isActive}
-            className={`!text-xs tracking-wide !bg-transparent translate-x-0 border-l-[3px] ${
-              isActive
-                ? "!text-black border-[#B91C1C]"
-                : "!text-black/90 hover:!text-black border-black/10"
-            }`}
-          >
-            <Link href={node.url}>{node.name}</Link>
-          </SidebarMenuSubButton>
-        </SidebarMenuSubItem>
-      )
-    }
-
     return (
-      <SidebarMenuItem key={node.$id ?? node.url}>
-        <SidebarMenuButton
-          asChild
-          isActive={isActive}
-          className={`text-xs tracking-wide !bg-transparent border-l-[3px] ${
-            isActive
-              ? "font-bold !text-black border-[#B91C1C]"
-              : "!text-black/90 hover:!text-black border-transparent"
-          }`}
-        >
-          <Link href={node.url}>{node.name}</Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+      <PageLink href={node.url} label={node.name} active={isActive} />
     )
   }
 
-  const folderKey = node.$id ?? `folder-${String(node.name)}-${depth}`
   const isActive = node.index?.url === currentUrl
 
   if (node.children.length === 0) {
+    if (!node.index) {
+      return (
+        <div className={`${linkBase} ${linkInactive}`} aria-disabled>
+          <span className="truncate">{node.name}</span>
+        </div>
+      )
+    }
     return (
-      <SidebarMenuItem key={folderKey}>
-        {node.index ? (
-          <SidebarMenuButton
-            asChild
-            isActive={isActive}
-            className={`text-xs tracking-wide !bg-transparent border-l-[3px] ${
-              isActive
-                ? "font-bold !text-black border-[#B91C1C]"
-                : "!text-black/90 hover:!text-black border-transparent"
-            }`}
-          >
-            <Link href={node.index.url}>{node.name}</Link>
-          </SidebarMenuButton>
-        ) : (
-            <SidebarMenuButton className="text-xs tracking-wide !text-black/90 pointer-events-none !bg-transparent border-l-[3px] border-transparent">
-            {node.name}
-          </SidebarMenuButton>
-        )}
-      </SidebarMenuItem>
+      <PageLink href={node.index.url} label={node.name} active={isActive} />
     )
   }
 
-  return <FolderNode key={folderKey} node={node} currentUrl={currentUrl} depth={depth} />
+  return <FolderBranch node={node} currentUrl={currentUrl} depth={depth} />
+}
+
+function groupSections(nodes: Node[]): Array<{ label: string | null; items: Node[] }> {
+  const sections: Array<{ label: string | null; items: Node[] }> = []
+  let current: { label: string | null; items: Node[] } = { label: null, items: [] }
+  sections.push(current)
+
+  for (const node of nodes) {
+    if (node.type === "separator") {
+      current = { label: String(node.name ?? "Section"), items: [] }
+      sections.push(current)
+      continue
+    }
+    current.items.push(node)
+  }
+
+  return sections.filter((section) => section.items.length > 0)
 }
 
 export function DocsTreeNav({ tree }: { tree: Root }) {
   const pathname = usePathname()
+  const sections = groupSections(tree.children)
 
   return (
-    <SidebarMenu>
-      {tree.children.map((node) => renderNode(node, pathname))}
-    </SidebarMenu>
+    <nav className="flex flex-col">
+      {sections.map((section, idx) => (
+        <div
+          key={section.label ?? `section-${idx}`}
+          className={idx > 0 ? "pt-5" : ""}
+        >
+          {section.label ? (
+            <GroupLabel>{section.label}</GroupLabel>
+          ) : null}
+          <div className="flex flex-col">
+            {section.items.map((node) => (
+              <div key={keyFor(node, 0)}>{renderNode(node, pathname)}</div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </nav>
   )
 }

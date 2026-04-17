@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useMemo } from "react"
 
-import { Input } from "@workspace/ui/components/input"
 import { useDocsSearch } from "fumadocs-core/search/client"
 
 export function DocsSearch() {
@@ -18,27 +17,44 @@ export function DocsSearch() {
   const { search, setSearch, query } = useDocsSearch(clientOptions)
 
   return (
-    <div>
-      <Input
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search docs..."
-        aria-label="Search documentation"
-        className="h-8 border border-black/15 bg-white text-xs font-[family-name:var(--font-mono)] tracking-wide placeholder:text-black/30 focus-visible:border-[#B91C1C] focus-visible:ring-[#B91C1C]/20"
-      />
+    <div className="relative">
+      <div className="flex items-center gap-2 bg-[color:var(--secondary)] border border-[color:var(--border)] rounded-[3px] px-2.5 py-1.5">
+        <span
+          aria-hidden="true"
+          className="text-[color:var(--chart-4)] text-[16px] leading-none w-6 h-6 flex items-center justify-center shrink-0"
+        >
+          ⌕
+        </span>
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search docs..."
+          aria-label="Search documentation"
+          className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] leading-[26px] text-[color:var(--foreground)] placeholder:text-[color:var(--chart-4)] font-[family-name:var(--font-display)]"
+        />
+      </div>
 
       {query.error ? (
-        <p className="mt-2 text-xs text-red-600">Search index is unavailable.</p>
+        <p className="mt-2 text-xs text-[color:var(--accent)]">
+          Search index is unavailable.
+        </p>
       ) : null}
 
       {query.data && query.data !== "empty" ? (
-        <ul className="mt-2 border border-black/15 bg-white">
+        <ul className="absolute left-0 right-0 z-30 mt-1 border border-[color:var(--border)] bg-[color:var(--card)] shadow-sm">
           {query.data.slice(0, 8).map((result) => (
-            <li key={result.id} className="border-b last:border-b-0 border-black/10">
-              <Link href={result.url} className="block px-3 py-1.5 text-xs text-black/70 hover:text-black hover:bg-black/[0.03] transition-colors">
+            <li
+              key={result.id}
+              className="border-b last:border-b-0 border-[color:var(--border)]"
+            >
+              <Link
+                href={result.url}
+                className="block px-3 py-1.5 text-[12px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--secondary)] transition-colors"
+              >
                 <p className="line-clamp-1">{result.content}</p>
                 {result.breadcrumbs && result.breadcrumbs.length > 0 ? (
-                  <p className="line-clamp-1 text-xs text-black/30 mt-0.5">
+                  <p className="line-clamp-1 text-[11px] text-[color:var(--chart-4)] mt-0.5 font-[family-name:var(--font-mono)]">
                     {result.breadcrumbs.join(" → ")}
                   </p>
                 ) : null}
