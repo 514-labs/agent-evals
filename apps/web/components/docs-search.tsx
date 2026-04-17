@@ -21,7 +21,7 @@ export function DocsSearch() {
       <div className="flex items-center gap-2 bg-[color:var(--secondary)] border border-[color:var(--border)] rounded-[3px] px-2.5 py-1.5">
         <span
           aria-hidden="true"
-          className="text-[color:var(--chart-4)] text-[16px] leading-none w-6 h-6 flex items-center justify-center shrink-0"
+          className="text-[color:var(--chart-4)] text-[16px] leading-none w-4 h-4 flex items-center justify-center shrink-0"
         >
           ⌕
         </span>
