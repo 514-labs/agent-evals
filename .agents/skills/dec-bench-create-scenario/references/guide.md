@@ -29,18 +29,13 @@ Use the current schema values inline instead of guessing.
 - `tier-2`
 - `tier-3`
 
-### Task Categories
+### Task Categories vs Registry Competencies
 
-- `schema-design`
-- `query-optimization`
-- `ingestion`
-- `migration`
-- `debugging`
-- `materialized-views`
-- `partitioning`
-- `replication`
-- `compression`
-- `monitoring`
+Two separate axes. `tasks[].category` goes in `scenario.json` (per-task activity). `--competencies` is passed to `dec-bench registry add` at publish time (per-scenario leaderboard tags). No strict mapping — pick 1–3 competencies that match what the scenario actually tests.
+
+**Task categories** (`tasks[].category`): `schema-design`, `query-optimization`, `ingestion`, `migration`, `debugging`, `materialized-views`, `partitioning`, `replication`, `compression`, `monitoring`.
+
+**Registry competencies** (`--competencies`): `environment-setup`, `data-modeling-and-schema-design`, `data-ingestion-and-integration`, `transformation-and-semantic-modeling`, `storage-and-data-layout`, `orchestration-and-dataops`, `data-quality-and-observability`, `reliability-and-fault-tolerance`, `distributed-systems-and-consistency`, `scalability-and-performance-engineering`, `security-privacy-and-governance`, `technology-selection-and-architecture-tradeoffs`.
 
 ### Built-In Harnesses
 
@@ -134,6 +129,41 @@ Heuristics:
 - Start with `tier-1` for a new pattern.
 - Use `tier-2` for most production-relevant evals.
 - Use `tier-3` only when cross-service reasoning is the point.
+
+## Infrastructure and Environment Files
+
+A scenario directory controls its runtime environment through four files. The base image (`docker/base/Dockerfile`) already includes Postgres 16, ClickHouse, Redpanda, Node.js 22, and Python 3 — a scenario chooses which of those to start and how they are configured.
+
+| File | Purpose | Required |
+|---|---|---|
+| `supervisord.conf` | Which services auto-start and in what order (`priority`). | yes |
+| `init/*.sql`, `init/*.sh` | Schema and seed data. Runs after services are ready, before the agent. | yes (at least one file) |
+| `env.sh` | Exported environment variables for non-default ports, credentials, and connection strings. Sourced before readiness checks, init, agent, and assertions. | optional |
+| `scenario.json::infrastructure` | Declarative marker of services and starting state. Used for registry and audit UI. | recommended |
+
+### `env.sh` contract
+
+When present at the scenario root, the entrypoint (`docker/base/entrypoint.sh`) sources it at the start of every lifecycle phase. Example from `scenarios/foo-bar-moose-csv-ingest/env.sh`:
+
+```bash
+#!/usr/bin/env bash
+
+export CLICKHOUSE_URL="http://panda:pandapass@localhost:18123"
+export CLICKHOUSE_HOST="localhost"
+export CLICKHOUSE_PORT="18123"
+export CLICKHOUSE_USER="panda"
+export CLICKHOUSE_PASSWORD="pandapass"
+```
+
+Use `env.sh` when:
+
+- The scenario uses a non-default port (e.g. Moose dockerless on 18123, not the image default).
+- Seed credentials are different from the image defaults and init scripts + assertions both need them.
+- A cross-service scenario needs a single source of truth for connection strings.
+
+Keep `env.sh` side-effect free — no network calls, no waits, no writes. Treat it as a pure export block.
+
+Reference example: `scenarios/foo-bar-moose-csv-ingest/env.sh`. Full docs: [Adding Multiple Services](https://decbench.ai/docs/add-eval/adding-multiple-services).
 
 ## Prompt Writing
 
@@ -301,19 +331,75 @@ Assertion heuristics:
 
 ## Harness Selection
 
+Harnesses define the tool layer on top of the base image. Each is a JSON file at `apps/web/data/harnesses/<id>.json`. The build pipeline (`docker/build.sh` → `docker/harness/Dockerfile`) extracts `installScript` and bakes it into an image layer at build time.
+
 | Harness | Use when | Notes |
 |---|---|---|
 | `base-rt` | default choice | base infra plus Python, Node.js, and common DB CLIs |
 | `classic-de` | dbt, Airflow, or heavier DE tooling | broader install surface, higher build cost |
 | `olap-for-swe` | MooseStack workflows | narrower but specialized |
 
-Create a custom harness only when:
+### Harness JSON schema
 
-- no built-in harness provides the needed packages
-- outbound network restrictions are part of the scenario
-- tool installation itself is part of the benchmark contract
+```json
+{
+  "id": "<matches filename>",
+  "title": "Display name",
+  "tagline": "One-line pitch",
+  "description": "What this harness adds on top of the base image.",
+  "installScript": "bash one-liner that runs at image build time",
+  "networkPolicy": "open",
+  "allowlistedEndpoints": [],
+  "tools": [
+    { "name": "moose-cli", "version": "0.6.506-ci-69-gb64f930bd", "category": "framework" }
+  ]
+}
+```
 
-Keep custom harness scripts short, reproducible, and version-pinned when it matters.
+Fields:
+
+- `installScript`: a single shell string executed as `bash -c` against the scenario image layer. Use `&&` chains, pin versions, and avoid long-running steps — build time hits the author feedback loop.
+- `networkPolicy`: `open` or `allowlist`. Most scenarios use `open`.
+- `allowlistedEndpoints`: list of hostnames when `networkPolicy` is `allowlist`.
+- `tools`: display-only manifest surfaced in the audit UI. Keep versions in sync with what `installScript` actually installs.
+
+### Adding a custom harness
+
+Create one only when:
+
+- No built-in harness provides the needed packages or tool versions.
+- Outbound network restrictions are part of the scenario.
+- Tool installation itself is part of the benchmark contract.
+
+Minimal custom harness:
+
+```json title="apps/web/data/harnesses/my-custom.json"
+{
+  "id": "my-custom",
+  "title": "My Custom Harness",
+  "tagline": "dbt-core + one extra CLI.",
+  "description": "Adds dbt-core and an internal CLI to the base image.",
+  "installScript": "pip3 install --no-cache-dir --break-system-packages dbt-core==1.10.19 && npm install -g some-cli@1.2.3",
+  "networkPolicy": "open",
+  "allowlistedEndpoints": [],
+  "tools": [
+    { "name": "dbt-core", "version": "1.10.19", "category": "framework" },
+    { "name": "some-cli", "version": "1.2.3", "category": "cli" }
+  ]
+}
+```
+
+Then list it in the scenario:
+
+```json
+"harnesses": ["my-custom"]
+```
+
+Keep custom harness scripts short, reproducible, and version-pinned. Full docs: [Creating a Custom Harness](https://decbench.ai/docs/add-eval/creating-a-custom-harness).
+
+### Tool-version pinning across scenarios
+
+Tool versions inside a harness are shared across every scenario that selects it. There is no per-scenario override today — a custom harness is the only supported way to run one scenario against a different Moose/dbt/514 version. (Per-scenario `toolPins` is tracked as a follow-up.)
 
 ## Registry Publish Flow
 

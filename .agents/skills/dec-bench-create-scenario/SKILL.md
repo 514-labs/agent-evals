@@ -49,6 +49,8 @@ dec-bench create \
 
 The scenario ID should be lowercase, hyphenated, and specific to the task (e.g. `foo-bar-csv-ingest`, not `data-test`).
 
+> **CLI version note.** This skill targets `dec-bench` v0.2.0 or later (`--harnesses` plural, `"harnesses": [...]` array in `scenario.json`). If your CLI errors with `unexpected argument '--harnesses'`, you are on v0.1.0 — upgrade with `curl -fsSL https://decbench.ai/install.sh | sh`.
+
 This generates the correct directory structure:
 
 ```
@@ -62,17 +64,18 @@ scenarios/<scenario-id>/
 
 ## Step 4: Complete scenario.json
 
-The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. Fill in the rest:
+The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. It does NOT emit `infrastructure` — you must add it by hand. Fill in:
 
 - `title`: human-readable name
 - `description`: concrete task description
 - `lede`: "In this scenario, an agent must..."
 - `tasks[]`: one or more tasks with `id`, `description`, and `category`
-- `infrastructure.services`: which services the scenario uses
-- `infrastructure.description`: what the starting state looks like
+- `infrastructure` (add this block yourself):
+  - `services`: array of service ids the scenario uses (`clickhouse`, `postgres`, `redpanda`, or `[]` for agent-bootstrapped)
+  - `description`: one-line summary of the starting state
 - `tags`: searchable terms
 
-Task categories: `schema-design`, `query-optimization`, `ingestion`, `migration`, `debugging`, `materialized-views`, `partitioning`, `replication`, `compression`, `monitoring`
+Task categories: `schema-design`, `query-optimization`, `ingestion`, `migration`, `debugging`, `materialized-views`, `partitioning`, `replication`, `compression`, `monitoring`. These describe the task activity (per-task, for `scenario.json`). Broader leaderboard capability tags (`--competencies`) are set separately at registry publish time — see `guide.md`.
 
 See [references/guide.md](references/guide.md) for the full schema contract and a worked example.
 
@@ -118,6 +121,19 @@ This is too vague, doesn't specify infrastructure, and doesn't set testable acce
 
 ## Step 6: Set up infrastructure and seed data
 
+A scenario controls its runtime environment through three files: `supervisord.conf` (which services start), `init/` (schema and seed data), and optionally `env.sh` (ports and connection strings). The base image (`docker/base/Dockerfile`) already includes Postgres, ClickHouse, Redpanda, Node.js, and Python — you do not install them.
+
+### What the scaffold gives you
+
+`dec-bench create` ships an opinionated Postgres-flavored starting point:
+
+- `supervisord.conf` with a `[program:postgres]` block that auto-starts Postgres.
+- `init/postgres-setup.sql` (placeholder).
+
+For ClickHouse-only, Redpanda-only, Moose-dockerless, or multi-service scenarios, overwrite or delete these — do not leave unused Postgres startup in place.
+
+### `supervisord.conf` — which services start
+
 Edit `supervisord.conf` to start only the services the scenario needs:
 
 ```ini
@@ -127,12 +143,103 @@ autostart=true
 autorestart=false
 ```
 
-Add init scripts in `init/` to create schemas and seed data. These run after services are ready but before the agent starts.
+Use `priority` to order startup when multiple services depend on each other. See [Adding Multiple Services](https://decbench.ai/docs/add-eval/adding-multiple-services) for the full multi-service pattern (Postgres → Redpanda → ClickHouse).
 
-- For broken/incomplete starts: seed defects (misconfigured connections, missing indexes, schema drift)
-- For greenfield starts: seed healthy infrastructure and source data
+For scenarios where the agent is expected to start services itself (e.g. `moose dev --dockerless`), leave `supervisord.conf` with just the `[supervisord]` header and no `[program:*]` blocks. `scenarios/foo-bar-moose-csv-ingest/supervisord.conf` is the reference example.
 
-Keep all seed data deterministic and reproducible.
+### `init/` — schema and seed data
+
+Add init scripts in `init/`. The entrypoint runs them after services pass readiness checks and before the agent starts. `.sql` files are piped into their service's client; `.sh` files are executed with bash.
+
+- For broken/incomplete starts: seed defects (misconfigured connections, missing indexes, schema drift).
+- For greenfield starts: seed healthy infrastructure and source data.
+
+**Source files (CSV, JSON, fixtures) live inside the container, not the scenario directory.** Write an `init/setup-*.sh` that creates `/data/<...>` and writes the files inline with heredocs so every run starts from a deterministic state:
+
+```bash
+#!/bin/bash
+mkdir -p /data/csv
+
+cat > /data/csv/events_01.csv << 'EOF'
+event_id,event_ts,user_id,event_type,value
+evt_001,2026-01-15T10:00:00Z,usr_01,click,1.5
+evt_002,2026-01-15T10:05:00Z,usr_02,purchase,42.0
+EOF
+```
+
+Reference: `scenarios/foo-bar-csv-ingest/init/setup-csvs.sh`. Keep all seed data deterministic — every run must start from the same state.
+
+### `env.sh` — custom ports and connection strings (optional)
+
+Add `env.sh` at the scenario root when the scenario uses non-default ports, non-default credentials, or needs to expose connection strings to init scripts, the agent, and assertions. The container entrypoint (`docker/base/entrypoint.sh`) **sources** `env.sh` (`. /scenario/env.sh`) before readiness checks, init scripts, agent execution, and assertions — so every layer sees the same values. No executable bit needed.
+
+```bash
+#!/usr/bin/env bash
+
+export CLICKHOUSE_URL="http://panda:pandapass@localhost:18123"
+export CLICKHOUSE_HOST="localhost"
+export CLICKHOUSE_PORT="18123"
+export CLICKHOUSE_USER="panda"
+export CLICKHOUSE_PASSWORD="pandapass"
+```
+
+Keep `env.sh` side-effect free: exports only, no waits, no network calls, no writes. Reference: `scenarios/foo-bar-moose-csv-ingest/env.sh`. Omit the file entirely if the scenario uses default ports and credentials.
+
+#### Bad example — DO NOT do this
+
+```bash
+#!/usr/bin/env bash
+
+export CLICKHOUSE_URL="http://localhost:18123"
+
+# BAD: blocks every lifecycle phase, turns env.sh into a readiness probe.
+until curl -sf http://localhost:18123/ping; do sleep 1; done
+
+# BAD: writes state on each sourcing (entrypoint, init, agent, assertions).
+echo "ClickHouse ready at $(date)" >> /tmp/startup.log
+```
+
+`env.sh` is sourced at the start of every lifecycle phase. Work belongs in `supervisord.conf` (readiness) or `init/*.sh` (one-time seeding), not here.
+
+## Step 6b: When no built-in harness fits
+
+The three built-in harnesses (`base-rt`, `classic-de`, `olap-for-swe`) live as JSON files at `apps/web/data/harnesses/<id>.json`. They define what gets installed on top of the base image, the network policy, and the tool manifest shown in the audit UI. Pick an existing one when its tool list covers your scenario.
+
+Create a **custom harness** only when:
+
+- No built-in harness provides the packages or tool versions you need.
+- The scenario requires outbound network restrictions beyond the harness default.
+- Tool installation itself is part of the benchmark contract.
+
+To add one, drop a new JSON file next to the built-ins:
+
+```json title="apps/web/data/harnesses/my-custom.json"
+{
+  "id": "my-custom",
+  "title": "My Custom Harness",
+  "tagline": "Short pitch.",
+  "description": "What the harness adds on top of the base image.",
+  "installScript": "pip3 install --no-cache-dir --break-system-packages dbt-core==1.10.19 && npm install -g some-cli@1.2.3",
+  "networkPolicy": "open",
+  "allowlistedEndpoints": [],
+  "tools": [
+    { "name": "dbt-core", "version": "1.10.19", "category": "framework" },
+    { "name": "some-cli", "version": "1.2.3", "category": "cli" }
+  ]
+}
+```
+
+Then list it in your scenario's `harnesses` array:
+
+```json
+"harnesses": ["my-custom"]
+```
+
+The `installScript` runs once at image-build time (see `docker/build.sh` and `docker/harness/Dockerfile`). Pin versions, keep the surface area small, and avoid long-running installs — build time directly hits the author's feedback loop.
+
+See [Creating a Custom Harness](https://decbench.ai/docs/add-eval/creating-a-custom-harness) for the full docs and `apps/web/data/harnesses/olap-for-swe.json` for a non-trivial worked example (Moose install, pinned versions, MCP config).
+
+**Note on tool versions in built-in harnesses:** as of today, tool versions in each built-in harness are shared across every scenario that selects that harness. If you need a different Moose/dbt/514 version for one specific scenario, forking to a custom harness is the only supported path.
 
 ## Step 7: Write gate assertions
 
@@ -181,14 +288,91 @@ Gate model:
 4. **Performant**: meets latency/throughput targets
 5. **Production**: you would ship it (no hardcoded secrets, tests present)
 
-Assertion context provides:
-- `ctx.clickhouse` for ClickHouse queries
-- `ctx.postgres` for Postgres queries
-- `ctx.env()` for environment variables
+### How a gate passes
 
-Shared helpers are available at `scenarios/_shared/assertion-helpers.ts` — read this file before writing production-gate assertions. It includes reusable checks like `scanWorkspaceForHardcodedConnections`, `hasReadmeOrDocs`, and `avoidsSelectStarQueries`.
+Each gate combines **core assertions** (framework-provided, you don't write them) with **scenario assertions** (the functions you export). A gate passes when:
 
-See [references/guide.md](references/guide.md) for examples of all five gates.
+1. **All core assertions pass** (not 80% — all of them).
+2. **Scenario assertion pass rate ≥ 0.8** (80% threshold, `PASS_THRESHOLD` in `packages/eval-core/src/runner.ts`).
+
+A failed gate blocks every subsequent gate in the scenario — downstream gates get marked as not-run. This is why assertion authoring discipline matters most at the earliest gates.
+
+If a scenario assertion file exports zero functions, its score is treated as 1.0 (vacuous truth) and the gate's pass/fail reduces to the core assertions. Empty files are valid but wasteful — you're letting the framework's core do all the work.
+
+### What core assertions already cover (you do not write these)
+
+| Gate | Core assertions | What they cover |
+|---|---:|---|
+| Functional | 2 | `process_exits_clean`, `no_unhandled_errors` (scans session log for tracebacks / panics) |
+| Correct | 0 | none — all checks are scenario-authored |
+| Robust | 1 | `idempotent_rerun` (second run against the same seed produces the same state) |
+| Performant | 0 | none — all checks are scenario-authored |
+| Production | 12 | env-var use, secret scan, output line count, dead-code markers, file size, debug artifacts, compiler errors, lint errors, type safety, focused functions, deep nesting |
+
+Production is where the framework does the heaviest lifting. Your scenario-authored production assertions should be surgical (README presence, no hardcoded connections, no SELECT *) — do not duplicate core checks. Shared helpers for these live at `scenarios/_shared/assertion-helpers.ts` (`scanWorkspaceForHardcodedConnections`, `hasReadmeOrDocs`, `avoidsSelectStarQueries`) — read that file before writing production assertions.
+
+### How many functions per file
+
+Typical scenarios ship **1–3 exported functions per gate file**. Observed across `foo-bar-csv-ingest`, `foo-bar-moose-csv-ingest`, `foo-bar-cross-system-reconciliation`, `foo-bar-clickhouse-materialized-view`, `foo-bar-slow-queries`:
+
+- `functional.ts`: 1–2 (beyond the 2 core checks)
+- `correct.ts`: 1–3 (this is where most scenario-specific correctness lives)
+- `robust.ts`: 2–3 (beyond `idempotent_rerun`)
+- `performant.ts`: 2–3
+- `production.ts`: 3–5 (on top of 12 core checks)
+
+If you find yourself writing 8+ functions in a single gate file, split the scenario.
+
+### Assertion context
+
+- `ctx.clickhouse` — ClickHouse client (use `ctx.clickhouse.query({ query, format: "JSONEachRow" })`)
+- `ctx.pg` — Postgres client (use `ctx.pg.query(sql, params)`)
+- `ctx.env(key)` — reads environment variables set by `env.sh` or the container
+
+### Good vs bad assertions
+
+Assertions must be **deterministic and exact**. Every run of the same scenario state must produce the same pass/fail result.
+
+Good — exact count, deterministic, useful failure detail:
+
+```typescript
+export async function all_fifteen_events_loaded(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events");
+  const count = Number(rows[0]?.n ?? 0);
+  return {
+    passed: count === 15,
+    message: count === 15 ? "All 15 events loaded." : `Expected 15, got ${count}.`,
+    details: { expected: 15, actual: count },
+  };
+}
+```
+
+Bad — text similarity / LLM-as-judge / subjective rubric:
+
+```typescript
+// DO NOT do this
+export async function data_looks_right(ctx: AssertionContext): Promise<AssertionResult> {
+  const rows = await queryRows(ctx, "SELECT * FROM events LIMIT 5");
+  const passed = JSON.stringify(rows).includes("evt_") && rows.length > 0;
+  return { passed, message: passed ? "Looks good." : "Doesn't look right." };
+}
+```
+
+Bad — time-dependent / flaky:
+
+```typescript
+// DO NOT do this
+export async function latency_ok(ctx: AssertionContext): Promise<AssertionResult> {
+  const start = Date.now();
+  await ctx.clickhouse.query({ query: "SELECT count() FROM analytics.events", format: "JSONEachRow" });
+  const elapsed = Date.now() - start;
+  return { passed: elapsed < 50, message: `Took ${elapsed}ms.` };
+}
+```
+
+The second version is flaky because network latency, cache state, and concurrent load make 50ms arbitrary. If you need a latency bound, choose one that survives retries (e.g. `< 500` for a simple count, not `< 50`) and average across a small number of runs in the assertion itself.
+
+See [references/guide.md](references/guide.md) for assertion examples at every gate.
 
 ## Step 8: Validate and test
 
@@ -212,9 +396,23 @@ Verify:
 4. **Making the informed prompt easier by changing the required outcome.** Both prompts must target the same acceptance criteria.
 5. **Using non-deterministic seed data.** Every run must start from the same state.
 6. **Generating a flat file structure.** The directory structure must match what `dec-bench create` produces.
+7. **Hard-coding non-default ports in init scripts and prompts.** Put them in `env.sh` instead so init, agent, and assertions all see the same values.
+8. **Pinning tool versions inside a prompt.** Tool versions belong in the harness JSON (`apps/web/data/harnesses/<id>.json`). If you need a different version than the built-in harness provides, add a custom harness — do not instruct the agent to `npm install` at runtime.
 
 ## Reference
 
-For the full schema contract, all enum values, assertion examples for every gate, and a worked example, see [references/guide.md](references/guide.md).
+For the full schema contract, all enum values, `env.sh` and harness JSON schemas, and assertion examples for every gate, see [references/guide.md](references/guide.md).
 
-For a complete real scenario to study, read the files in `scenarios/foo-bar-csv-ingest/`.
+For a scenario "that looks like mine," browse by shape rather than grepping `scenarios/`:
+
+- **Single-service ClickHouse, greenfield** — `foo-bar-csv-ingest`, `foo-bar-clickhouse-ttl-lifecycle`, `foo-bar-table-layout`
+- **Single-service ClickHouse, broken / seeded** — `foo-bar-slow-queries`, `foo-bar-clickhouse-materialized-view`, `foo-bar-clickhouse-historical-backfill`, `foo-bar-clickhouse-live-schema-migration`
+- **Single-service Postgres** — `foo-bar-postgres-index-tuning`, `foo-bar-postgres-readiness-race`, `foo-bar-postgres-table-partitioning`
+- **Single-service Redpanda** — `foo-bar-stream-schema-evolution`
+- **Two-service Redpanda → ClickHouse (stream to OLAP)** — `foo-bar-stream-to-olap`, `foo-bar-dlq-setup`, `foo-bar-consumer-lag-fix`, `foo-bar-topic-misconfiguration`
+- **Two-service Postgres + ClickHouse (OLTP + OLAP)** — `foo-bar-idempotent-pipeline`, `foo-bar-consistent-metrics-layer`, `foo-bar-ingest-to-api`, `foo-bar-schema-evolution`
+- **Two-service Postgres → Redpanda (CDC)** — `foo-bar-cdc-postgres-to-redpanda`, `foo-bar-event-sourcing-replay`
+- **Three-service full pipeline (Postgres → Redpanda → ClickHouse)** — `foo-bar-cross-system-reconciliation`, `foo-bar-full-pipeline-debug`, `foo-bar-realtime-streaming-metrics`
+- **Moose dockerless, agent bootstraps its own services** — `foo-bar-moose-csv-ingest`
+- **Multi-task (multiple categories in one scenario)** — `ecommerce-pipeline-recovery` (ingestion + debugging + monitoring), `foo-bar-ingest-to-api` (ingestion + materialized-views + schema-design)
+- **Custom `env.sh` for non-default ports / credentials** — `foo-bar-moose-csv-ingest`
