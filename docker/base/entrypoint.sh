@@ -405,36 +405,57 @@ process.stdout.write(JSON.stringify(result, null, 2) + "\n");
 ' "${max_lines}"
 }
 
+# Per-harness init support (514-1222): flat files in /scenario/init run for
+# every harness; files in /scenario/init/<harness-id>/ run only when that
+# harness is active.
+dispatch_init_script() {
+  local script="$1"
+  case "${script}" in
+    *.sql)
+      if [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]] && [[ "${script}" == *postgres* ]]; then
+        echo "Running Postgres init: ${script}"
+        psql "${POSTGRES_URL}" -f "${script}"
+      elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]] && [[ "${script}" == *clickhouse* ]]; then
+        echo "Running ClickHouse init: ${script}"
+        clickhouse-client --host "${CLICKHOUSE_HOST:-localhost}" --port 9000 --multiquery < "${script}"
+      elif [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]]; then
+        echo "Running SQL init (Postgres): ${script}"
+        psql "${POSTGRES_URL}" -f "${script}"
+      elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]]; then
+        echo "Running SQL init (ClickHouse): ${script}"
+        clickhouse-client --host "${CLICKHOUSE_HOST:-localhost}" --port 9000 --multiquery < "${script}"
+      else
+        echo "Skipping SQL init without a supervised database target: ${script}"
+      fi
+      ;;
+    *.sh)
+      echo "Running shell init: ${script}"
+      bash "${script}"
+      ;;
+  esac
+}
+
 run_init_scripts() {
   if [[ ! -d /scenario/init ]]; then
     return 0
   fi
   shopt -s nullglob
+
+  # Flat files in /scenario/init/ run for every harness (common setup).
+  # Subdirectories /scenario/init/<harness-id>/ run only when the matching
+  # harness is active. See SKILL.md "Three lifecycle moments".
   for script in /scenario/init/*; do
-    case "${script}" in
-      *.sql)
-        if [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]] && [[ "${script}" == *postgres* ]]; then
-          echo "Running Postgres init: ${script}"
-          psql "${POSTGRES_URL}" -f "${script}"
-        elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]] && [[ "${script}" == *clickhouse* ]]; then
-          echo "Running ClickHouse init: ${script}"
-          clickhouse-client --host "${CLICKHOUSE_HOST:-localhost}" --port 9000 --multiquery < "${script}"
-        elif [[ "${SUPERVISED_POSTGRES:-0}" == "1" ]]; then
-          echo "Running SQL init (Postgres): ${script}"
-          psql "${POSTGRES_URL}" -f "${script}"
-        elif [[ "${SUPERVISED_CLICKHOUSE:-0}" == "1" ]]; then
-          echo "Running SQL init (ClickHouse): ${script}"
-          clickhouse-client --host "${CLICKHOUSE_HOST:-localhost}" --port 9000 --multiquery < "${script}"
-        else
-          echo "Skipping SQL init without a supervised database target: ${script}"
-        fi
-        ;;
-      *.sh)
-        echo "Running shell init: ${script}"
-        bash "${script}"
-        ;;
-    esac
+    [[ -f "${script}" ]] || continue
+    dispatch_init_script "${script}"
   done
+
+  if [[ -n "${EVAL_HARNESS:-}" && -d "/scenario/init/${EVAL_HARNESS}" ]]; then
+    echo "Running harness-specific init for ${EVAL_HARNESS}"
+    for script in "/scenario/init/${EVAL_HARNESS}"/*; do
+      [[ -f "${script}" ]] || continue
+      dispatch_init_script "${script}"
+    done
+  fi
 }
 
 wait_for_postgres

@@ -118,6 +118,26 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
 
     write_file(&root.join("init/postgres-setup.sql"), "-- Schema and seed data for Postgres\n")?;
 
+    // When 2+ harnesses are declared, scaffold per-harness init subdirs.
+    // Files in init/<harness-id>/ run only when that harness is active;
+    // flat files in init/ run for every harness. See SKILL.md "Three lifecycle moments".
+    if args.harnesses.len() >= 2 {
+        for harness in &args.harnesses {
+            let subdir = root.join("init").join(harness);
+            fs::create_dir_all(&subdir)
+                .with_context(|| format!("Failed to create init/{harness} directory"))?;
+            write_file(
+                &subdir.join("seed-workspace.sh"),
+                &format!(
+                    "#!/bin/bash\n\
+                     # Per-harness init for `{harness}`. Runs only when this harness is active.\n\
+                     # Use this to seed harness-specific starting state (e.g. scaffold a Moose project,\n\
+                     # generate a dbt project, etc.). Common setup belongs in flat init/*.sh files.\n"
+                ),
+            )?;
+        }
+    }
+
     let gate_names = ["functional", "correct", "robust", "performant", "production"];
     for gate in &gate_names {
         write_file(
@@ -167,6 +187,20 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     println!("Created scenario at {}", root.display());
     println!();
     print_tree(&root, "", true)?;
+    println!();
+    println!("Three moments to know about:");
+    println!("  - To install a TOOL (e.g. a CLI like moose, dbt) -> add a custom harness in");
+    println!("    apps/web/data/harnesses/<id>.json (runs at image BUILD time, once per image).");
+    println!("  - To seed STATE for every harness -> flat files in init/ (run at container");
+    println!("    STARTUP, every run).");
+    if args.harnesses.len() >= 2 {
+        println!("  - To seed STATE that varies per harness -> files in init/<harness-id>/");
+        println!("    (run at container STARTUP, only when that harness is active).");
+        println!("    Subdirs were scaffolded for: {}.", args.harnesses.join(", "));
+    } else {
+        println!("  - To seed STATE that varies per harness -> files in init/<harness-id>/");
+        println!("    (only relevant when scenario declares 2+ harnesses).");
+    }
     println!();
     println!("Next steps:");
     println!("  1. Fill in prompts/baseline.md and prompts/informed.md");
@@ -253,5 +287,29 @@ mod tests {
         assert!(root.join("assertions/performant.ts").exists());
         assert!(root.join("assertions/production.ts").exists());
         assert!(root.join("supervisord.conf").exists());
+
+        // 3 harnesses declared -> per-harness init subdirs scaffolded.
+        assert!(root.join("init/base-rt/seed-workspace.sh").exists());
+        assert!(root.join("init/classic-de/seed-workspace.sh").exists());
+        assert!(root.join("init/olap-for-swe/seed-workspace.sh").exists());
+    }
+
+    #[tokio::test]
+    async fn create_skips_per_harness_subdirs_for_single_harness_scenarios() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let args = CreateArgs {
+            name: "single-harness-scenario".to_string(),
+            domain: Domain::FooBar,
+            tier: Tier::Tier1,
+            harnesses: vec!["base-rt".to_string()],
+            dir: temp.path().to_path_buf(),
+        };
+
+        execute(args).await.expect("create succeeds");
+
+        let root = temp.path().join("single-harness-scenario");
+        assert!(root.join("init/postgres-setup.sql").exists());
+        assert!(!root.join("init/base-rt").exists(),
+            "single-harness scenarios should NOT get a per-harness init subdir");
     }
 }
