@@ -21,20 +21,24 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
 
   return (
     <nav>
-      <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#A8A29E] block mb-1.5">
+      <p className="font-[family-name:var(--font-display)] font-normal text-[18px] leading-[28px] text-[color:var(--muted-foreground)] mb-3">
         On this page
-      </span>
-      <div ref={scrollRef} className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-160px)]">
+      </p>
+      <div
+        ref={scrollRef}
+        className="overflow-y-auto overflow-x-hidden max-h-[calc(100vh-160px)] pl-1"
+      >
         <ScrollProvider containerRef={scrollRef}>
-          <ul className="space-y-0.5">
+          <ul className="flex flex-col">
             {toc.map((item) => (
-              <li key={item.url} className="relative">
+              <li key={item.url}>
                 <TOCItem
                   href={item.url}
-                  className="toc-link group/toc relative block py-1.5 text-xs tracking-wide"
-                  style={{ paddingLeft: `${(item.depth - 2) * 0.5 + 1}rem` }}
+                  className="toc-link group/toc relative block py-[3px] pr-3 font-[family-name:var(--font-display)] text-[14px] leading-[1.4] text-[color:var(--muted-foreground)]"
+                  style={{
+                    paddingLeft: `${Math.max(0, item.depth - 2) * 12 + 16}px`,
+                  }}
                 >
-                  <span className="toc-indicator" />
                   <span className="toc-label">{item.title}</span>
                 </TOCItem>
               </li>

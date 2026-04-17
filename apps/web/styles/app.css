@@ -13,19 +13,20 @@
    ═══════════════════════════════════════════════ */
 
 .dec-prose {
-  --prose-body: oklch(0.25 0 0);
-  --prose-heading: oklch(0.05 0 0);
-  --prose-muted: oklch(0.45 0 0);
-  --prose-border: oklch(0.15 0 0);
-  --prose-border-light: oklch(0.15 0 0 / 0.12);
-  --prose-accent: #B91C1C;
-  --prose-surface: oklch(0.97 0 0);
+  --prose-body: var(--muted-foreground, #57534E);
+  --prose-heading: var(--foreground, #1C1917);
+  --prose-muted: var(--chart-4, #A8A29E);
+  --prose-border: var(--border, #D6D3D1);
+  --prose-border-strong: var(--foreground, #1C1917);
+  --prose-accent: var(--accent, #B91C1C);
+  --prose-surface: var(--secondary, #F5F3EE);
+  --prose-panel-bg: var(--background, #F9F7F3);
 
   font-family: var(--font-display), Georgia, serif;
   font-size: 14px;
   line-height: 1.85;
   color: var(--prose-body);
-  max-width: 68ch;
+  max-width: 100%;
 }
 
 .dec-prose > * + * {
@@ -36,11 +37,11 @@
 
 .dec-prose h1 {
   font-family: var(--font-display), system-ui, sans-serif;
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
-  line-height: 0.9;
-  letter-spacing: -0.02em;
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 600;
   color: var(--prose-heading);
-  margin-top: 2.5em;
+  margin-top: 2em;
   margin-bottom: 0.5em;
   scroll-margin-top: 6rem;
 }
@@ -51,37 +52,36 @@
 
 .dec-prose h2 {
   font-family: var(--font-display), system-ui, sans-serif;
-  font-size: clamp(1.35rem, 3vw, 1.75rem);
-  line-height: 0.95;
-  letter-spacing: -0.015em;
+  font-size: 24px;
+  line-height: 29px;
+  font-weight: 700;
   color: var(--prose-heading);
-  margin-top: 2.25em;
-  margin-bottom: 0.6em;
-  padding-top: 1.5em;
+  margin-top: 2em;
+  margin-bottom: 0.65em;
   scroll-margin-top: 6rem;
 }
 
 .dec-prose > h2:first-child {
   margin-top: 0;
-  padding-top: 0;
-  border-top: none;
 }
 
 .dec-prose h3 {
-  font-size: 13px;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 20px;
+  line-height: 1.25;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--prose-heading);
-  margin-top: 2em;
+  color: var(--prose-body);
+  margin-top: 1.75em;
   margin-bottom: 0.4em;
   scroll-margin-top: 6rem;
 }
 
 .dec-prose h4 {
+  font-family: var(--font-display), system-ui, sans-serif;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--prose-muted);
+  color: var(--prose-body);
   margin-top: 1.5em;
   margin-bottom: 0.3em;
   scroll-margin-top: 6rem;
@@ -91,7 +91,7 @@
 
 .dec-prose p {
   margin-bottom: 1em;
-  max-width: 65ch;
+  line-height: 26px;
 }
 
 .dec-prose strong {
@@ -103,9 +103,18 @@
   font-style: italic;
 }
 
-/* ── Links ── */
+/* ── Links ──
+   Scope the accented body-link treatment to text contexts only.
+   Fumadocs wraps each heading in a deep-link anchor; if we styled
+   every `.dec-prose a` it would put a red underline under every h2/h3.
+*/
 
-.dec-prose a {
+.dec-prose p a,
+.dec-prose li a,
+.dec-prose td a,
+.dec-prose th a,
+.dec-prose dd a,
+.dec-prose blockquote a {
   color: var(--prose-heading);
   font-weight: 700;
   text-decoration: none;
@@ -113,9 +122,28 @@
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.dec-prose a:hover {
-  background-color: var(--prose-accent);
+.dec-prose p a:hover,
+.dec-prose li a:hover,
+.dec-prose td a:hover,
+.dec-prose th a:hover,
+.dec-prose dd a:hover,
+.dec-prose blockquote a:hover {
+  background-color: var(--chart-5, #D6D3D1);
   color: var(--prose-heading);
+}
+
+/* Heading deep-link anchors (fumadocs) should not look like body links. */
+.dec-prose h1 a,
+.dec-prose h2 a,
+.dec-prose h3 a,
+.dec-prose h4 a,
+.dec-prose h5 a,
+.dec-prose h6 a {
+  color: inherit;
+  font-weight: inherit;
+  border-bottom: none;
+  text-decoration: none;
+  background: transparent;
 }
 
 /* ── Lists ── */
@@ -161,13 +189,14 @@
   margin-bottom: 0;
 }
 
-/* ── Blockquotes ── */
+/* ── Blockquotes / callouts ── */
 
 .dec-prose blockquote {
-  border-left: 4px solid var(--prose-accent);
-  padding: 0.5em 0 0.5em 1.25em;
+  border-left: 3px solid var(--prose-accent);
+  background: var(--prose-surface);
+  padding: 0.75em 1.25em;
   margin: 1.5em 0;
-  color: var(--prose-muted);
+  color: var(--prose-body);
 }
 
 .dec-prose blockquote p {
@@ -178,15 +207,31 @@
   margin-bottom: 0;
 }
 
+.dec-prose blockquote strong:first-child {
+  display: block;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--prose-heading);
+  margin-bottom: 0.25em;
+}
+
 /* ── Inline code ── */
 
 .dec-prose :not(pre) > code {
+  /* Plain `inline` lets wrapping inherit the parent's line-height.
+     Parents that place many inline-code badges in a row (tables, p badges)
+     bump their own line-height so badges don't overlap when they wrap. */
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.9em;
+  font-size: 12.6px;
   background: var(--prose-surface);
-  border: 1px solid var(--prose-border-light);
-  padding: 0.15em 0.4em;
+  border: 1px solid var(--muted-foreground);
+  border-radius: 2px;
+  padding: 2px 6px;
   font-weight: 400;
+  color: var(--prose-body);
 }
 
 /* ── Code blocks (pre > code) ── */
@@ -210,20 +255,23 @@
   width: 100%;
   border-collapse: collapse;
   margin: 1.5em 0;
-  font-size: 13px;
+  font-size: 12px;
+  background: transparent;
 }
 
 .dec-prose thead {
-  background: var(--prose-heading);
-  color: white;
+  background: var(--prose-surface);
+  border-bottom: 1px solid var(--prose-surface);
 }
 
 .dec-prose thead th {
+  font-family: var(--font-display), system-ui, sans-serif;
   font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  padding: 0.6em 1em;
+  color: var(--prose-heading);
+  padding: 12px 18px;
   text-align: left;
 }
 
@@ -232,10 +280,23 @@
   letter-spacing: normal;
 }
 
+.dec-prose tbody tr {
+  border-bottom: 1px solid var(--prose-surface);
+}
+
+.dec-prose tbody tr:last-child {
+  border-bottom: 1px solid var(--prose-surface);
+}
+
 .dec-prose tbody td {
-  padding: 0.65em 1em;
-  border-top: 1px solid var(--prose-border-light);
-  color: var(--prose-muted);
+  font-family: var(--font-display), Georgia, serif;
+  padding: 12px 18px;
+  color: var(--prose-body);
+  /* Generous line-height so wrapped inline-code badges don't overlap */
+  line-height: 2.2;
+  font-size: 12px;
+  font-weight: 400;
+  vertical-align: top;
 }
 
 .dec-prose tbody tr:hover {
@@ -246,8 +307,8 @@
 
 .dec-prose hr {
   border: none;
-  border-top: 3px solid var(--prose-border);
-  margin: 2.5em 0;
+  border-top: 1px solid var(--prose-border);
+  margin: 2.25em 0;
 }
 
 /* ── Images ── */
@@ -255,7 +316,7 @@
 .dec-prose img {
   max-width: 100%;
   height: auto;
-  border: 3px solid var(--prose-border);
+  border: 1px solid var(--prose-border);
   margin: 1.5em 0;
 }
 
@@ -298,11 +359,12 @@
 }
 
 .dec-prose figure.shiki {
-  margin: 1.75em 0;
-  border: 3px solid var(--prose-border) !important;
-  border-radius: 0 !important;
+  margin: 1.5em 0;
+  border: 1px solid var(--prose-border) !important;
+  border-radius: 3px !important;
   box-shadow: none !important;
   overflow: hidden;
+  background: var(--card, #ffffff) !important;
 }
 
 .dec-prose figure.shiki > div:first-child:has(figcaption) {
@@ -310,35 +372,53 @@
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
-  background: var(--prose-heading) !important;
-  color: white !important;
-  border-bottom: 3px solid var(--prose-border) !important;
+  letter-spacing: 0.1em;
+  background: var(--card, #ffffff) !important;
+  color: var(--prose-body) !important;
+  border-bottom: 1px solid var(--prose-border) !important;
   border-radius: 0;
-  height: auto;
-  padding: 0.6em 1.25em;
+  height: 32px;
+  padding: 0 14px;
 }
 
 .dec-prose figure.shiki > div:first-child:has(figcaption) figcaption {
-  color: white !important;
+  color: var(--prose-body) !important;
 }
 
 .dec-prose figure.shiki > div:first-child:has(figcaption) svg {
-  color: white !important;
+  color: var(--prose-body) !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 
 .dec-prose figure.shiki > div:first-child:has(figcaption) button {
-  color: white !important;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
+  /* Keep the copy control as an icon-only affordance. */
+  color: var(--prose-body) !important;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 
 .dec-prose figure.shiki > div:first-child:has(figcaption) button:hover {
   opacity: 1;
+  color: var(--prose-heading) !important;
 }
 
 .dec-prose figure.shiki > div[role="region"] {
-  padding: 1.25em;
+  padding: 14px 20px;
+  background: var(--card, #ffffff) !important;
+}
+
+.dec-prose figure.shiki pre {
+  margin: 0;
+  border: none !important;
+  background: transparent !important;
+}
+
+.dec-prose figure.shiki code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 22px;
+  color: #3a3a3a;
 }
 
 @layer utilities {
@@ -357,7 +437,7 @@
   }
 
   .dec-prose .fd-scroll-container::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.65 0.28 328);
+    background: #57534E;
   }
 
   .dec-prose .fd-scroll-container::-webkit-scrollbar-corner {
@@ -365,23 +445,12 @@
   }
 }
 
-.dec-prose figure.shiki pre {
-  margin: 0;
-  border: none !important;
-  background: transparent !important;
-}
-
-.dec-prose figure.shiki code {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 13px;
-  line-height: 1.7;
-}
-
+/* Standalone (untitled) code blocks: they render a single region + copy button */
 .dec-prose figure.shiki > div:last-child button,
 .dec-prose figure.shiki > div:only-child button {
-  color: var(--prose-muted) !important;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
+  color: var(--prose-body) !important;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 
 .dec-prose figure.shiki > div:last-child button:hover,
@@ -514,12 +583,12 @@
    ═══════════════════════════════════════════════ */
 
 .dec-prose div.not-prose.bg-fd-card {
-  border: 3px solid var(--prose-border) !important;
-  border-radius: 0 !important;
-  background: white !important;
+  border: 1px solid var(--prose-border) !important;
+  border-radius: 3px !important;
+  background: var(--prose-panel-bg) !important;
   padding: 0.75em 1em !important;
   box-shadow: none !important;
-  margin: 1.75em 0;
+  margin: 1.5em 0;
   font-family: var(--font-mono), ui-monospace, monospace;
 }
 
@@ -555,10 +624,11 @@
    ═══════════════════════════════════════════════ */
 
 .dec-prose .dec-mermaid {
-  margin: 1.75em 0;
+  margin: 1.5em 0;
   padding: 2em 1.5em;
-  border: 3px solid var(--prose-border);
-  background: white;
+  border: 1px solid var(--prose-border);
+  border-radius: 3px;
+  background: var(--prose-panel-bg);
   overflow-x: auto;
   text-align: center;
 }
@@ -599,26 +669,15 @@
 .toc-link {
   --toc-speed: 220ms;
   --toc-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  color: oklch(0.25 0 0 / 0.9);
-  transition: color var(--toc-speed) var(--toc-ease);
+  border-left: 1px solid var(--border);
+  color: var(--muted-foreground);
+  transition:
+    color var(--toc-speed) var(--toc-ease),
+    border-color var(--toc-speed) var(--toc-ease);
 }
 
 .toc-link:hover {
-  color: oklch(0.25 0 0 / 1);
-}
-
-.toc-link .toc-indicator {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: transparent;
-  transform: scaleY(0);
-  transform-origin: top;
-  transition:
-    background var(--toc-speed) var(--toc-ease),
-    transform var(--toc-speed) var(--toc-ease);
+  color: var(--foreground);
 }
 
 .toc-link .toc-label {
@@ -628,13 +687,10 @@
 }
 
 .toc-link[data-active="true"] {
-  color: oklch(0.05 0 0);
-  font-weight: 700;
-}
-
-.toc-link[data-active="true"] .toc-indicator {
-  background: #B91C1C;
-  transform: scaleY(1);
+  color: var(--foreground);
+  border-left-color: var(--accent);
+  border-left-width: 2px;
+  margin-left: -1px;
 }
 
 
