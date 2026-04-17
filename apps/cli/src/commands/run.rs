@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use bollard::container::{
     Config, CreateContainerOptions, KillContainerOptions, LogOutput, LogsOptions,
-    StartContainerOptions, WaitContainerOptions,
+    RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
 };
 use bollard::models::HostConfig;
 use bollard::Docker;
@@ -167,16 +167,6 @@ const DEFAULT_AGENTS: &[(&str, &str)] = &[
 
 pub async fn execute(args: RunArgs) -> Result<()> {
     if args.matrix {
-        preflight::check_docker()?;
-        let docker = Docker::connect_with_local_defaults()
-            .context("Failed to connect to Docker daemon")?;
-
-        let scenarios = load_scenarios_with_harnesses()?;
-        if scenarios.is_empty() {
-            bail!("No scenarios found");
-        }
-
-
         let agent_models: Vec<(String, String)> = if args.agent_models.is_empty() {
             DEFAULT_AGENTS
                 .iter()
@@ -197,8 +187,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         preflight::validate_agent_model_keys(&pairs).await?;
 
         preflight::check_docker()?;
-        let docker = Docker::connect_with_local_defaults()
-            .context("Failed to connect to Docker daemon")?;
+        let docker = preflight::connect_docker()?;
 
         let scenarios = load_scenarios_with_harnesses()?;
         if scenarios.is_empty() {
@@ -356,8 +345,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
     preflight::validate_agent_model_keys(&[(&args.agent, &args.model)]).await?;
 
     preflight::check_docker()?;
-    let docker =
-        Docker::connect_with_local_defaults().context("Failed to connect to Docker daemon")?;
+    let docker = preflight::connect_docker()?;
     info!(scenario, harness = %args.harness, "Starting eval run");
     run_single(
         &docker,
@@ -447,10 +435,7 @@ async fn run_single(
                 env: Some(env),
                 attach_stdout: Some(true),
                 attach_stderr: Some(true),
-                host_config: Some(HostConfig {
-                    auto_remove: Some(true),
-                    ..Default::default()
-                }),
+                host_config: Some(HostConfig::default()),
                 ..Default::default()
             },
         )
@@ -549,8 +534,15 @@ async fn run_single(
                         Some(KillContainerOptions { signal: "SIGKILL" }),
                     )
                     .await;
-                // Brief pause for container cleanup
-                tokio::time::sleep(Duration::from_secs(2)).await;
+                let _ = docker
+                    .remove_container(
+                        &container_name,
+                        Some(RemoveContainerOptions {
+                            force: true,
+                            ..Default::default()
+                        }),
+                    )
+                    .await;
                 bail!(
                     "Run timed out after {} minutes for scenario '{}'",
                     args.timeout,
@@ -561,6 +553,16 @@ async fn run_single(
     } else {
         run_container.await?
     };
+
+    let _ = docker
+        .remove_container(
+            &container_name,
+            Some(RemoveContainerOptions {
+                force: true,
+                ..Default::default()
+            }),
+        )
+        .await;
 
     let agent_stdout = extract_marked_block(&stdout_buffer, AGENT_STDOUT_START, AGENT_STDOUT_END);
     let agent_raw_json = extract_marked_block(&stdout_buffer, AGENT_RAW_START, AGENT_RAW_END);
