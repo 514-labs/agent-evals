@@ -121,7 +121,22 @@ This is too vague, doesn't specify infrastructure, and doesn't set testable acce
 
 ## Step 6: Set up infrastructure and seed data
 
-A scenario controls its runtime environment through three files: `supervisord.conf` (which services start), `init/` (schema and seed data), and optionally `env.sh` (ports and connection strings). The base image (`docker/base/Dockerfile`) already includes Postgres, ClickHouse, Redpanda, Node.js, and Python — you do not install them.
+A scenario controls its runtime environment through three files: `supervisord.conf` (which services start), `init/` (schema and seed data, with optional per-harness subdirs), and optionally `env.sh` (ports and connection strings). The base image (`docker/base/Dockerfile`) already includes Postgres, ClickHouse, Redpanda, Node.js, and Python — you do not install them.
+
+Three setup layers. Put each thing in the right one:
+
+| Layer | Lives in | Runs at | Contents |
+|---|---|---|---|
+| 1. Harness install | `apps/web/data/harnesses/<id>.json::installScript` | Image build, once per image | **Tools.** CLIs and frameworks: Moose CLI, dbt, the 514 CLI, language runtimes beyond the base. |
+| 2. Scenario init (common) | `scenarios/<id>/init/*.sh`, `*.sql` | Container startup, every run | **Seed data, common.** Schemas, tables, fixtures, CSVs, deterministic source state that applies to every harness. |
+| 3. Scenario init (per-harness) | `scenarios/<id>/init/<harness-id>/*` | Container startup, only when that harness is active | **Seed data, harness-specific.** Starting state that differs per harness — e.g. a scaffolded Moose project vs a scaffolded dbt project in a comparison scenario. |
+
+Rules of thumb:
+
+- Installing a tool? Layer 1 (harness). See Step 6b.
+- Seeding state every harness needs? Layer 2 (flat `init/`).
+- Seeding state only one harness needs? Layer 3 (`init/<harness-id>/`). Almost always comparison scenarios.
+- Mixing Layer 1 and Layer 2 is the most common mistake: installing a CLI in `init/*.sh` runs it every single run and leaks setup across scenarios.
 
 ### What the scaffold gives you
 
@@ -168,6 +183,19 @@ EOF
 ```
 
 Reference: `scenarios/foo-bar-csv-ingest/init/setup-csvs.sh`. Keep all seed data deterministic — every run must start from the same state.
+
+#### Per-harness init (for comparison scenarios)
+
+When a scenario runs under multiple harnesses and the seeded starting state differs per harness, put harness-specific scripts in `init/<harness-id>/`. These run only when that harness is active. Flat files in `init/` still run first for every harness.
+
+```
+scenarios/foo-bar-ingest-compare/init/
+├── 01-clickhouse-setup.sql              # common — runs for every harness
+├── olap-for-swe-moose-0.3/seed.sh       # runs only when harness is olap-for-swe-moose-0.3
+└── classic-de/seed.sh                   # runs only when harness is classic-de
+```
+
+Run order: flat files first (alphabetical), then the matching subdir (alphabetical within). Subdir names must match entries in `scenario.json`'s `harnesses[]`; `dec-bench validate` warns on drift. `dec-bench create` scaffolds subdir skeletons automatically when you pass 2+ entries to `--harnesses`.
 
 ### `env.sh` — custom ports and connection strings (optional)
 

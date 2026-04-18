@@ -137,7 +137,8 @@ A scenario directory controls its runtime environment through four files. The ba
 | File | Purpose | Required |
 |---|---|---|
 | `supervisord.conf` | Which services auto-start and in what order (`priority`). | yes |
-| `init/*.sql`, `init/*.sh` | Schema and seed data. Runs after services are ready, before the agent. | yes (at least one file) |
+| `init/*.sql`, `init/*.sh` | Schema and seed data, common to every harness. Runs after services are ready, before the agent. | yes (at least one file) |
+| `init/<harness-id>/*` | Harness-specific seed data for comparison scenarios. Runs only when that harness is active, after flat init, before the agent. Subdir names must match `scenario.json::harnesses[]`. | optional |
 | `env.sh` | Exported environment variables for non-default ports, credentials, and connection strings. Sourced before readiness checks, init, agent, and assertions. | optional |
 | `scenario.json::infrastructure` | Declarative marker of services and starting state. Used for registry and audit UI. | recommended |
 
