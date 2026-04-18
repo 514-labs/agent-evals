@@ -18,11 +18,19 @@ export const HARNESS_MATRIX_MDASH = "\u2014";
 
 const MDASH = HARNESS_MATRIX_MDASH;
 
+/** Checklist size for this matrix; gate strings use `passed/total` (e.g. 5/5). */
+export const HARNESS_MATRIX_GATE_MAX = 5;
+
 export type ParsedHarnessPoint = {
   persona: string;
   score: number;
+  /** Count of checklist checks passed (numerator of gate, 0–`gateTotal`). */
+  gatePassed: number;
+  /** Checklist size (denominator of gate); scenarios here use 5. */
+  gateTotal: number;
   timeSec: number;
   costUsd: number;
+  turns: number;
 };
 
 function parseCostUsd(s: string): number | null {
@@ -43,13 +51,40 @@ function parseScoreNum(s: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Row with all three metrics present (excludes harness rows with no run). */
+function parseTurns(s: string): number | null {
+  if (s === MDASH) return null;
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Parses `5/5`, `1/5`, etc. Null if missing or malformed. */
+export function parseGateParts(s: string): { passed: number; total: number } | null {
+  if (s === MDASH) return null;
+  const m = s.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (!m) return null;
+  const passed = parseInt(m[1]!, 10);
+  const total = parseInt(m[2]!, 10);
+  if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(passed) || passed < 0 || passed > total) return null;
+  return { passed, total };
+}
+
+/** Row with score, gate, cost, time, and turns present (excludes harness rows with no run). */
 export function parseHarnessMatrixRow(row: HarnessMatrixRow): ParsedHarnessPoint | null {
   const costUsd = parseCostUsd(row.cost);
   const timeSec = parseTimeSec(row.time);
   const score = parseScoreNum(row.score);
-  if (costUsd === null || timeSec === null || score === null) return null;
-  return { persona: row.persona, score, timeSec, costUsd };
+  const turns = parseTurns(row.turns);
+  const gate = parseGateParts(row.gate);
+  if (costUsd === null || timeSec === null || score === null || turns === null || gate === null) return null;
+  return {
+    persona: row.persona,
+    score,
+    gatePassed: gate.passed,
+    gateTotal: gate.total,
+    timeSec,
+    costUsd,
+    turns,
+  };
 }
 
 export const HARNESS_MATRIX_SCENARIO_ORDER = [

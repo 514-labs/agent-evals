@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { scaleLinear } from "d3-scale";
+import { buildHarnessScenarioNarrative } from "@/data/harness-scenario-narrative";
 import {
+  HARNESS_MATRIX_GATE_MAX,
   HARNESS_MATRIX_SCENARIO_ORDER,
   harnessMatrixPointsByScenario,
   type ParsedHarnessPoint,
@@ -34,17 +36,105 @@ function padDomain(low: number, high: number, padFrac: number, clampLowZero: boo
   return [lo, high + p];
 }
 
-type XMode = "cost" | "time";
+const X_METRICS = [
+  {
+    key: "costUsd" as const,
+    heading: "Cost",
+    label: "Cost (USD)",
+    axisDescription: "run cost in USD (lower is better)",
+  },
+  {
+    key: "timeSec" as const,
+    heading: "Time",
+    label: "Time (s)",
+    axisDescription: "wall-clock run time in seconds (lower is better)",
+  },
+  {
+    key: "turns" as const,
+    heading: "Turns",
+    label: "Turns",
+    axisDescription: "agent turn count (lower is better)",
+  },
+] as const;
 
-/** Y = gated score; X = cost (USD) or time (s) per `xField`. */
+type XField = (typeof X_METRICS)[number]["key"];
+
+function xMetricMeta(field: XField) {
+  return X_METRICS.find((m) => m.key === field)!;
+}
+
+function formatXTick(field: XField, t: number): string {
+  if (field === "costUsd") return t.toFixed(2);
+  return `${Math.round(t)}`;
+}
+
+const Y_METRICS = [
+  {
+    key: "score" as const,
+    heading: "Score",
+    axisShort: "Score",
+    label: "Score",
+    axisDescription: "gated composite score on a 0–1 scale (higher is better)",
+  },
+  {
+    key: "gatePassed" as const,
+    heading: "Gate Achievement",
+    axisShort: "Gate",
+    label: "Gate Achievement",
+    axisDescription: `checklist checks passed (0–${HARNESS_MATRIX_GATE_MAX}; higher is better)`,
+  },
+] as const;
+
+type YField = (typeof Y_METRICS)[number]["key"];
+
+function yMetricMeta(field: YField) {
+  return Y_METRICS.find((m) => m.key === field)!;
+}
+
+/** Renders `**bold**` segments as `<strong>`. */
+function renderInlineBold(text: string): ReactNode {
+  const out: ReactNode[] = [];
+  const re = /\*\*(.+?)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let k = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(
+      <strong key={k++} className="font-semibold text-[color:var(--foreground)]">
+        {m[1]}
+      </strong>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out.length > 0 ? out : text;
+}
+
+function yValue(p: ParsedHarnessPoint, yField: YField): number {
+  return yField === "score" ? p.score : p.gatePassed;
+}
+
+function yDomain(yField: YField): [number, number] {
+  return yField === "score" ? [0, 1] : [0, HARNESS_MATRIX_GATE_MAX];
+}
+
+function formatYTick(yField: YField, t: number): string {
+  return yField === "score" ? t.toFixed(2) : `${Math.round(t)}`;
+}
+
+/** Y = gated score (0–1) or checks passed (0–5); X = cost, time, or turns. */
 function ScoreVersusScatter({
   points,
   xField,
+  yField,
 }: {
   points: ParsedHarnessPoint[];
-  xField: "costUsd" | "timeSec";
+  xField: XField;
+  yField: YField;
 }) {
-  const xLabel = xField === "costUsd" ? "Cost (USD)" : "Time (s)";
+  const { label: xLabel } = xMetricMeta(xField);
+  const { axisShort: yAxisShort } = yMetricMeta(yField);
 
   if (points.length === 0) {
     return (
@@ -55,20 +145,25 @@ function ScoreVersusScatter({
   }
 
   const xs = points.map((p) => p[xField]);
-  const scores = points.map((p) => p.score);
   const [xMin, xMax] = padDomain(Math.min(...xs), Math.max(...xs), 0.12, true);
-  const [yMin, yMax] = padDomain(Math.min(...scores), Math.max(...scores), 0.12, true);
 
   const xScale = scaleLinear().domain([xMin, xMax]).range([0, INNER_W]);
-  const yScale = scaleLinear().domain([yMin, yMax]).range([INNER_H, 0]);
+  const [y0, y1] = yDomain(yField);
+  const yScale = scaleLinear().domain([y0, y1]).range([INNER_H, 0]);
   const xTicks = xScale.ticks(4);
-  const yTicks = yScale.ticks(4);
+  const yTicks =
+    yField === "score" ? yScale.ticks(4) : Array.from({ length: HARNESS_MATRIX_GATE_MAX + 1 }, (_, i) => i);
 
   const midY = PAD.t + INNER_H / 2;
 
   return (
     <div className="w-full max-w-[420px]">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto overflow-visible" role="img" aria-label={`Score vs ${xLabel}`}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-auto overflow-visible"
+        role="img"
+        aria-label={`${yMetricMeta(yField).label} vs ${xLabel}`}
+      >
         <text
           x={14}
           y={midY}
@@ -80,7 +175,7 @@ function ScoreVersusScatter({
           fontWeight={700}
           transform={`rotate(-90, 14, ${midY})`}
         >
-          Score
+          {yAxisShort}
         </text>
 
         <g transform={`translate(${PAD.l},${PAD.t})`}>
@@ -119,7 +214,7 @@ function ScoreVersusScatter({
               fill="var(--muted-foreground)"
               fontFamily="var(--font-mono)"
             >
-              {xField === "costUsd" ? t.toFixed(2) : `${Math.round(t)}`}
+              {formatXTick(xField, t)}
             </text>
           ))}
           {yTicks.map((t) => (
@@ -132,7 +227,7 @@ function ScoreVersusScatter({
               fill="var(--muted-foreground)"
               fontFamily="var(--font-mono)"
             >
-              {t.toFixed(2)}
+              {formatYTick(yField, t)}
             </text>
           ))}
           <text
@@ -149,7 +244,7 @@ function ScoreVersusScatter({
 
           {points.map((p) => {
             const cx = xScale(p[xField]);
-            const cy = yScale(p.score);
+            const cy = yScale(yValue(p, yField));
             const fill = PERSONA_FILL[p.persona] ?? "#888";
             return (
               <g key={p.persona}>
@@ -178,76 +273,123 @@ function ScoreVersusScatter({
 }
 
 export function HarnessScenarioMatrixCharts() {
-  const [mode, setMode] = useState<XMode>("cost");
-  const xField = mode === "cost" ? "costUsd" : "timeSec";
-  const byScenario = harnessMatrixPointsByScenario();
+  const [xField, setXField] = useState<XField>("costUsd");
+  const [yField, setYField] = useState<YField>("score");
+  const [scenario, setScenario] = useState<(typeof HARNESS_MATRIX_SCENARIO_ORDER)[number]>(
+    HARNESS_MATRIX_SCENARIO_ORDER[0]!,
+  );
+  const byScenario = useMemo(() => harnessMatrixPointsByScenario(), []);
+  const points = byScenario.get(scenario) ?? [];
+  const xMeta = xMetricMeta(xField);
+  const yMeta = yMetricMeta(yField);
+  const { heading: xHeading } = xMeta;
+  const { heading: yHeading } = yMeta;
+  const { topline, paragraphs: narrativeParagraphs } = buildHarnessScenarioNarrative(
+    scenario,
+    points,
+    xField,
+    yField,
+  );
 
   return (
-    <div className="space-y-0 border border-[color:var(--border)] bg-[color:var(--card)] px-3 py-4 sm:px-5 sm:py-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--border)] pb-4">
-        <div className="flex items-center gap-3">
+    <div className="inline-block max-w-full space-y-0 border border-[color:var(--border)] bg-[color:var(--card)] px-3 py-4 sm:px-5 sm:py-6">
+      <div className="mb-5 flex flex-col gap-3 border-b border-[color:var(--border)] pb-4 sm:flex-row sm:flex-wrap sm:items-center">
+        <label className="flex flex-wrap items-center gap-2">
           <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
-            Score vs.
+            Vertical
           </span>
-          <div className="flex">
-            <button
-              type="button"
-              onClick={() => setMode("cost")}
-              className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
-                mode === "cost"
-                  ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
-              }`}
-            >
-              Cost
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("time")}
-              className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border border-l-0 px-3 py-1 transition-colors ${
-                mode === "time"
-                  ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
-              }`}
-            >
-              Time
-            </button>
+          <select
+            value={yField}
+            onChange={(e) => setYField(e.target.value as YField)}
+            className="max-w-[min(100%,16rem)] border border-[color:var(--secondary)] bg-[color:var(--card)] px-2 py-1.5 font-[family-name:var(--font-mono)] text-[11px] font-semibold text-[color:var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[color:var(--foreground)]/20"
+          >
+            {Y_METRICS.map((m) => (
+              <option key={m.key} value={m.key}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-wrap items-center gap-2 sm:ml-1">
+          <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
+            Horizontal
+          </span>
+          <select
+            value={xField}
+            onChange={(e) => setXField(e.target.value as XField)}
+            className="border border-[color:var(--secondary)] bg-[color:var(--card)] px-2 py-1.5 font-[family-name:var(--font-mono)] text-[11px] font-semibold text-[color:var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[color:var(--foreground)]/20"
+          >
+            {X_METRICS.map((m) => (
+              <option key={m.key} value={m.key}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-wrap items-center gap-2 sm:ml-1">
+          <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
+            Scenario
+          </span>
+          <select
+            value={scenario}
+            onChange={(e) => setScenario(e.target.value as (typeof HARNESS_MATRIX_SCENARIO_ORDER)[number])}
+            className="max-w-[min(100%,28rem)] border border-[color:var(--secondary)] bg-[color:var(--card)] px-2 py-1.5 font-[family-name:var(--font-mono)] text-[11px] font-semibold text-[color:var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[color:var(--foreground)]/20"
+          >
+            {HARNESS_MATRIX_SCENARIO_ORDER.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mb-4 max-w-[420px]">
+        <h2 className="font-[family-name:var(--font-display)] text-sm font-semibold leading-snug text-[color:var(--foreground)]">
+          {yHeading} vs {xHeading} in{" "}
+          <span className="font-[family-name:var(--font-mono)] font-semibold tracking-tight break-all">{scenario}</span>
+        </h2>
+        <p className="mt-1.5 font-[family-name:var(--font-display)] text-xs leading-relaxed text-[color:var(--muted-foreground)]">
+          Vertical: {yMeta.axisDescription}. Horizontal: {xMeta.axisDescription}.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+        <div className="flex min-w-0 flex-col">
+          <div className="flex justify-center sm:justify-start">
+            <ScoreVersusScatter points={points} xField={xField} yField={yField} />
+          </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[color:var(--border)] pt-4 font-[family-name:var(--font-mono)] text-[9px] text-[color:var(--muted-foreground)] sm:justify-start">
+            {(["baseline", "v2", "v3", "v4", "v5"] as const).map((id) => (
+              <span key={id} className="flex items-center gap-1.5">
+                <span className="inline-block size-2 rounded-full" style={{ backgroundColor: PERSONA_FILL[id] }} />
+                {id}
+              </span>
+            ))}
           </div>
         </div>
-        <span className="font-[family-name:var(--font-display)] text-xs text-[color:var(--muted-foreground)]">
-          Horizontal axis follows selection; score stays on the vertical axis.
-        </span>
-      </div>
 
-      <div className="mb-4 hidden font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.08em] text-[color:var(--muted-foreground)] lg:grid lg:grid-cols-[minmax(11rem,13rem)_1fr] lg:gap-x-4">
-        <span>Scenario</span>
-        <span className="text-center lg:text-left">Chart</span>
-      </div>
-
-      {HARNESS_MATRIX_SCENARIO_ORDER.map((scenario) => {
-        const points = byScenario.get(scenario) ?? [];
-        return (
+        <aside
+          className="lg:max-w-[22rem] lg:shrink-0 lg:border-l lg:border-[color:var(--border)] lg:pl-6"
+          aria-label={`Narrative for scenario ${scenario}`}
+        >
+          <p className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[0.12em] text-[color:var(--chart-4)]">
+            Product harness vs baseline
+          </p>
+          <p className="mt-2 font-[family-name:var(--font-display)] text-sm font-semibold leading-snug text-[color:var(--foreground)]">
+            {renderInlineBold(topline)}
+          </p>
           <div
-            key={scenario}
-            className="grid grid-cols-1 gap-4 border-t border-[color:var(--border)] pt-6 first:border-t-0 first:pt-0 lg:grid-cols-[minmax(11rem,13rem)_1fr] lg:gap-x-4 lg:pt-6"
+            className="mt-3 space-y-3 font-[family-name:var(--font-display)] text-xs leading-relaxed text-[color:var(--muted-foreground)]"
+            aria-live="polite"
+            aria-atomic="true"
+            key={`${scenario}-${xField}-${yField}-${topline}`}
           >
-            <div className="font-[family-name:var(--font-mono)] text-[11px] font-bold uppercase tracking-[0.05em] text-[color:var(--foreground)] lg:max-w-[13rem] lg:self-center lg:pt-2 break-all">
-              {scenario}
-            </div>
-            <div className="flex justify-center lg:justify-start">
-              <ScoreVersusScatter points={points} xField={xField} />
-            </div>
+            {narrativeParagraphs.map((para, i) => (
+              <p key={i}>{renderInlineBold(para)}</p>
+            ))}
           </div>
-        );
-      })}
-
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-[color:var(--border)] pt-4 font-[family-name:var(--font-mono)] text-[9px] text-[color:var(--muted-foreground)]">
-        {(["baseline", "v2", "v3", "v4", "v5"] as const).map((id) => (
-          <span key={id} className="flex items-center gap-1.5">
-            <span className="inline-block size-2 rounded-full" style={{ backgroundColor: PERSONA_FILL[id] }} />
-            {id}
-          </span>
-        ))}
+        </aside>
       </div>
     </div>
   );

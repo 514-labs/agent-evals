@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { HarnessScenarioMatrixCharts } from "@/components/charts/harness-scenario-matrix-charts";
+import { HARNESS_MATRIX_GATE_MAX } from "@/data/harness-version-scenario-matrix";
 
 export const metadata: Metadata = {
-  title: "Harness versions × scenarios — score vs cost & score vs time | DEC Bench",
+  title: "Harness versions × scenarios — score, gate, cost, time & turns | DEC Bench",
   description:
-    "Per-scenario scatter plots: gated score vs run cost and gated score vs wall time across Moose Docker-less harness revisions (baseline, v2–v5).",
+    `Per-scenario scatter plots: gated score (0–1) or checks passed (0–${HARNESS_MATRIX_GATE_MAX}) vs run cost, wall time, or agent turns across Moose Docker-less harness revisions (baseline, v2–v5).`,
 };
 
 export default function HarnessVersionScenarioMatrixPage() {
@@ -19,11 +20,10 @@ export default function HarnessVersionScenarioMatrixPage() {
             Harness version × scenario matrix
           </h1>
           <p className="mt-3 font-[family-name:var(--font-display)] text-sm text-[color:var(--muted-foreground)] leading-relaxed">
-            Each row is one scenario (label on the left). Use the <span className="font-[family-name:var(--font-mono)]">Score vs. Cost / Time</span>{" "}
-            control (same control pattern as the comparative results section on the paper homepage) to switch the horizontal axis between{" "}
-            <span className="font-[family-name:var(--font-mono)]">cost (USD)</span> and <span className="font-[family-name:var(--font-mono)]">time (s)</span>
-            ; <span className="font-[family-name:var(--font-mono)]">gated score</span> is always on the vertical axis. Points are harness personas
-            (baseline, v2–v5); missing revisions have no point.
+            Pick a scenario, then set the vertical axis to <span className="font-[family-name:var(--font-mono)]">gated score</span> or{" "}
+            <span className="font-[family-name:var(--font-mono)]">gate achievement</span> (checklist checks passed, 0–{HARNESS_MATRIX_GATE_MAX}), and the horizontal axis to{" "}
+            <span className="font-[family-name:var(--font-mono)]">cost</span>, <span className="font-[family-name:var(--font-mono)]">time</span>, or{" "}
+            <span className="font-[family-name:var(--font-mono)]">turns</span>. Points are harness personas (baseline, v2–v5); missing revisions have no point.
           </p>
         </header>
 
