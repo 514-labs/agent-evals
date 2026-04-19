@@ -24,11 +24,11 @@ if [[ ! -x "$MOOSE_BIN" ]]; then
   exit 1
 fi
 if [[ ! -f "$TEMPLATES_DIR/manifest.toml" ]]; then
-  echo "Missing $TEMPLATES_DIR/manifest.toml — run scripts/package-templates.js in moose-0 first" >&2
+  echo "Missing $TEMPLATES_DIR/manifest.toml — run 'node scripts/package-templates.js' in the moose repo first" >&2
   exit 1
 fi
 if [[ ! -f "$MOOSE_LIB_TGZ" ]]; then
-  echo "Missing moose-lib tarball: $MOOSE_LIB_TGZ — run 'pnpm pack' in moose-0/packages/ts-moose-lib" >&2
+  echo "Missing moose-lib tarball: $MOOSE_LIB_TGZ — run 'pnpm pack' in moose/packages/ts-moose-lib" >&2
   exit 1
 fi
 

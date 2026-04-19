@@ -37,6 +37,7 @@ pub struct BuildArgs {
     /// Format: `NAME=PATH`. NAME must match a subdirectory of `tools/`
     /// (that subdirectory provides the override handler). PATH may be a
     /// file or a directory depending on the tool.
+    /// See docs: /docs/add-eval/testing-local-overrides
     #[arg(long = "override", value_name = "NAME=PATH")]
     pub overrides: Vec<String>,
 
