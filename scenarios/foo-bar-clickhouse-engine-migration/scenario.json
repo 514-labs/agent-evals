@@ -1,29 +1,36 @@
 {
-  "baselineMetrics": {
-    "costPerQueryUsd": 0,
-    "queryLatencyMs": 0,
-    "storageBytes": 0
-  },
-  "description": "",
-  "domain": "foo-bar",
-  "harnesses": [
-    "base-rt",
-    "moose-pre-dr",
-    "moose-post-dr"
-  ],
   "id": "foo-bar-clickhouse-engine-migration",
-  "lede": "",
+  "title": "Foo Bar ClickHouse Engine Migration",
+  "description": "Migrate a populated MergeTree events table to ReplacingMergeTree(updated_at) with a new ORDER BY, preserving all historical rows so dedup-on-FINAL returns the latest update per key.",
+  "lede": "In this scenario, an agent must change the engine and ORDER BY of a populated ClickHouse table without losing data, so FINAL queries return the latest row per (user_id, event_id).",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harnesses": ["base-rt", "moose-pre-dr", "moose-post-dr"],
+  "tasks": [
+    {
+      "id": "engine-migration",
+      "description": "Migrate analytics.events from MergeTree ORDER BY (event_id) to ReplacingMergeTree(updated_at) ORDER BY (user_id, event_id), preserving all rows.",
+      "category": "migration"
+    }
+  ],
   "personaPrompts": {
     "baseline": "prompts/baseline.md",
-    "informed": "prompts/informed.md"
+    "informed": "prompts/informed.md",
+    "moose-user": "prompts/moose-user.md"
+  },
+  "infrastructure": {
+    "services": ["clickhouse"],
+    "description": "ClickHouse running with analytics.events (MergeTree, 50k rows, duplicates present). Migrate to ReplacingMergeTree without data loss."
+  },
+  "tags": ["clickhouse", "migration", "ReplacingMergeTree", "engine-change", "order-by", "backfill"],
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
   },
   "referenceMetrics": {
-    "costPerQueryUsd": 0,
-    "queryLatencyMs": 0,
-    "storageBytes": 0
-  },
-  "tags": [],
-  "tasks": [],
-  "tier": "tier-2",
-  "title": ""
+    "queryLatencyMs": 250,
+    "storageBytes": 20000000,
+    "costPerQueryUsd": 0.001
+  }
 }
