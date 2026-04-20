@@ -405,9 +405,9 @@ process.stdout.write(JSON.stringify(result, null, 2) + "\n");
 ' "${max_lines}"
 }
 
-# Per-harness init support (514-1222): flat files in /scenario/init run for
-# every harness; files in /scenario/init/<harness-id>/ run only when that
-# harness is active.
+# Init support (514-1269/1270): flat files in /scenario/init run for every
+# harness; files in /scenario/harnesses/<harness-id>/init/ are owned by the
+# harness-scenario pair and run only when that harness is active.
 dispatch_init_script() {
   local script="$1"
   case "${script}" in
@@ -436,22 +436,22 @@ dispatch_init_script() {
 }
 
 run_init_scripts() {
-  if [[ ! -d /scenario/init ]]; then
-    return 0
-  fi
   shopt -s nullglob
 
   # Flat files in /scenario/init/ run for every harness (common setup).
-  # Subdirectories /scenario/init/<harness-id>/ run only when the matching
-  # harness is active. See SKILL.md "Three lifecycle moments".
-  for script in /scenario/init/*; do
-    [[ -f "${script}" ]] || continue
-    dispatch_init_script "${script}"
-  done
+  # See SKILL.md "Four setup layers".
+  if [[ -d /scenario/init ]]; then
+    for script in /scenario/init/*; do
+      [[ -f "${script}" ]] || continue
+      dispatch_init_script "${script}"
+    done
+  fi
 
-  if [[ -n "${EVAL_HARNESS:-}" && -d "/scenario/init/${EVAL_HARNESS}" ]]; then
-    echo "Running harness-specific init for ${EVAL_HARNESS}"
-    for script in "/scenario/init/${EVAL_HARNESS}"/*; do
+  # Harness-scenario pair owns /scenario/harnesses/<harness-id>/init/;
+  # these run only when that harness is active.
+  if [[ -n "${EVAL_HARNESS:-}" && -d "/scenario/harnesses/${EVAL_HARNESS}/init" ]]; then
+    echo "Running harness-scenario init for ${EVAL_HARNESS}"
+    for script in "/scenario/harnesses/${EVAL_HARNESS}/init"/*; do
       [[ -f "${script}" ]] || continue
       dispatch_init_script "${script}"
     done

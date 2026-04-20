@@ -138,7 +138,8 @@ A scenario directory controls its runtime environment through four files. The ba
 |---|---|---|
 | `supervisord.conf` | Which services auto-start and in what order (`priority`). | yes |
 | `init/*.sql`, `init/*.sh` | Schema and seed data, common to every harness. Runs after services are ready, before the agent. | yes (at least one file) |
-| `init/<harness-id>/*` | Harness-specific seed data for comparison scenarios. Runs only when that harness is active, after flat init, before the agent. Subdir names must match `scenario.json::harnesses[]`. | optional |
+| `harnesses/<harness-id>/init/*` | Harness-scenario pair owned seed data. Runs only when that harness is active, after flat init, before the agent. Dir names must match `scenario.json::harnesses[]`. | optional |
+| `harnesses/<harness-id>/install.sh` | Scenario-specific build-time install steps for one harness. Runs after the global harness install at image build time. | optional |
 | `env.sh` | Exported environment variables for non-default ports, credentials, and connection strings. Sourced before readiness checks, init, agent, and assertions. | optional |
 | `scenario.json::infrastructure` | Declarative marker of services and starting state. Used for registry and audit UI. | recommended |
 
@@ -400,7 +401,10 @@ Keep custom harness scripts short, reproducible, and version-pinned. Full docs: 
 
 ### Tool-version pinning across scenarios
 
-Tool versions inside a harness are shared across every scenario that selects it. There is no per-scenario override today — a custom harness is the only supported way to run one scenario against a different Moose/dbt/514 version. (Per-scenario `toolPins` is tracked as a follow-up.)
+Tool versions inside a built-in harness are shared across every scenario that selects it. Two escape hatches:
+
+1. **Scenario-specific install extension** — place `harnesses/<harness-id>/install.sh` inside the scenario directory. It runs at image build time after the global harness install, so you can `pip install` a different version for just this scenario.
+2. **Custom harness** — fork a new JSON file at `apps/web/data/harnesses/<id>.json` when you need a fully different tool set or version baseline.
 
 ## Registry Publish Flow
 

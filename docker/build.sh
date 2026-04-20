@@ -100,6 +100,7 @@ docker build \
   -f docker/harness/Dockerfile \
   --build-arg SCENARIO_IMAGE="${SCENARIO_TAG}" \
   --build-arg HARNESS_SCRIPT="${HARNESS_SCRIPT_REL}" \
+  --build-arg HARNESS_ID="${HARNESS}" \
   -t "${HARNESS_TAG}" \
   .
 docker build \
