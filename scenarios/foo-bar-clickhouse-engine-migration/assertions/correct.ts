@@ -33,7 +33,7 @@ export async function version_column_is_updated_at(ctx: AssertionContext): Promi
     "SELECT engine_full FROM system.tables WHERE database = 'analytics' AND name = 'events'",
   );
   const engineFull = rows[0]?.engine_full ?? "";
-  const passed = /ReplacingMergeTree\s*\(\s*updated_at\s*\)/i.test(engineFull);
+  const passed = /ReplacingMergeTree\s*\(\s*`?updated_at`?\s*\)/i.test(engineFull);
   return {
     passed,
     message: passed
@@ -60,7 +60,15 @@ export async function order_by_is_user_id_event_id(ctx: AssertionContext): Promi
 }
 
 export async function all_rows_preserved(ctx: AssertionContext): Promise<AssertionResult> {
-  const expected = Number(await readSeedMeta(ctx, "total_rows") ?? "0");
+  const raw = await readSeedMeta(ctx, "total_rows");
+  if (raw === null) {
+    return {
+      passed: false,
+      message: "Seed anchor missing: analytics._seed_meta has no 'total_rows' row.",
+      details: {},
+    };
+  }
+  const expected = Number(raw);
   const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events");
   const actual = Number(rows[0]?.n ?? 0);
   const passed = actual === expected;
@@ -74,7 +82,15 @@ export async function all_rows_preserved(ctx: AssertionContext): Promise<Asserti
 }
 
 export async function final_query_deduplicates(ctx: AssertionContext): Promise<AssertionResult> {
-  const expected = Number(await readSeedMeta(ctx, "unique_keys") ?? "0");
+  const raw = await readSeedMeta(ctx, "unique_keys");
+  if (raw === null) {
+    return {
+      passed: false,
+      message: "Seed anchor missing: analytics._seed_meta has no 'unique_keys' row.",
+      details: {},
+    };
+  }
+  const expected = Number(raw);
   const rows = await queryRows<{ n: number }>(ctx, "SELECT count() AS n FROM analytics.events FINAL");
   const actual = Number(rows[0]?.n ?? 0);
   const passed = actual === expected;
