@@ -80,6 +80,11 @@ ORDER BY (user_id, event_id)
 
 # Three spot-check keys: pick three event_ids from the duplicated set and record
 # the value that the newer (duplicate) row has — that is the value FINAL must return.
+# Assumes the duplicate row's updated_at is strictly newer than the primary's
+# (see the `+ toIntervalDay(1)` above). If that invariant breaks, max(updated_at)
+# would tie on both rows and this INSERT would yield 6 rows instead of 3 — the
+# sanity check at the end of the script will trip, but leaving this comment so
+# future editors know why the invariant matters.
 ch "
 INSERT INTO analytics._seed_spotchecks
 SELECT user_id, event_id, value
