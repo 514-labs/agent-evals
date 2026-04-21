@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { codeToHtml } from "shiki";
 
 import { AuditLogViewer } from "@/components/audit-log-viewer";
-import { AuditRubricPanel } from "@/components/audit-rubric-panel";
+import { AuditGatesPanel } from "@/components/audit-gates-panel";
 import { AuditTracePanel } from "@/components/audit-trace-panel";
 import { RunMetricsGrid } from "@/components/run-metrics-grid";
 import {
@@ -13,6 +13,7 @@ import {
   getAuditRunManifest,
   getAssertionSources,
   getCoreAssertionSource,
+  getScenarioAssertionCatalog,
   getScenarioAuditContext,
   getScenarioAuditIndex,
   listAuditScenarios,
@@ -73,6 +74,36 @@ export function generateStaticParams() {
   return params;
 }
 
+/**
+ * Section heading used throughout the run detail page.
+ * Matches the muted, paper-document aesthetic of the docs/marketing site:
+ * small mono label on a subtle secondary surface with a hairline border.
+ */
+function SectionHeader({
+  title,
+  meta,
+  className = "",
+}: {
+  title: string;
+  meta?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)] px-4 py-2 ${className}`}
+    >
+      <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+        {title}
+      </span>
+      {meta ? (
+        <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[color:var(--chart-4)]">
+          {meta}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default async function ScenarioAuditRunPage({
   params,
 }: {
@@ -89,6 +120,7 @@ export default async function ScenarioAuditRunPage({
   }
 
   const assertionSources = getAssertionSources(scenario);
+  const assertionCatalog = getScenarioAssertionCatalog(scenario);
 
   const highlightCode = async (code: string) =>
     codeToHtml(code, {
@@ -107,6 +139,11 @@ export default async function ScenarioAuditRunPage({
   const allCoreNames = new Set<string>();
   for (const gateResult of Object.values(manifest.gates)) {
     for (const name of Object.keys(gateResult.core)) {
+      allCoreNames.add(name);
+    }
+  }
+  for (const gateCoreNames of Object.values(assertionCatalog.core)) {
+    for (const name of gateCoreNames) {
       allCoreNames.add(name);
     }
   }
@@ -251,248 +288,93 @@ export default async function ScenarioAuditRunPage({
   });
 
   return (
-    <div className="px-4 lg:px-6 py-5">
+    <div className="mx-auto max-w-[1420px] px-6 lg:px-14 py-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs tracking-[0.04em] text-black/40 mb-4">
-        <Link href="/audit" className="hover:text-black transition-colors">
+      <div className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[color:var(--chart-4)] mb-4">
+        <Link
+          href="/audit"
+          className="hover:text-[color:var(--foreground)] transition-colors"
+        >
           Audit
         </Link>
-        <span>/</span>
+        <span>›</span>
         <Link
           href={`/audit/${scenario}`}
-          className="hover:text-black transition-colors"
+          className="hover:text-[color:var(--foreground)] transition-colors"
         >
           {formatScenarioName(scenario)}
         </Link>
-        <span>/</span>
-        <span className="text-black/70 truncate max-w-[12rem]">{manifest.runId}</span>
+        <span>›</span>
+        <span className="text-[color:var(--muted-foreground)] truncate">
+          {manifest.model} · {manifest.harness}
+        </span>
       </div>
 
       {/* Title + actions */}
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-5xl tracking-tight leading-[0.9]">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl lg:text-4xl tracking-tight leading-[1.1] text-[color:var(--foreground)]">
             {context?.title ?? formatScenarioName(scenario)}
           </h1>
-          <p className="text-sm text-black/50 mt-2 max-w-2xl leading-normal">
-            {context?.description ?? "Static audit with full run evidence and rubric breakdown."}
+          <p className="text-sm text-[color:var(--muted-foreground)] mt-2 max-w-2xl leading-normal">
+            {context?.description ??
+              "Static audit with full run evidence and gate breakdown."}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {index.runs.length >= 1 && (
             <Link
               href={`/audit/${scenario}/compare?left=${runId}&right=${index.runs.find((r) => r.runId !== runId)?.runId ?? index.runs[0]?.runId}`}
-              className="text-xs font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-2 border-[#B91C1C] bg-[#B91C1C] text-black hover:bg-black hover:text-white hover:border-black transition-colors"
+              className="font-[family-name:var(--font-mono)] text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1.5 border border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-foreground)] hover:bg-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
             >
               Compare
             </Link>
           )}
           <Link
             href="/leaderboard"
-            className="text-xs font-bold uppercase tracking-[0.15em] px-3 py-1.5 border-2 border-black hover:bg-black hover:text-white transition-colors"
+            className="font-[family-name:var(--font-mono)] text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1.5 border border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--foreground)] hover:text-[color:var(--background)] hover:border-[color:var(--foreground)] transition-colors"
           >
             Leaderboard
           </Link>
         </div>
       </div>
 
-      {/* Gate pipeline */}
-      <div className="border-[3px] border-black mb-4">
-        <div className="bg-black px-4 py-2 flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-            Gate Progression
-          </span>
-          <span className="text-xs uppercase tracking-[0.2em] text-[#B91C1C]">
-            {manifest.highestGate}/5
-          </span>
-        </div>
-        <div className="flex">
-          {GATE_ORDER.map((gate, i) => {
-            const detail = manifest.gates[gate];
-            const meta = GATE_LABELS[gate]!;
-            const passed = detail?.passed ?? false;
-            const isHighest = i + 1 === manifest.highestGate;
-            return (
-              <div
-                key={gate}
-                className={`flex-1 px-3 py-2 border-r border-black/10 last:border-r-0 transition-colors ${
-                  passed
-                    ? isHighest
-                      ? "bg-[#B91C1C]"
-                      : "bg-[#B91C1C]/20"
-                    : "bg-white"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span
-                    className={`font-[family-name:var(--font-display)] text-xl ${
-                      passed ? "text-black" : "text-black/20"
-                    }`}
-                  >
-                    {meta.number}
-                  </span>
-                  <div
-                    className={`w-2 h-2 border-[1.5px] ${
-                      passed ? "border-black bg-black" : "border-black/20 bg-transparent"
-                    }`}
-                  />
-                </div>
-                <p
-                  className={`text-xs font-bold uppercase tracking-[0.14em] ${
-                    passed ? "text-black" : "text-black/30"
-                  }`}
-                >
-                  {meta.label}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Scenario context: above runs so users see what the agent faced first */}
-      <div className="grid xl:grid-cols-2 gap-4 mb-4">
-        {/* Scenario identity + tags */}
-        <div className="border-[3px] border-black">
-          <div className="bg-black px-4 py-2">
-            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-              Scenario
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-0">
-            {[
-              { label: "ID", value: scenario },
-              { label: "Domain", value: context?.domain ?? "—" },
-              { label: "Tier", value: context?.tier ?? "—" },
-              { label: "Harness", value: manifest.harness },
-            ].map((field) => (
-              <div
-                key={field.label}
-                className="px-3 py-2 border-r border-black/10 odd:border-r-black/10 border-b border-b-black/10"
-              >
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-black/40">
-                  {field.label}
-                </p>
-                <p className="text-xs mt-0.5">{field.value}</p>
-              </div>
-            ))}
-          </div>
-          {context?.tags && context.tags.length > 0 && (
-            <div className="px-3 py-2 flex flex-wrap gap-1">
-              {context.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border border-black/15 text-black/45"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Starting State + Tasks as separate sections */}
-        <div className="space-y-4">
-          {/* Starting State */}
-          {context?.infrastructure && (
-            <div className="border-[3px] border-black">
-              <div className="bg-black px-4 py-2 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-                  Starting State
-                </span>
-                <div className="flex items-center gap-1">
-                  {context.infrastructure.services.map((service) => (
-                    <span
-                      key={service}
-                      className="text-xs font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 bg-white/15 text-white"
-                    >
-                      {service}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              {context.infrastructure.description && (
-                <div className="px-3 py-2.5">
-                  <p className="text-xs text-black/55 leading-normal">
-                    {context.infrastructure.description}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tasks */}
-          <div className="border-[3px] border-black">
-            <div className="bg-black px-4 py-2 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-                Tasks
-              </span>
-              <span className="text-xs uppercase tracking-[0.14em] text-white/70">
-                {(context?.tasks ?? []).length}
-              </span>
-            </div>
-            <div className="divide-y divide-black/10">
-              {(context?.tasks ?? []).map((task) => (
-                <div key={task.id} className="px-3 py-2">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-bold uppercase tracking-[0.14em]">
-                      {task.id}
-                    </span>
-                    <span className="text-xs uppercase tracking-[0.12em] text-black/30 bg-black/5 px-1 py-0">
-                      {task.category}
-                    </span>
-                  </div>
-                  <p className="text-xs text-black/55 leading-normal">
-                    {task.description}
-                  </p>
-                </div>
-              ))}
-              {(!context?.tasks || context.tasks.length === 0) && (
-                <div className="px-3 py-3 text-xs text-black/35">
-                  No task metadata available.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main grid: sidebar + content */}
-      <div className="grid lg:grid-cols-[14rem_1fr] gap-4">
+      <div className="grid lg:grid-cols-[15rem_1fr] gap-6">
         {/* Run selector sidebar */}
-        <aside className="border-[3px] border-black h-fit lg:sticky lg:top-[65px]">
-          <div className="bg-black px-3 py-2">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white">
-              Runs ({index.runs.length})
-            </p>
-          </div>
-          <div className="max-h-96 overflow-auto">
+        <aside className="border border-[color:var(--border)] bg-[color:var(--card)] h-fit lg:sticky lg:top-[70px]">
+          <SectionHeader title={`Runs (${index.runs.length})`} />
+          <div className="max-h-[28rem] overflow-auto">
             {index.runs.map((run) => {
               const active = run.runId === runId;
               return (
                 <Link
                   key={run.runId}
                   href={`/audit/${scenario}/${run.runId}`}
-                  className={`block px-3 py-2 border-b border-black/10 last:border-b-0 transition-colors ${
-                    active ? "bg-[#B91C1C]" : "hover:bg-black/3"
+                  className={`block px-3 py-2 border-b border-[color:var(--border)] last:border-b-0 transition-colors ${
+                    active
+                      ? "bg-[color:var(--accent)]/10 border-l-2 border-l-[color:var(--accent)]"
+                      : "hover:bg-[color:var(--secondary)]/60"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.1em] truncate">
+                    <p className="font-[family-name:var(--font-mono)] text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--foreground)] truncate">
                       {run.harness}
                     </p>
                     <div className="flex gap-[2px] shrink-0">
                       {[1, 2, 3, 4, 5].map((g) => (
                         <div
                           key={g}
-                          className={`w-[5px] h-[5px] border-[1px] border-black ${
-                            g <= run.highestGate ? "bg-black" : "bg-transparent"
+                          className={`w-[5px] h-[5px] border border-[color:var(--border)] ${
+                            g <= run.highestGate
+                              ? "bg-[color:var(--foreground)] border-[color:var(--foreground)]"
+                              : "bg-transparent"
                           }`}
                         />
                       ))}
                     </div>
                   </div>
-                  <p className="text-xs text-black/50 mt-0.5 truncate">
+                  <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5 truncate">
                     {run.agent} · {formatTimestamp(run.timestamp)}
                   </p>
                 </Link>
@@ -502,18 +384,101 @@ export default async function ScenarioAuditRunPage({
         </aside>
 
         {/* Main content */}
-        <div className="space-y-4 min-w-0">
-          {/* Run identity + prompt */}
-          <div className="border-[3px] border-black">
-            <div className="bg-black px-4 py-2 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-                Run Configuration
-              </span>
-              <span className="text-xs uppercase tracking-[0.14em] text-white/70">
-                {formatTimestamp(manifest.timestamp)}
-              </span>
+        <div className="space-y-6 min-w-0">
+          {/* Agent interaction timeline — moved to top per Lucio's feedback (514-1284) */}
+          <AuditTracePanel summary={manifest.traceSummary} trace={trace} />
+
+          {/* Debugging output — log viewer also at top with trace */}
+          <AuditLogViewer scenario={scenario} runId={runId} logs={manifest.logs} />
+
+          {/* Gate pipeline */}
+          <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+            <SectionHeader
+              title="Gate Progression"
+              meta={`${manifest.highestGate}/5`}
+            />
+            <div className="flex">
+              {GATE_ORDER.map((gate, i) => {
+                const detail = manifest.gates[gate];
+                const meta = GATE_LABELS[gate]!;
+                const passed = detail?.passed ?? false;
+                const isHighest = i + 1 === manifest.highestGate;
+                return (
+                  <div
+                    key={gate}
+                    className={`flex-1 px-4 py-3 border-r border-[color:var(--border)] last:border-r-0 transition-colors ${
+                      passed
+                        ? isHighest
+                          ? "bg-[color:var(--accent)]/15"
+                          : "bg-[color:var(--accent)]/5"
+                        : "bg-transparent"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span
+                        className={`font-[family-name:var(--font-display)] text-xl ${
+                          passed
+                            ? "text-[color:var(--foreground)]"
+                            : "text-[color:var(--chart-4)]"
+                        }`}
+                      >
+                        {meta.number}
+                      </span>
+                      <div
+                        className={`w-2 h-2 border ${
+                          passed
+                            ? "border-[color:var(--accent)] bg-[color:var(--accent)]"
+                            : "border-[color:var(--border)] bg-transparent"
+                        }`}
+                      />
+                    </div>
+                    <p
+                      className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] ${
+                        passed
+                          ? "text-[color:var(--foreground)]"
+                          : "text-[color:var(--chart-4)]"
+                      }`}
+                    >
+                      {meta.label}
+                    </p>
+                    <p className="text-xs text-[color:var(--muted-foreground)] mt-0.5 truncate">
+                      {meta.detail}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
-            <div className="grid grid-cols-3 md:grid-cols-7 gap-0 border-b border-black/10">
+          </div>
+
+          {/* Run Metrics */}
+          <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+            <SectionHeader
+              title="Run Metrics"
+              meta={`${scorePercent}% gated score`}
+            />
+            <RunMetricsGrid metrics={runMetrics} />
+          </div>
+
+          {/* Gates */}
+          <AuditGatesPanel
+            gates={manifest.gates}
+            passedAssertions={passedAssertions}
+            totalAssertions={totalAssertions}
+            assertionLogs={assertionLogs}
+            assertionCatalog={assertionCatalog}
+            highlightedSources={{
+              scenario: highlightedScenarioSources,
+              core: highlightedCoreSources,
+            }}
+          />
+
+          {/* Run Configuration + Prompt */}
+          <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+            <SectionHeader
+              title="Run Configuration"
+              meta={formatTimestamp(manifest.timestamp)}
+            />
+            <div className="grid grid-cols-3 md:grid-cols-7 border-b border-[color:var(--border)]">
               {[
                 { label: "Harness", value: manifest.harness },
                 { label: "Agent", value: manifest.agent },
@@ -533,19 +498,21 @@ export default async function ScenarioAuditRunPage({
               ].map((field) => (
                 <div
                   key={field.label}
-                  className="px-3 py-2 border-r border-black/10 last:border-r-0 border-b md:border-b-0"
+                  className="px-3 py-2 border-r border-[color:var(--border)] last:border-r-0 border-b border-b-[color:var(--border)] md:border-b-0"
                 >
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-black/40">
+                  <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--chart-4)]">
                     {field.label}
                   </p>
-                  <p className="text-xs mt-0.5 truncate">{field.value}</p>
+                  <p className="font-[family-name:var(--font-mono)] text-[11px] mt-0.5 truncate text-[color:var(--foreground)]">
+                    {field.value}
+                  </p>
                 </div>
               ))}
             </div>
             <details>
-              <summary className="cursor-pointer list-none px-4 py-2 flex items-center justify-between hover:bg-black/3 transition-colors">
+              <summary className="cursor-pointer list-none px-4 py-2 flex items-center justify-between hover:bg-[color:var(--secondary)]/60 transition-colors">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold uppercase tracking-[0.14em]">
+                  <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
                     Prompt Used
                   </span>
                   <span
@@ -556,12 +523,12 @@ export default async function ScenarioAuditRunPage({
                           ? "The prompt used in this run differs from the current prompt file on disk. Results may not reflect latest prompt changes."
                           : "Unable to compare — either the run or the current prompt hash is unavailable."
                     }
-                    className={`text-xs font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 ${
+                    className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.12em] px-1.5 py-0.5 border ${
                       promptHashMatchesCurrent === true
-                        ? "bg-[#B91C1C]/20 text-black/70"
+                        ? "border-[color:var(--accent)]/40 bg-[color:var(--accent)]/10 text-[color:var(--foreground)]"
                         : promptHashMatchesCurrent === false
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-black/5 text-black/40"
+                          ? "border-yellow-400 bg-yellow-100 text-yellow-900"
+                          : "border-[color:var(--border)] bg-[color:var(--secondary)] text-[color:var(--chart-4)]"
                     }`}
                   >
                     {promptHashMatchesCurrent === true
@@ -572,60 +539,128 @@ export default async function ScenarioAuditRunPage({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-black/30 font-mono">
+                  <span className="text-xs text-[color:var(--chart-4)] font-mono">
                     {shortHash(runMeta?.promptSha256)}
                   </span>
-                  <span className="text-xs text-black/30">+</span>
+                  <span className="text-xs text-[color:var(--chart-4)]">+</span>
                 </div>
               </summary>
-              <div className="border-t border-black/10">
-                <div className="px-4 py-1.5 flex items-center gap-4 bg-black/3 text-xs text-black/45">
-                  <span>
-                    Path: {runMeta?.promptPath ?? "—"}
-                  </span>
+              <div className="border-t border-[color:var(--border)]">
+                <div className="px-4 py-1.5 flex items-center gap-4 bg-[color:var(--secondary)]/60 font-[family-name:var(--font-mono)] text-[10px] text-[color:var(--chart-4)]">
+                  <span>Path: {runMeta?.promptPath ?? "—"}</span>
                   <span>
                     Current hash: {shortHash(currentPromptSha256 ?? undefined)}
                   </span>
                 </div>
-                <pre className="m-0 max-h-48 overflow-auto px-4 py-2.5 bg-[#0d0d0d]">
-                  <code className="text-xs leading-relaxed text-white/70 whitespace-pre-wrap break-words">
-                    {runMeta?.promptContent ?? runMeta?.promptPreview ?? "No prompt content captured."}
+                <pre className="m-0 max-h-56 overflow-auto px-4 py-3 bg-[color:var(--secondary)]/40 border-t border-[color:var(--border)]">
+                  <code className="font-[family-name:var(--font-mono)] text-[11px] leading-relaxed text-[color:var(--foreground)] whitespace-pre-wrap break-words">
+                    {runMeta?.promptContent ??
+                      runMeta?.promptPreview ??
+                      "No prompt content captured."}
                   </code>
                 </pre>
               </div>
             </details>
           </div>
 
-          {/* Run Metrics */}
-          <div className="border-[3px] border-black">
-            <div className="bg-black px-4 py-2 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-                Run Metrics
-              </span>
-              <span className="text-xs uppercase tracking-[0.14em] text-white/70">
-                {scorePercent}% gated score
-              </span>
+          {/* Scenario context */}
+          <div className="grid xl:grid-cols-2 gap-4">
+            {/* Scenario identity + tags */}
+            <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+              <SectionHeader title="Scenario" />
+              <div className="grid grid-cols-2">
+                {[
+                  { label: "ID", value: scenario },
+                  { label: "Domain", value: context?.domain ?? "—" },
+                  { label: "Tier", value: context?.tier ?? "—" },
+                  { label: "Harness", value: manifest.harness },
+                ].map((field) => (
+                  <div
+                    key={field.label}
+                    className="px-3 py-2 border-r border-[color:var(--border)] odd:border-r-[color:var(--border)] border-b border-b-[color:var(--border)]"
+                  >
+                    <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--chart-4)]">
+                      {field.label}
+                    </p>
+                    <p className="font-[family-name:var(--font-mono)] text-[11px] mt-0.5 text-[color:var(--foreground)]">
+                      {field.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {context?.tags && context.tags.length > 0 && (
+                <div className="px-3 py-2 flex flex-wrap gap-1">
+                  {context.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border border-[color:var(--border)] text-[color:var(--muted-foreground)]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            <RunMetricsGrid metrics={runMetrics} />
+
+            {/* Starting State + Tasks */}
+            <div className="space-y-4">
+              {context?.infrastructure && (
+                <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+                  <div className="bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)] px-4 py-2 flex items-center justify-between gap-3">
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+                      Starting State
+                    </span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {context.infrastructure.services.map((service) => (
+                        <span
+                          key={service}
+                          className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 border border-[color:var(--border)] text-[color:var(--muted-foreground)]"
+                        >
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {context.infrastructure.description && (
+                    <div className="px-4 py-3">
+                      <p className="text-xs text-[color:var(--muted-foreground)] leading-normal">
+                        {context.infrastructure.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+                <SectionHeader
+                  title="Tasks"
+                  meta={String((context?.tasks ?? []).length)}
+                />
+                <div className="divide-y divide-[color:var(--border)]">
+                  {(context?.tasks ?? []).map((task) => (
+                    <div key={task.id} className="px-4 py-2.5">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--foreground)]">
+                          {task.id}
+                        </span>
+                        <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[color:var(--chart-4)] bg-[color:var(--secondary)] px-1 py-0">
+                          {task.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[color:var(--muted-foreground)] leading-normal">
+                        {task.description}
+                      </p>
+                    </div>
+                  ))}
+                  {(!context?.tasks || context.tasks.length === 0) && (
+                    <div className="px-4 py-3 text-xs text-[color:var(--chart-4)]">
+                      No task metadata available.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-
-          {/* Agent interaction timeline */}
-          <AuditTracePanel summary={manifest.traceSummary} trace={trace} />
-
-          {/* Rubric (full width) */}
-          <AuditRubricPanel
-            gates={manifest.gates}
-            passedAssertions={passedAssertions}
-            totalAssertions={totalAssertions}
-            assertionLogs={assertionLogs}
-            highlightedSources={{
-              scenario: highlightedScenarioSources,
-              core: highlightedCoreSources,
-            }}
-          />
-
-          {/* Debugging output (collapsed by default) */}
-          <AuditLogViewer scenario={scenario} runId={runId} logs={manifest.logs} />
         </div>
       </div>
     </div>

@@ -890,6 +890,23 @@ export interface AuditLogChunk {
   hasMoreAfter: boolean;
 }
 
+// Prettify .json (not .jsonl) files before slicing into lines so the log
+// viewer renders readable multi-line JSON instead of a single giant line.
+// Cap guards against extreme memory use on the rare multi-MB payload; if the
+// file is already multi-line we leave it alone.
+const PRETTIFY_MAX_BYTES = 5 * 1024 * 1024;
+
+function maybePrettifyJson(absolutePath: string, raw: string): string {
+  if (!absolutePath.endsWith(".json")) return raw;
+  if (raw.length > PRETTIFY_MAX_BYTES) return raw;
+  if (raw.includes("\n")) return raw;
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 export function readAuditLogChunk(
   scenario: string,
   runId: string,
@@ -900,7 +917,8 @@ export function readAuditLogChunk(
   const resolved = resolveAuditLogPath(scenario, runId, logId);
   if (!resolved) return null;
 
-  const raw = readFileSync(resolved.absolutePath, "utf8");
+  const rawFile = readFileSync(resolved.absolutePath, "utf8");
+  const raw = maybePrettifyJson(resolved.absolutePath, rawFile);
   const lines = raw.split("\n");
   const totalLines = lines.length;
   const safeStart = Math.max(0, startLine);
@@ -1234,6 +1252,72 @@ export function getAssertionSources(scenarioId: string): AssertionSourceMap {
 
   const coreLines = Object.values(CORE_ASSERTION_SOURCE).join("\n\n");
   return { scenario, core: coreLines };
+}
+
+export type ScenarioAssertionCatalog = {
+  core: Record<GateName, string[]>;
+  scenario: Record<GateName, string[]>;
+};
+
+/**
+ * Union of every core/scenario assertion name that has appeared in any
+ * recorded run for this scenario, bucketed by gate. Used to surface
+ * "not run" rows for gates that were skipped after an upstream failure,
+ * so reviewers can still open assertion sources.
+ */
+export function getScenarioAssertionCatalog(scenario: string): ScenarioAssertionCatalog {
+  const gates: GateName[] = ["functional", "correct", "robust", "performant", "production"];
+  const empty: ScenarioAssertionCatalog = {
+    core: { functional: [], correct: [], robust: [], performant: [], production: [] },
+    scenario: { functional: [], correct: [], robust: [], performant: [], production: [] },
+  };
+
+  if (!isSafeSegment(scenario)) return empty;
+
+  const auditsDir = resolveAuditsDir();
+  const scenarioDir = join(auditsDir, scenario);
+  if (!existsSync(scenarioDir)) return empty;
+
+  const coreSet: Record<GateName, Set<string>> = {
+    functional: new Set(),
+    correct: new Set(),
+    robust: new Set(),
+    performant: new Set(),
+    production: new Set(),
+  };
+  const scenarioSet: Record<GateName, Set<string>> = {
+    functional: new Set(),
+    correct: new Set(),
+    robust: new Set(),
+    performant: new Set(),
+    production: new Set(),
+  };
+
+  for (const entry of readdirSync(scenarioDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !isSafeSegment(entry.name)) continue;
+    const manifestPath = join(scenarioDir, entry.name, "manifest.json");
+    const raw = safeParseJson<Record<string, unknown>>(manifestPath);
+    if (!raw) continue;
+    const manifest = coerceManifest(manifestPath, raw);
+    if (!manifest || manifest.scenario !== scenario) continue;
+
+    for (const gate of gates) {
+      const detail = manifest.gates[gate];
+      if (!detail) continue;
+      for (const name of Object.keys(detail.core)) coreSet[gate].add(name);
+      for (const name of Object.keys(detail.scenario)) scenarioSet[gate].add(name);
+    }
+  }
+
+  const result: ScenarioAssertionCatalog = {
+    core: { functional: [], correct: [], robust: [], performant: [], production: [] },
+    scenario: { functional: [], correct: [], robust: [], performant: [], production: [] },
+  };
+  for (const gate of gates) {
+    result.core[gate] = Array.from(coreSet[gate]).sort();
+    result.scenario[gate] = Array.from(scenarioSet[gate]).sort();
+  }
+  return result;
 }
 
 export function getScenarioAuditContext(scenarioId: string): AuditScenarioContext | null {
