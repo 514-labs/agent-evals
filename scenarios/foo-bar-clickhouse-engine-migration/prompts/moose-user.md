@@ -9,4 +9,4 @@ Hard requirements after applying the migration:
 - `SELECT count() FROM analytics.events FINAL` must return 42,500.
 - No leftover tables under `analytics` other than `events`, `_seed_meta`, and `_seed_spotchecks`.
 
-Do **not** run `moose dev --dockerless`. ClickHouse is already running at `$CLICKHOUSE_URL`. Connect Moose to it directly, e.g. `moose generate migration --clickhouse-url "$CLICKHOUSE_URL"` and `moose migrate --clickhouse-url "$CLICKHOUSE_URL"`. If the CLI subcommand names differ at the Moose version installed in this harness, run `moose --help` to discover the exact commands.
+Do **not** run `moose dev --dockerless`. ClickHouse is already running at `$CLICKHOUSE_URL`. Run `moose --help` to discover the subcommands available in the version of Moose installed in this harness and use them to generate and apply a migration against the external ClickHouse.
