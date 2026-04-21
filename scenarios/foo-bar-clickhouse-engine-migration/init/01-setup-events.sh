@@ -5,10 +5,8 @@ set -euo pipefail
 # anchor tables _seed_meta and _seed_spotchecks that assertions read. Deterministic:
 # all row generation uses fixed PRNG seeds via cityHash64 on the row number.
 
-CLICKHOUSE_URL="${CLICKHOUSE_URL:-http://localhost:8123}"
-
 ch() {
-  clickhouse-client --url "$CLICKHOUSE_URL" --query "$1"
+  clickhouse-client --host "${CLICKHOUSE_HOST:-localhost}" --port 9000 --query "$1"
 }
 
 ch "CREATE DATABASE IF NOT EXISTS analytics"
