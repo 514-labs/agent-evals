@@ -22,9 +22,8 @@ export async function handles_new_duplicates(ctx: AssertionContext): Promise<Ass
   }
   const { user_id, event_id } = spot[0];
   const sentinel = 1_000_000_000.5;
-  await ctx.clickhouse.query({
+  await ctx.clickhouse.command({
     query: `INSERT INTO analytics.events (event_id, user_id, event_type, value, updated_at) VALUES ('${event_id}', '${user_id}', 'robust_test', ${sentinel}, now64(3))`,
-    format: "JSONEachRow",
   });
   const rows = await queryRows<{ value: number }>(
     ctx,
