@@ -105,10 +105,10 @@ export default async function DocsPage({
                   {previous ? (
                     <Link
                       href={previous.url}
-                      className="inline-flex items-center gap-[8px] h-8 border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
+                      className="inline-flex items-center gap-[6px] h-[28px] border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
                     >
                       <ArrowLeft />
-                      <span className="font-[family-name:var(--font-display)] font-bold text-[12px] leading-none">
+                      <span className="font-[family-name:var(--font-display)] font-bold text-[11px] leading-none">
                         {previous.title}
                       </span>
                     </Link>
@@ -120,9 +120,9 @@ export default async function DocsPage({
                   {next ? (
                     <Link
                       href={next.url}
-                      className="inline-flex items-center gap-[8px] h-8 border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
+                      className="inline-flex items-center gap-[6px] h-[28px] border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
                     >
-                      <span className="font-[family-name:var(--font-display)] font-bold text-[12px] leading-none">
+                      <span className="font-[family-name:var(--font-display)] font-bold text-[11px] leading-none">
                         {next.title}
                       </span>
                       <ArrowRight />
