@@ -31,7 +31,9 @@ export type Harness = BuiltInHarness | "custom";
 // Agent planning mode
 export type PlanMode = "plan" | "no-plan";
 
-// Agent persona: baseline (minimal context) or informed (domain-specific guidance)
+// Agent persona: baseline (minimal context) or informed (domain-specific guidance).
+// Prompt files live at scenarios/{id}/harnesses/{harness}/prompts/{persona}.md —
+// the harness-scenario pair owns the prompt, not the scenario root.
 export type Persona = "baseline" | "informed";
 
 // Baseline metrics before agent intervention
@@ -48,12 +50,6 @@ export interface ReferenceMetrics {
   storageBytes: number;
   costPerQueryUsd: number;
   compressionRatio?: number;
-}
-
-// Persona-specific system prompts for the agent
-export interface PersonaPrompts {
-  baseline: string;
-  informed: string;
 }
 
 export interface ScenarioInfrastructure {
@@ -85,7 +81,6 @@ export interface Scenario {
   tasks: Task[];
   baselineMetrics: BaselineMetrics;
   referenceMetrics: ReferenceMetrics;
-  personaPrompts: PersonaPrompts;
   harnesses: BuiltInHarness[];
   datasetPath?: string;
   schemaPath?: string;

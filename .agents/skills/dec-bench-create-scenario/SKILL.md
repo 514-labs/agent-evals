@@ -55,16 +55,17 @@ This generates the correct directory structure:
 
 ```
 scenarios/<scenario-id>/
-  assertions/       # one TypeScript file per quality gate
-  init/             # SQL and scripts to seed data
-  prompts/          # one prompt per persona (baseline + informed)
-  scenario.json     # scenario metadata
-  supervisord.conf  # which services start in the container
+  assertions/                              # one TypeScript file per quality gate
+  harnesses/<harness-id>/prompts/          # baseline.md + informed.md per harness
+  harnesses/<harness-id>/init/             # harness-specific seed data (2+ harnesses only)
+  init/                                    # common seed data (all harnesses)
+  scenario.json                            # scenario metadata
+  supervisord.conf                         # which services start in the container
 ```
 
 ## Step 4: Complete scenario.json
 
-The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. It does NOT emit `infrastructure` — you must add it by hand. Fill in:
+The scaffold pre-fills `id`, `domain`, `tier`, and `harnesses`. There is no `personaPrompts` field — prompts are owned by the harness-scenario pair. It does NOT emit `infrastructure` — you must add it by hand. Fill in:
 
 - `title`: human-readable name
 - `description`: concrete task description

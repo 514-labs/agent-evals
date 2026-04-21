@@ -137,6 +137,8 @@ A scenario directory controls its runtime environment through four files. The ba
 | File | Purpose | Required |
 |---|---|---|
 | `supervisord.conf` | Which services auto-start and in what order (`priority`). | yes |
+| `harnesses/<harness-id>/prompts/baseline.md` | Baseline prompt for this harness (no tool names or hints). One per declared harness. | yes |
+| `harnesses/<harness-id>/prompts/informed.md` | Informed prompt for this harness (tool names, paths, constraints). One per declared harness. | yes |
 | `init/*.sql`, `init/*.sh` | Schema and seed data, common to every harness. Runs after services are ready, before the agent. | yes (at least one file) |
 | `harnesses/<harness-id>/init/*` | Harness-scenario pair owned seed data. Runs only when that harness is active, after flat init, before the agent. Dir names must match `scenario.json::harnesses[]`. | optional |
 | `harnesses/<harness-id>/install.sh` | Scenario-specific build-time install steps for one harness. Runs after the global harness install at image build time. | optional |

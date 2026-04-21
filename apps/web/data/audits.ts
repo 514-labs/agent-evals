@@ -635,12 +635,12 @@ export interface ScenarioDefinition {
   domain: string;
   harnesses: string[];
   tasks: ScenarioTask[];
-  personaPrompts?: Record<string, string>;
   tags?: string[];
   infrastructure?: ScenarioInfrastructure;
 }
 
 export interface ScenarioPromptContent {
+  harness: string;
   persona: string;
   path: string;
   content: string;
@@ -1245,17 +1245,22 @@ export function getScenarioAuditContext(scenarioId: string): AuditScenarioContex
   const scenario = safeParseJson<ScenarioDefinition>(scenarioPath);
   if (!scenario || scenario.id !== scenarioId) return null;
 
+  // Prompts are owned by harness-scenario pairs at harnesses/{harness}/prompts/{persona}.md.
   const prompts: ScenarioPromptContent[] = [];
-  for (const [persona, promptPath] of Object.entries(scenario.personaPrompts ?? {})) {
-    if (!validateRelativePath(promptPath)) continue;
-    const absolutePromptPath = resolve(scenarioDir, promptPath);
-    if (!absolutePromptPath.startsWith(scenarioDir)) continue;
-    if (!existsSync(absolutePromptPath)) continue;
-    prompts.push({
-      persona,
-      path: promptPath,
-      content: readFileSync(absolutePromptPath, "utf8"),
-    });
+  for (const harness of scenario.harnesses ?? []) {
+    for (const persona of ["baseline", "informed"]) {
+      const relPath = `harnesses/${harness}/prompts/${persona}.md`;
+      if (!validateRelativePath(relPath)) continue;
+      const absolutePromptPath = resolve(scenarioDir, relPath);
+      if (!absolutePromptPath.startsWith(scenarioDir)) continue;
+      if (!existsSync(absolutePromptPath)) continue;
+      prompts.push({
+        harness,
+        persona,
+        path: relPath,
+        content: readFileSync(absolutePromptPath, "utf8"),
+      });
+    }
   }
 
   return {

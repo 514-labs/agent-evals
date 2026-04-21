@@ -1,0 +1,1 @@
+We have a ClickHouse table called `raw.metrics` with about 5 million rows of synthetic metrics data. Our dashboard queries are really slow. Can you make them faster by redesigning how the table is structured?

@@ -89,20 +89,31 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
 
     info!(name = %args.name, domain = %args.domain, tier = %args.tier, "Scaffolding scenario");
 
-    let dirs = ["prompts", "init", "assertions"];
+    let dirs = ["init", "assertions"];
     for d in &dirs {
         fs::create_dir_all(root.join(d))
             .with_context(|| format!("Failed to create {d} directory"))?;
     }
 
-    write_file(
-        &root.join("prompts/baseline.md"),
-        "<!-- Describe the task in plain language. No tool names, no implementation hints. -->\n",
-    )?;
-    write_file(
-        &root.join("prompts/informed.md"),
-        "<!-- Describe the task with specific tools, targets, and technical constraints. -->\n",
-    )?;
+    // Each harness owns its own prompts. Scaffold harnesses/{harness}/prompts/ for every
+    // declared harness — the harness-scenario pair is the unit of ownership.
+    for harness in &args.harnesses {
+        let prompts_dir = root.join("harnesses").join(harness).join("prompts");
+        fs::create_dir_all(&prompts_dir)
+            .with_context(|| format!("Failed to create harnesses/{harness}/prompts directory"))?;
+        write_file(
+            &prompts_dir.join("baseline.md"),
+            &format!(
+                "<!-- [{harness}] Describe the task in plain language. No tool names, no implementation hints. -->\n"
+            ),
+        )?;
+        write_file(
+            &prompts_dir.join("informed.md"),
+            &format!(
+                "<!-- [{harness}] Describe the task with specific tools, targets, and technical constraints for this harness. -->\n"
+            ),
+        )?;
+    }
 
     write_file(
         &root.join("supervisord.conf"),
@@ -118,16 +129,16 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
 
     write_file(&root.join("init/postgres-setup.sql"), "-- Schema and seed data for Postgres\n")?;
 
-    // When 2+ harnesses are declared, scaffold per-harness init subdirs.
-    // Files in init/<harness-id>/ run only when that harness is active;
-    // flat files in init/ run for every harness. See SKILL.md "Three lifecycle moments".
+    // When 2+ harnesses are declared, scaffold per-harness init subdirs inside harnesses/.
+    // harnesses/{harness}/init/ runs only when that harness is active;
+    // flat files in init/ run for every harness. See SKILL.md "Four setup layers".
     if args.harnesses.len() >= 2 {
         for harness in &args.harnesses {
-            let subdir = root.join("init").join(harness);
-            fs::create_dir_all(&subdir)
-                .with_context(|| format!("Failed to create init/{harness} directory"))?;
+            let init_subdir = root.join("harnesses").join(harness).join("init");
+            fs::create_dir_all(&init_subdir)
+                .with_context(|| format!("Failed to create harnesses/{harness}/init directory"))?;
             write_file(
-                &subdir.join("seed-workspace.sh"),
+                &init_subdir.join("seed-workspace.sh"),
                 &format!(
                     "#!/bin/bash\n\
                      # Per-harness init for `{harness}`. Runs only when this harness is active.\n\
@@ -162,10 +173,6 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
         "domain": args.domain.to_string(),
         "harnesses": args.harnesses,
         "tasks": [],
-        "personaPrompts": {
-            "baseline": "prompts/baseline.md",
-            "informed": "prompts/informed.md"
-        },
         "tags": [],
         "baselineMetrics": {
             "queryLatencyMs": 0,
@@ -188,22 +195,24 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     println!();
     print_tree(&root, "", true)?;
     println!();
-    println!("Three moments to know about:");
-    println!("  - To install a TOOL (e.g. a CLI like moose, dbt) -> add a custom harness in");
-    println!("    apps/web/data/harnesses/<id>.json (runs at image BUILD time, once per image).");
-    println!("  - To seed STATE for every harness -> flat files in init/ (run at container");
-    println!("    STARTUP, every run).");
+    println!("Four setup layers to know about:");
+    println!("  - TOOL install (global) -> apps/web/data/harnesses/<id>.json::installScript");
+    println!("    (runs at image BUILD time, shared across all scenarios using that harness).");
+    println!("  - TOOL install (this scenario) -> harnesses/<harness-id>/install.sh");
+    println!("    (runs at image BUILD time, after the global install).");
+    println!("  - STATE for every harness -> flat files in init/");
+    println!("    (run at container STARTUP, every run).");
     if args.harnesses.len() >= 2 {
-        println!("  - To seed STATE that varies per harness -> files in init/<harness-id>/");
+        println!("  - STATE for one harness -> harnesses/<harness-id>/init/");
         println!("    (run at container STARTUP, only when that harness is active).");
         println!("    Subdirs were scaffolded for: {}.", args.harnesses.join(", "));
     } else {
-        println!("  - To seed STATE that varies per harness -> files in init/<harness-id>/");
+        println!("  - STATE for one harness -> harnesses/<harness-id>/init/");
         println!("    (only relevant when scenario declares 2+ harnesses).");
     }
     println!();
     println!("Next steps:");
-    println!("  1. Fill in prompts/baseline.md and prompts/informed.md");
+    println!("  1. Fill in harnesses/<harness-id>/prompts/baseline.md and informed.md for each harness");
     println!("  2. Add init scripts, seed data, and gate assertions");
     println!("  3. Complete scenario.json metadata (including lede: \"In this scenario, an agent must...\")");
     println!("  4. Validate the scenario:");
@@ -278,8 +287,6 @@ mod tests {
 
         let root = temp.path().join("sample-scenario");
         assert!(root.join("scenario.json").exists());
-        assert!(root.join("prompts/baseline.md").exists());
-        assert!(root.join("prompts/informed.md").exists());
         assert!(root.join("init/postgres-setup.sql").exists());
         assert!(root.join("assertions/functional.ts").exists());
         assert!(root.join("assertions/correct.ts").exists());
@@ -288,10 +295,27 @@ mod tests {
         assert!(root.join("assertions/production.ts").exists());
         assert!(root.join("supervisord.conf").exists());
 
-        // 3 harnesses declared -> per-harness init subdirs scaffolded.
-        assert!(root.join("init/base-rt/seed-workspace.sh").exists());
-        assert!(root.join("init/classic-de/seed-workspace.sh").exists());
-        assert!(root.join("init/olap-for-swe/seed-workspace.sh").exists());
+        // Each harness gets its own prompts/ under harnesses/<harness-id>/prompts/.
+        for harness in &["base-rt", "classic-de", "olap-for-swe"] {
+            assert!(root.join(format!("harnesses/{harness}/prompts/baseline.md")).exists(),
+                "missing harnesses/{harness}/prompts/baseline.md");
+            assert!(root.join(format!("harnesses/{harness}/prompts/informed.md")).exists(),
+                "missing harnesses/{harness}/prompts/informed.md");
+        }
+
+        // No flat prompts/ at scenario root.
+        assert!(!root.join("prompts").exists(), "flat prompts/ should not exist");
+
+        // scenario.json must not contain personaPrompts.
+        let scenario_json: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(root.join("scenario.json")).unwrap()).unwrap();
+        assert!(scenario_json.get("personaPrompts").is_none(), "personaPrompts must not be present");
+
+        // 3 harnesses declared -> per-harness init subdirs scaffolded under harnesses/.
+        for harness in &["base-rt", "classic-de", "olap-for-swe"] {
+            assert!(root.join(format!("harnesses/{harness}/init/seed-workspace.sh")).exists(),
+                "missing harnesses/{harness}/init/seed-workspace.sh");
+        }
     }
 
     #[tokio::test]
@@ -309,7 +333,11 @@ mod tests {
 
         let root = temp.path().join("single-harness-scenario");
         assert!(root.join("init/postgres-setup.sql").exists());
-        assert!(!root.join("init/base-rt").exists(),
+        // Single-harness: prompts still scaffold under harnesses/{harness}/prompts/.
+        assert!(root.join("harnesses/base-rt/prompts/baseline.md").exists());
+        assert!(root.join("harnesses/base-rt/prompts/informed.md").exists());
+        // Single-harness: no per-harness init subdir (no comparison needed).
+        assert!(!root.join("harnesses/base-rt/init").exists(),
             "single-harness scenarios should NOT get a per-harness init subdir");
     }
 }

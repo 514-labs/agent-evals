@@ -36,7 +36,6 @@ function createScenarioJson(options?: {
     domain: "foo-bar",
     harness: "base-rt",
     tasks: [{ id: "task-1", description: "Do the thing", category: "ingestion" }],
-    personaPrompts: { baseline: "prompts/baseline.md", informed: "prompts/informed.md" },
     infrastructure: {
       services: options?.services ?? [],
       description: "Test infrastructure.",
