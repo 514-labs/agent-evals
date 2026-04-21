@@ -34,7 +34,7 @@ export default function DocsLayout({
         </div>
       </div>
 
-      <Footer maxWidth="1328px" marginTop="0" />
+      <Footer maxWidth="1328px" marginTop="2rem" />
     </div>
   );
 }
