@@ -1,9 +1,15 @@
 import Link from "next/link";
 
-export function Footer() {
+export function Footer({
+  maxWidth = "52rem",
+  marginTop = "4rem",
+}: { maxWidth?: string; marginTop?: string } = {}) {
   return (
-    <footer className="border-t-2 border-[color:var(--foreground)] mt-16">
-      <div className="max-w-[52rem] mx-auto px-6 py-8">
+    <footer
+      className="border-t-2 border-[color:var(--foreground)]"
+      style={{ marginTop }}
+    >
+      <div className="mx-auto px-6 py-8" style={{ maxWidth }}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap font-[family-name:var(--font-mono)]">
             <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--muted-foreground)]">
