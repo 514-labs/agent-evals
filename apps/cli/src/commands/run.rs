@@ -386,6 +386,7 @@ async fn run_single(
             model: args.model.clone(),
             version: args.version.clone(),
             base_image: "ghcr.io/514-labs/dec-bench:base".to_string(),
+            overrides: Vec::new(),
             dry_run: false,
         };
         super::build::execute(build_args)

@@ -3,7 +3,7 @@ title: "Creating a Custom Harness"
 description: "Author a custom harness when no existing profile supports the tools your scenario requires."
 ---
 
-Create a custom harness only when no existing harness profile includes the tools your scenario needs.
+Create a custom harness only when no existing harness profile includes the tools your scenario needs. A harness is a JSON file at `apps/web/data/harnesses/<id>.json` that declares which tools get installed into the harness layer at build time.
 
 ## When to create one
 
@@ -11,26 +11,61 @@ The three built-in harnesses cover most scenarios:
 
 | Harness | What it installs |
 |---------|-----------------|
-| `base-rt` | Base infrastructure with Python, Node.js, database CLIs |
-| `classic-de` | dbt-core, dbt-postgres, dbt-clickhouse, apache-airflow, pyspark |
-| `olap-for-swe` | MooseStack (moose-cli, moose-lib) |
+| `base-rt` | Base infrastructure only — Python, Node.js, database CLIs. The control group. |
+| `classic-de` | dbt-core, dbt-postgres, dbt-clickhouse, apache-airflow, pyspark. |
+| `olap-for-swe` | MooseStack — 514 CLI, moose-cli, ClickHouse (pre-cached for `moose dev --dockerless`). |
 
-If your scenario requires tools not available in any of these, create a custom harness script.
+If your scenario needs tools not present in any of these, author a new harness JSON.
 
-## Minimal harness script
+## Two ways to declare a harness
 
-A harness is a shell script that installs tools into the image layer. It runs once at build time.
+### Declarative: `toolInstalls[]` + `postInstallScript` (recommended for tools in the registry)
 
-```bash title="harnesses/custom-elt.sh"
-#!/usr/bin/env bash
-set -euo pipefail
-
-pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0
-npm install -g pnpm
+```json title="apps/web/data/harnesses/my-harness.json"
+{
+  "id": "my-harness",
+  "title": "My Harness",
+  "tagline": "One-line pitch.",
+  "description": "What this harness provides.",
+  "toolInstalls": [
+    { "name": "moose", "version": "0.6.518" },
+    { "name": "clickhouse", "version": "25.8.18.1" }
+  ],
+  "postInstallScript": "echo 'any harness-specific glue after the tool installs'",
+  "networkPolicy": "open",
+  "allowlistedEndpoints": [],
+  "tools": [
+    { "name": "moose-cli", "version": "0.6.518", "category": "framework" }
+  ]
+}
 ```
+
+Each entry in `toolInstalls[]` resolves to `tools/<name>/install.sh <version>` at harness build time. The `tools/` directory is the registry — browse it to see what's available. Current registered tools: `moose`, `moose-lib`, `clickhouse`, `514`.
+
+Why this shape is preferred: tools declared in `toolInstalls[]` are **substitutable at build time** with `--override`, which is how contributors test local builds of the tool against the scenario suite. See [Testing Local Artifact Overrides](/docs/add-eval/testing-local-overrides).
+
+The `tools[]` field (plural, separate from `toolInstalls`) is display-only metadata for the harness catalog page.
+
+### Legacy: `installScript` one-liner
+
+For one-off installs that don't warrant a registry module, a raw shell script still works:
+
+```json title="apps/web/data/harnesses/classic-de.json"
+{
+  "id": "classic-de",
+  "installScript": "apt-get update && apt-get install -y --no-install-recommends openjdk-17-jre-headless && pip3 install --no-cache-dir --break-system-packages dbt-core==1.10.19 dbt-postgres==1.10.0 apache-airflow==2.10.5"
+}
+```
+
+The build script uses `installScript` as a fallback when `toolInstalls[]` is absent. Harnesses on this path don't benefit from `--override`, so if you expect contributors to iterate locally on one of the tools you install, prefer the declarative path.
 
 ## Guidelines
 
 - Pin major tool versions where reproducibility matters.
 - Minimize the install surface area. Only include tools the agent actually needs.
 - Keep install time predictable. Large installs slow down the build/run feedback loop.
+- Prefer `toolInstalls[]` entries for any tool a contributor might want to iterate on locally — it makes the tool substitutable via `--override` without editing the harness.
+
+## Adding a tool to the registry
+
+If the tool you need isn't in `tools/` yet, see the "Extending the registry with a new tool" section of [Testing Local Artifact Overrides](/docs/add-eval/testing-local-overrides). Briefly: create `tools/<name>/install.sh <version>` and `tools/<name>/override.sh <source>`, then reference the new tool in your harness's `toolInstalls[]`.

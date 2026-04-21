@@ -32,14 +32,27 @@ Services run locally via supervisord -- Postgres, ClickHouse, Redpanda, all insi
 
 ## Harness
 
-A shell script that installs tools. That's the whole abstraction.
+A JSON file at `apps/web/data/harnesses/<id>.json` that declares which tools to install on top of the scenario image. Two shapes are supported:
 
-```bash title="harnesses/classic-de.json installScript"
-apt-get update && apt-get install -y --no-install-recommends openjdk-17-jre-headless && rm -rf /var/lib/apt/lists/*
-pip3 install --no-cache-dir --break-system-packages dbt-core==1.10.19 dbt-postgres==1.10.0 dbt-clickhouse==1.10.0 apache-airflow==2.10.5 pyspark==3.5.5
+**Declarative** — reference entries in the `tools/` registry (each entry is a directory with an `install.sh` run at build time and an `override.sh` that makes the tool substitutable via `dec-bench build --override`):
+
+```json title="apps/web/data/harnesses/olap-for-swe.json"
+{
+  "toolInstalls": [
+    { "name": "moose", "version": "0.6.518" },
+    { "name": "clickhouse", "version": "25.8.18.1" }
+  ],
+  "postInstallScript": "echo 'harness-specific glue after installs'"
+}
 ```
 
-The Dockerfile runs it at build time. Contributing a harness = writing a shell script.
+**Legacy one-liner** — a raw shell script, kept as a fallback for harnesses that haven't migrated:
+
+```bash title="apps/web/data/harnesses/classic-de.json installScript"
+apt-get update && apt-get install -y openjdk-17-jre-headless && pip3 install dbt-core==1.10.19 apache-airflow==2.10.5 pyspark==3.5.5
+```
+
+Tools declared in `toolInstalls[]` can be replaced with a local build at image build time via `--override`, which is how contributors iterate on moose, moose-lib, ClickHouse, or other registry tools without cutting a release. See [Testing Local Artifact Overrides](/docs/add-eval/testing-local-overrides).
 
 ## Agent + Model
 
