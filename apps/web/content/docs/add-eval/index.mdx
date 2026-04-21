@@ -70,12 +70,16 @@ This generates:
       <File name="production.ts" />
       <File name="robust.ts" />
     </Folder>
+    <Folder name="harnesses">
+      <Folder name="<harness-id>">
+        <Folder name="prompts">
+          <File name="baseline.md" />
+          <File name="informed.md" />
+        </Folder>
+      </Folder>
+    </Folder>
     <Folder name="init">
       <File name="postgres-setup.sql" />
-    </Folder>
-    <Folder name="prompts">
-      <File name="baseline.md" />
-      <File name="informed.md" />
     </Folder>
     <File name="scenario.json" />
     <File name="supervisord.conf" />
@@ -85,10 +89,12 @@ This generates:
 | Path | Purpose |
 |------|---------|
 | `assertions/` | Pass/fail checks per quality gate — see [step 5](#5-write-gate-assertions) |
+| `harnesses/<harness-id>/prompts/` | What the agent is told to do (one per persona), scoped to this harness — see [step 3](#3-write-the-persona-prompts) |
 | `init/` | SQL and scripts to seed data before the agent starts — see [step 4](#4-set-up-infrastructure-and-seed-data) |
-| `prompts/` | What the agent is told to do (one per persona) — see [step 3](#3-write-the-persona-prompts) |
 | `scenario.json` | Scenario metadata — see [2b](#2b-complete-scenario-metadata) below |
 | `supervisord.conf` | Which services start in the container — see [step 4](#4-set-up-infrastructure-and-seed-data) |
+
+One `harnesses/<harness-id>/` subdirectory is scaffolded per harness you pass to `--harnesses`. The harness-scenario pair owns its prompts (and optionally harness-specific init scripts and install steps).
 
 ### 2b. Complete scenario metadata
 
@@ -112,10 +118,6 @@ The scaffold command creates `scenario.json` and pre-fills `id`, `domain`, `tier
 +      "category": "ingestion"
 +    }
 +  ],
-   "personaPrompts": {
-     "baseline": "prompts/baseline.md",
-     "informed": "prompts/informed.md"
-   },
 -  "tags": []
 +  "tags": ["csv", "ingestion", "data-cleaning", "type-coercion"]
  }
@@ -123,20 +125,20 @@ The scaffold command creates `scenario.json` and pre-fills `id`, `domain`, `tier
 
 ## 3. Write the persona prompts
 
-Each scenario tests two prompts, one per persona.
+Each harness-scenario pair tests two prompts, one per persona. Prompts live under `harnesses/<harness-id>/prompts/` — this lets the same scenario ship different prompts per harness when needed (e.g. an informed prompt that names tools specific to `olap-for-swe`).
 
-- **`prompts/baseline.md`**: plain language, no tool names or implementation hints. Tests what the agent figures out on its own.
-- **`prompts/informed.md`**: names specific tools, sets explicit targets, provides technical constraints. Tests whether domain knowledge changes the outcome.
+- **`harnesses/<harness-id>/prompts/baseline.md`**: plain language, no tool names or implementation hints. Tests what the agent figures out on its own.
+- **`harnesses/<harness-id>/prompts/informed.md`**: names specific tools, sets explicit targets, provides technical constraints. Tests whether domain knowledge changes the outcome.
 
 Examples:
 
-```markdown title="prompts/baseline.md"
+```markdown title="harnesses/base-rt/prompts/baseline.md"
 I have a bunch of CSV files that need to go into ClickHouse.
 Some of them have messy data -- weird dates, missing values.
 Can you get it all loaded into a clean table?
 ```
 
-```markdown title="prompts/informed.md"
+```markdown title="harnesses/base-rt/prompts/informed.md"
 Ingest five CSV files from /data/csv/ into a single ClickHouse
 table `analytics.events`. Handle DD/MM/YYYY dates, mixed null
 representations (N/A, null, empty), duplicate header rows
