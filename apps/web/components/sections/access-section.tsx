@@ -5,7 +5,7 @@ import { SplitCta } from "../marketing/split-cta";
 export function AccessSection() {
   return (
     <section id="evaluation-access" className="pt-10">
-      <div className="border-t border-[color:var(--secondary)] pt-8">
+      <div className="border-t border-[color:var(--sidebar)] pt-8">
         <SectionHeading number={7} title="Evaluation Access" />
 
         <div className="mt-6">

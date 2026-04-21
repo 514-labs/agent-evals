@@ -35,8 +35,8 @@ export function MethodologySection() {
       </p>
 
       {/* Infrastructure table (desktop) */}
-      <div className="mt-4 border-b border-[color:var(--secondary)] hidden sm:block">
-        <div className="flex border-b border-[color:var(--secondary)]">
+      <div className="mt-4 border-b border-[color:var(--sidebar)] hidden sm:block">
+        <div className="flex border-b border-[color:var(--sidebar)]">
           {[
             { name: "POSTGRES", logo: "/logos/postgres.svg", description: "Transactional source of truth. Schema migrations, foreign keys, constraints." },
             { name: "CLICKHOUSE", logo: "/logos/clickhouse.svg", description: "Columnar analytics engine. Materialized views, partition keys, ORDER BY optimization." },
@@ -74,7 +74,7 @@ export function MethodologySection() {
           { name: "CLICKHOUSE", logo: "/logos/clickhouse.svg", description: "Columnar analytics engine. Materialized views, partition keys, ORDER BY optimization." },
           { name: "REDPANDA", logo: "/logos/redpanda.svg", description: "Kafka-compatible event streaming. Topics, consumers, partitions." },
         ].map((item) => (
-          <div key={item.name} className="border-b border-[color:var(--secondary)] py-4">
+          <div key={item.name} className="border-b border-[color:var(--sidebar)] py-4">
             <div className="flex items-center gap-2.5 mb-2">
               <div className="size-6 flex items-center justify-center bg-white/95 border border-white rounded-sm overflow-hidden">
                 <img src={item.logo} alt={item.name} width={18} height={18} className="object-contain" />

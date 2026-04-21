@@ -21,7 +21,7 @@ const headerColors = [
   "bg-[color:var(--muted-foreground)] text-[color:var(--card)]",
   "bg-[color:var(--chart-4)] text-[color:var(--card)]",
   "bg-[color:var(--chart-5)] text-[color:var(--foreground)]",
-  "bg-[color:var(--secondary)] text-[color:var(--muted-foreground)]",
+  "bg-[color:var(--sidebar)] text-[color:var(--muted-foreground)]",
 ];
 
 interface FiveGatesProps {
@@ -31,11 +31,11 @@ interface FiveGatesProps {
 
 export function FiveGates({ gates = defaultGates, headerPrefix = "Gate" }: FiveGatesProps) {
   return (
-    <div className="flex flex-col sm:flex-row border border-[color:var(--secondary)]">
+    <div className="flex flex-col sm:flex-row border border-[color:var(--sidebar)]">
       {gates.map((gate, i) => (
         <div
           key={gate.number}
-          className={`sm:flex-1 flex flex-col ${i > 0 ? "border-t sm:border-t-0 sm:border-l border-[color:var(--secondary)]" : ""}`}
+          className={`sm:flex-1 flex flex-col ${i > 0 ? "border-t sm:border-t-0 sm:border-l border-[color:var(--sidebar)]" : ""}`}
         >
           <div className={`${headerColors[i]} px-2 h-[22px] flex items-center`}>
             <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] leading-none">
