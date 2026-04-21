@@ -594,7 +594,6 @@ async fn run_single(
         .unwrap_or_else(|| extract_result_json(&cleaned_stdout, scenario_id, &args.harness, exit_code));
     let (output_path, run_id) =
         write_result_file(&args.results_dir, &default_run_id, &mut result_json)?;
-    println!("Wrote result: {}", output_path.display());
 
     let stdout_path = output_path.with_extension("stdout");
     let output_stdout = match agent_stdout {
@@ -610,13 +609,14 @@ async fn run_single(
     };
     fs::write(&stdout_path, output_stdout)
         .with_context(|| format!("Failed to write {}", stdout_path.display()))?;
-    println!("Wrote stdout: {}", stdout_path.display());
+
+    let mut written_files: Vec<&str> = vec!["result.json", "stdout"];
 
     if !cleaned_stdout.trim().is_empty() {
         let infra_stdout_path = output_path.with_extension("infra.stdout");
         fs::write(&infra_stdout_path, &cleaned_stdout)
             .with_context(|| format!("Failed to write {}", infra_stdout_path.display()))?;
-        println!("Wrote infra stdout: {}", infra_stdout_path.display());
+        written_files.push("infra.stdout");
     }
 
     if let Some(content) = run_meta_json.filter(|value| !value.trim().is_empty()) {
@@ -626,7 +626,7 @@ async fn run_single(
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
             .with_context(|| format!("Failed to write {}", run_meta_path.display()))?;
-        println!("Wrote run metadata: {}", run_meta_path.display());
+        written_files.push("run-meta.json");
     }
 
     if let Some(content) = agent_raw_json.filter(|value| !value.trim().is_empty()) {
@@ -636,7 +636,7 @@ async fn run_single(
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
             .with_context(|| format!("Failed to write {}", raw_path.display()))?;
-        println!("Wrote agent raw: {}", raw_path.display());
+        written_files.push("agent-raw.json");
     }
 
     if let Some(content) = agent_trace_json.filter(|value| !value.trim().is_empty()) {
@@ -646,7 +646,7 @@ async fn run_single(
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
             .with_context(|| format!("Failed to write {}", trace_path.display()))?;
-        println!("Wrote trace: {}", trace_path.display());
+        written_files.push("trace.json");
     }
 
     if let Some(content) = session_jsonl.filter(|value| !value.trim().is_empty()) {
@@ -656,29 +656,36 @@ async fn run_single(
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
             .with_context(|| format!("Failed to write {}", session_path.display()))?;
-        println!("Wrote session JSONL: {}", session_path.display());
+        written_files.push("session.jsonl");
     }
 
     if let Some(content) = assertion_log_json.filter(|value| !value.trim().is_empty()) {
         let assertion_log_path = output_path.with_extension("assertion-log.json");
         fs::write(&assertion_log_path, ensure_trailing_newline(&content))
             .with_context(|| format!("Failed to write {}", assertion_log_path.display()))?;
-        println!("Wrote assertion log: {}", assertion_log_path.display());
+        written_files.push("assertion-log.json");
     }
 
     if let Some(content) = service_logs_json.filter(|value| !value.trim().is_empty()) {
         let service_logs_path = output_path.with_extension("service-logs.json");
         fs::write(&service_logs_path, ensure_trailing_newline(&content))
             .with_context(|| format!("Failed to write {}", service_logs_path.display()))?;
-        println!("Wrote service logs: {}", service_logs_path.display());
+        written_files.push("service-logs.json");
     }
 
     if !stderr_buffer.is_empty() {
         let stderr_path = output_path.with_extension("stderr");
         fs::write(&stderr_path, &stderr_buffer)
             .with_context(|| format!("Failed to write {}", stderr_path.display()))?;
-        println!("Wrote stderr: {}", stderr_path.display());
+        written_files.push("stderr");
     }
+
+    println!(
+        "Wrote {} files to {}/ [{}]",
+        written_files.len(),
+        args.results_dir,
+        written_files.join(", ")
+    );
 
     if exit_code != 0 {
         warn!(
