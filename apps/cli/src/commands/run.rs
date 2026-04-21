@@ -711,7 +711,7 @@ async fn run_single(
     println!("Result file: {}", output_path.display());
     println!("{}", format_block_heading("Next steps", use_ansi));
     println!("  dec-bench results --run-id {}", run_id);
-    println!("  dec-bench audit open --scenario {} --run-id {}  # requires npm", scenario_id, run_id);
+    println!("  dec-bench audit open --scenario {} --run-id {}  # requires pnpm install", scenario_id, run_id);
 
     Ok(())
 }
