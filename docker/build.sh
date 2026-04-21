@@ -4,6 +4,10 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage: docker/build.sh --scenario <id> --harness <id> --agent <id> --model <model> --version <version>
+                       [--base-image <image>] [--override <tool-name>]...
+
+--override passes the NAME of a tool whose source has been staged under
+docker/.tmp/overrides/<NAME> (by the CLI). Repeatable.
 EOF
 }
 
@@ -13,6 +17,7 @@ AGENT=""
 MODEL=""
 VERSION=""
 BASE_IMAGE="ghcr.io/514-labs/dec-bench:base"
+OVERRIDES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -22,6 +27,7 @@ while [[ $# -gt 0 ]]; do
     --model) MODEL="$2"; shift 2 ;;
     --version) VERSION="$2"; shift 2 ;;
     --base-image) BASE_IMAGE="$2"; shift 2 ;;
+    --override) OVERRIDES+=("$2"); shift 2 ;;
     *) echo "Unknown arg: $1"; usage; exit 1 ;;
   esac
 done
@@ -58,18 +64,41 @@ mkdir -p "${TMP_DIR}"
 HARNESS_SCRIPT_REL="docker/.tmp/harness-${HARNESS}.sh"
 HARNESS_SCRIPT="${ROOT_DIR}/${HARNESS_SCRIPT_REL}"
 
-python3 - <<PY
-import json
+TOOLS_DIR="${ROOT_DIR}/tools"
+
+python3 - "${HARNESS_JSON}" "${HARNESS_SCRIPT}" "${TOOLS_DIR}" <<'PY'
+import json, os, stat, sys
 from pathlib import Path
 
-src = Path("${HARNESS_JSON}")
-dest = Path("${HARNESS_SCRIPT}")
+src = Path(sys.argv[1])
+dest = Path(sys.argv[2])
+tools_root = Path(sys.argv[3])
 data = json.loads(src.read_text())
-install_script = (data.get("installScript") or "").strip()
+
 lines = ["#!/usr/bin/env bash", "set -euo pipefail"]
-if install_script:
-    lines.append(install_script)
-dest.write_text("\\n".join(lines) + "\\n")
+
+tool_installs = data.get("toolInstalls") or []
+for tool in tool_installs:
+    name = tool["name"]
+    version = tool["version"]
+    install = tools_root / name / "install.sh"
+    if not install.is_file():
+        print(f"Missing install script for tool '{name}': {install}", file=sys.stderr)
+        sys.exit(1)
+    # Shell-quote the version to be safe.
+    lines.append(f'bash /opt/dec-bench/tools/{name}/install.sh {json.dumps(version)}')
+
+post = (data.get("postInstallScript") or "").strip()
+if post:
+    lines.append(post)
+
+# Back-compat: harnesses that haven't migrated still use a single installScript.
+if not tool_installs and not post:
+    legacy = (data.get("installScript") or "").strip()
+    if legacy:
+        lines.append(legacy)
+
+dest.write_text("\n".join(lines) + "\n")
 dest.chmod(0o755)
 PY
 
@@ -87,6 +116,26 @@ FINAL_TAG="${SCENARIO}.${HARNESS}.${AGENT}.${MODEL}.${VERSION}"
 SCENARIO_TAG="dec-bench-scenario:${SCENARIO}"
 HARNESS_TAG="dec-bench-harness:${SCENARIO}-${HARNESS}"
 
+OVERRIDES_STAGE_REL="docker/.tmp/overrides"
+OVERRIDES_BUILD_ARG=()
+if (( ${#OVERRIDES[@]} > 0 )); then
+  stage_dir="${ROOT_DIR}/${OVERRIDES_STAGE_REL}"
+  if [[ ! -d "${stage_dir}" ]]; then
+    echo "Overrides staging dir not found: ${stage_dir}" >&2
+    echo "The CLI should have staged sources there before invoking build.sh." >&2
+    exit 1
+  fi
+  for name in "${OVERRIDES[@]}"; do
+    staged="${stage_dir}/${name}"
+    if [[ ! -e "${staged}" ]]; then
+      echo "Overrides: no staged source at ${staged} for '${name}'" >&2
+      exit 1
+    fi
+  done
+  OVERRIDES_BUILD_ARG=(--build-arg "OVERRIDES_DIR=${OVERRIDES_STAGE_REL}")
+  echo "Applying overrides: ${OVERRIDES[*]}"
+fi
+
 cd "${ROOT_DIR}"
 
 docker build -f docker/base/Dockerfile -t "${BASE_IMAGE}" .
@@ -100,6 +149,7 @@ docker build \
   -f docker/harness/Dockerfile \
   --build-arg SCENARIO_IMAGE="${SCENARIO_TAG}" \
   --build-arg HARNESS_SCRIPT="${HARNESS_SCRIPT_REL}" \
+  ${OVERRIDES_BUILD_ARG[@]+"${OVERRIDES_BUILD_ARG[@]}"} \
   -t "${HARNESS_TAG}" \
   .
 docker build \
