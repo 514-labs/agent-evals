@@ -81,10 +81,10 @@ See [references/guide.md](references/guide.md) for the full schema contract and 
 
 ## Step 5: Write persona prompts
 
-Each scenario has two prompts — both must target the same outcome.
+Each harness-scenario pair has two prompts — both must target the same outcome. Prompts live under `harnesses/<harness-id>/prompts/`, not at the scenario root.
 
-- **`prompts/baseline.md`**: plain language, no tool names, no implementation hints. Tests what the agent figures out on its own.
-- **`prompts/informed.md`**: names specific tools, schemas, paths, constraints. Tests whether domain knowledge changes the outcome.
+- **`harnesses/<harness-id>/prompts/baseline.md`**: plain language, no tool names, no implementation hints. Tests what the agent figures out on its own.
+- **`harnesses/<harness-id>/prompts/informed.md`**: names specific tools, schemas, paths, constraints. Tests whether domain knowledge changes the outcome.
 
 ### Good example (from foo-bar-csv-ingest)
 
@@ -131,6 +131,7 @@ Four setup layers. Put each thing in the right one:
 | 2. Scenario-harness install | `scenarios/<id>/harnesses/<harness-id>/install.sh` | Image build, after layer 1, per scenario+harness | **Scenario-specific tool overrides.** Additional or scenario-specific install steps for one harness. Only needed when the global harness isn't quite right for this scenario. |
 | 3. Scenario init (common) | `scenarios/<id>/init/*.sh`, `*.sql` | Container startup, every run | **Seed data, common.** Schemas, tables, fixtures, CSVs, deterministic source state that applies to every harness. |
 | 4. Scenario init (per-harness) | `scenarios/<id>/harnesses/<harness-id>/init/*` | Container startup, only when that harness is active | **Seed data, harness-specific.** Starting state that differs per harness — e.g. a scaffolded Moose project vs a scaffolded dbt project in a comparison scenario. Owned by the harness-scenario pair, not the persona. |
+| 5. Agent prompt | `scenarios/<id>/harnesses/<harness-id>/prompts/<persona>.md` | Agent startup | **Prompt for this harness.** `baseline.md` and `informed.md` tailored to the tools available in this harness. |
 
 Rules of thumb:
 

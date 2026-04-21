@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROMPT_FILE="/scenario/prompts/${PERSONA:-baseline}.md"
+# Canonical location: harness-scenario pair owns the prompt.
+# Fallback to scenario-level prompts/ for backward compat during migration.
+_HARNESS_PROMPT="/scenario/harnesses/${EVAL_HARNESS:-}/prompts/${PERSONA:-baseline}.md"
+_SCENARIO_PROMPT="/scenario/prompts/${PERSONA:-baseline}.md"
+if [[ -n "${EVAL_HARNESS:-}" && -f "${_HARNESS_PROMPT}" ]]; then
+  PROMPT_FILE="${_HARNESS_PROMPT}"
+else
+  PROMPT_FILE="${_SCENARIO_PROMPT}"
+fi
+unset _HARNESS_PROMPT _SCENARIO_PROMPT
+
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 METRICS_PATH="${OUTPUT_DIR}/agent-metrics.json"
 RUN_META_PATH="${OUTPUT_DIR}/run-meta.json"
