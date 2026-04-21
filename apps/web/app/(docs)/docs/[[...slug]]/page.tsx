@@ -86,7 +86,7 @@ export default async function DocsPage({
                 {page.data.title}
               </h1>
               {page.data.description ? (
-                <p className="font-[family-name:var(--font-display)] text-[18px] leading-[28px] text-[color:var(--muted-foreground)] max-w-[680px]">
+                <p className="font-[family-name:var(--font-display)] text-[18px] leading-[28px] text-[color:var(--muted-foreground)]">
                   {page.data.description}
                 </p>
               ) : null}
