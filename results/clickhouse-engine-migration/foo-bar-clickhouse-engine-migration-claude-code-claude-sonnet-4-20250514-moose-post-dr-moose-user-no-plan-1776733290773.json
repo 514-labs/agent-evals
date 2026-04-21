@@ -1,0 +1,100 @@
+{
+  "agent": "claude-code",
+  "efficiency": {
+    "agentSteps": 50,
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cachedInputTokens": 0,
+    "inputTokens": 402,
+    "llmApiCostSource": "agent-reported",
+    "llmApiCostUsd": 0.5701826999999999,
+    "outputTokens": 8968,
+    "tokensUsed": 9370,
+    "wallClockSeconds": 185
+  },
+  "gates": {
+    "correct": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "all_rows_preserved": false,
+        "engine_is_replacing_mergetree": true,
+        "final_query_deduplicates": true,
+        "latest_updated_at_wins": true,
+        "order_by_is_user_id_event_id": true,
+        "version_column_is_updated_at": true
+      },
+      "score": 0.8333333333333334
+    },
+    "functional": {
+      "core": {
+        "no_unhandled_errors": true,
+        "process_exits_clean": true
+      },
+      "passed": true,
+      "scenario": {
+        "target_table_exists": true,
+        "target_table_has_rows": true
+      },
+      "score": 1
+    },
+    "performant": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "final_query_completes_quickly": true
+      },
+      "score": 1
+    },
+    "production": {
+      "core": {
+        "files_are_reasonably_sized": true,
+        "functions_are_focused": true,
+        "has_type_safety": true,
+        "no_dead_code_markers": true,
+        "no_debug_artifacts": true,
+        "no_deep_nesting": true,
+        "no_secrets_in_code": true,
+        "output_line_count_disciplined": true,
+        "output_line_count_reasonable": true,
+        "uses_env_vars": true,
+        "zero_compiler_errors": true,
+        "zero_lint_errors": true
+      },
+      "passed": false,
+      "scenario": {
+        "connection_env_vars_available": true,
+        "has_readme_or_docs": false,
+        "no_hardcoded_connection_strings": true
+      },
+      "score": 0.6666666666666666
+    },
+    "robust": {
+      "core": {
+        "idempotent_rerun": true
+      },
+      "passed": true,
+      "scenario": {
+        "handles_new_duplicates": true,
+        "no_dangling_temp_tables": true
+      },
+      "score": 1
+    }
+  },
+  "harness": "moose-post-dr",
+  "highest_gate": 4,
+  "model": "claude-sonnet-4-20250514",
+  "normalized_score": 0.9866666666666668,
+  "run_id": "foo-bar-clickhouse-engine-migration-claude-code-claude-sonnet-4-20250514-moose-post-dr-moose-user-no-plan-1776733290773",
+  "run_metadata": {
+    "persona": "moose-user",
+    "planMode": "no-plan",
+    "promptContent": "There is a Moose project at `/workspace/moose-project/` that models a ClickHouse table `analytics.events` (50,000 rows, populated — connection is in `$CLICKHOUSE_URL`). The project's `app/index.ts` currently defines the table as `MergeTree` with `ORDER BY (event_id)`.\n\nUpdate the Moose project so that the `events` OlapTable uses `ReplacingMergeTree(updated_at)` with `ORDER BY (user_id, event_id)`. Generate and apply a migration that preserves all historical rows.\n\nHard requirements after applying the migration:\n\n- `analytics.events` must have engine `ReplacingMergeTree(updated_at)` with `ORDER BY (user_id, event_id)`.\n- `SELECT count() FROM analytics.events` must still return 50,000.\n- `SELECT count() FROM analytics.events FINAL` must return 42,500.\n- No leftover tables under `analytics` other than `events`, `_seed_meta`, and `_seed_spotchecks`.\n\nDo **not** run `moose dev --dockerless`. ClickHouse is already running at `$CLICKHOUSE_URL`. Connect Moose to it directly, e.g. `moose generate migration --clickhouse-url \"$CLICKHOUSE_URL\"` and `moose migrate --clickhouse-url \"$CLICKHOUSE_URL\"`. If the CLI subcommand names differ at the Moose version installed in this harness, run `moose --help` to discover the exact commands.\n",
+    "promptPath": "/scenario/prompts/moose-user.md",
+    "promptPreview": "There is a Moose project at `/workspace/moose-project/` that models a ClickHouse table `analytics.events` (50,000 rows, populated — connection is in `$CLICKHOUSE_URL`). The project's `app/index.ts` currently defines the table as `MergeTree` with `ORDER BY (event_id)`.\n\nUpdate the Moose project so that the `events` OlapTable uses `ReplacingMergeTree(updated_at)` with `ORDER BY (user_id, event_id)`. Generate and apply a migration that preserves all historical rows.\n\nHard requirements after applying the migration:\n\n- `analytics.events` must have engine `ReplacingMergeTree(updated_at)` with `ORDER BY (user_id, event_id)`.\n- `SELECT count() FROM analytics.events` must still return 50,000.\n- `SELECT count() FROM analytics.events FINAL` must return 42,500.\n- No leftover tables under `analytics` other than `events`, `_seed_meta`, and `_seed_spotchecks`.\n\nDo **not** run `moose dev --dockerless`. ClickHouse is already running at `$CLICKHOUSE_URL`. Connect Moose to it directly, e.g. `moose genera",
+    "promptSha256": "788d84d7de4bc72731f8816bb4b378fe4d2965dd6e1807bae2d73ee22f5c04aa"
+  },
+  "scenario": "foo-bar-clickhouse-engine-migration",
+  "version": "v0.2.0"
+}
