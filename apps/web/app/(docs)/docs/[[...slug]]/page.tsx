@@ -99,7 +99,7 @@ export default async function DocsPage({
             {previous || next ? (
               <nav
                 aria-label="Pagination"
-                className="mt-14 pt-8 border-t border-[color:var(--border)] flex items-center justify-between gap-4"
+                className="mt-20 flex items-center justify-between gap-4"
               >
                 <div>
                   {previous ? (
