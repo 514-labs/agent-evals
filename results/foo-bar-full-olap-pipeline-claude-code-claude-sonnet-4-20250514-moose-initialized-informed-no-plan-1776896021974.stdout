@@ -1,0 +1,112 @@
+## Rules Checked
+- `schema-pk-cardinality-order` - Column ordering guidance for index effectiveness
+- `schema-pk-prioritize-filters` - Include frequently filtered columns in ORDER BY
+- `schema-types-native-types` - Use native types instead of strings  
+- `schema-types-lowcardinality` - Dictionary encoding for repeated strings
+- `schema-partition-lifecycle` - Time-based partitioning for data management
+- `query-mv-incremental` - Incremental materialized views for real-time aggregations
+
+## Key Findings & Recommendations
+
+### Critical Schema Design Rules
+
+**1. ORDER BY Column Ordering (per `schema-pk-cardinality-order`)**
+For your product events, order columns from low-to-high cardinality:
+```typescript
+orderByFields: ["eventType", "eventDate", "userId", "productId", "eventId"]
+```
+This enables ClickHouse's sparse index to skip entire granules effectively.
+
+**2. Filter-Aligned Ordering (per `schema-pk-prioritize-filters`)**
+Since your aggregations filter by event type and time, ensure these are first in ORDER BY. Your query patterns will be:
+- Top products: `WHERE event_type IN ('view', 'cart', 'purchase')`  
+- Conversion funnel: `WHERE event_type IN (...) AND event_ts >= ...`
+- Hourly activity: `WHERE event_ts >= ... AND event_type = ...`
+
+**3. Native Data Types (per `schema-types-native-types`)**
+```typescript
+interface ProductEvent {
+  eventId: string & tags.Format<"uuid">;        // UUID vs String saves 20 bytes per row
+  eventTs: Date;                               // DateTime vs String saves 15 bytes per row  
+  userId: UInt64;                              // UInt64 vs String enables numeric operations
+  productId: string & LowCardinality;          // Dictionary encoding for product IDs
+  eventType: string & LowCardinality;          // "view"/"cart"/"purchase" - perfect for LowCardinality
+  properties: string;                          // JSON for flexible properties
+}
+```
+
+**4. LowCardinality Usage (per `schema-types-lowcardinality`)**
+- `eventType`: Only 3 values ("view", "cart", "purchase") - perfect candidate
+- `productId`: Likely <10K unique products - use LowCardinality
+- Avoid for `userId` or `eventId` (high cardinality)
+
+**5. Time-Based Partitioning (per `schema-partition-lifecycle`)**
+```typescript
+export const productEventsTable = new OlapTable<ProductEvent>("product_events", {
+  orderByFields: ["eventType", "eventDate", "userId", "productId", "eventId"],
+  partitionBy: "toStartOfDay(eventTs)",  // Daily partitions for efficient data cleanup
+  ttl: "eventTs + INTERVAL 1 YEAR DELETE"     // Auto-drop old partitions
+});
+```
+
+### Pre-Aggregated Views Strategy
+
+**6. Incremental Materialized Views (per `query-mv-incremental`)**
+For sub-200ms API responses, create materialized views for each aggregation:
+
+```typescript
+// Top products aggregation
+interface TopProduct {
+  productId: string & LowCardinality;
+  views: number;
+  carts: number; 
+  purchases: number;
+  revenue: number;
+}
+
+export const topProductsMV = new MaterializedView<ProductEvent, TopProduct>({
+  name: "top_products_mv",
+  source: productEventsTable,
+  destination: topProductsTable,
+  query: `
+    SELECT
+      product_id,
+      countIfState(event_type = 'view') as views,
+      countIfState(event_type = 'cart') as carts, 
+      countIfState(event_type = 'purchase') as purchases,
+      sumIfState(JSONExtractFloat(properties, 'price'), event_type = 'purchase') as revenue
+    FROM product_events
+    GROUP BY product_id
+  `
+});
+```
+
+### Optimal Schema for Your Use Cases
+
+**Final Recommendation:**
+```typescript
+interface ProductEvent {
+  eventId: string & tags.Format<"uuid">;
+  eventTs: Date;
+  userId: UInt64;
+  productId: string & LowCardinality;          // Assuming <10K products
+  eventType: string & LowCardinality;          // 3 values: view/cart/purchase
+  properties: string;                          // JSON for flexible data
+}
+
+export const productEventsTable = new OlapTable<ProductEvent>("product_events", {
+  orderByFields: ["eventType", "toDate(eventTs)", "userId", "productId", "eventId"],
+  partitionBy: "toStartOfDay(eventTs)",
+  ttl: "eventTs + INTERVAL 1 YEAR DELETE"
+});
+```
+
+This schema will:
+- Enable efficient filtering by event type (first in ORDER BY)
+- Allow fast time-range queries (date field second)
+- Minimize storage through native types and LowCardinality
+- Support efficient data lifecycle management via daily partitions
+- Provide foundation for sub-200ms aggregation APIs via materialized views
+
+The materialized views will pre-compute your three aggregations (top products, conversion funnel, hourly activity) incrementally, reading thousands of pre-aggregated rows instead of scanning billions of raw events.
+Found session JSONL at /root/.claude/projects/-/675cb574-85b6-42fe-8c9d-7454c377a725.jsonl

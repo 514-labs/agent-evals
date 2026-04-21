@@ -36,7 +36,7 @@ export function LimitationsSection() {
         {limitations.map((item) => (
           <div
             key={item.kicker}
-            className="border-b border-[color:var(--secondary)] py-2.5 flex flex-col gap-2"
+            className="border-b border-[color:var(--sidebar)] py-2.5 flex flex-col gap-2"
           >
             <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
               {item.kicker}

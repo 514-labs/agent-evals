@@ -119,7 +119,10 @@ Install DEC Bench skills for your agent:
 npx skills add . --skill dec-bench-quickstart -a claude-code -a cursor -a codex
 npx skills add . --skill dec-bench-run -a claude-code -a cursor -a codex
 npx skills add . --skill dec-bench-create-scenario -a claude-code -a cursor -a codex
+npx skills add . --skill dec-bench-local-override -a claude-code -a cursor -a codex
 ```
+
+`dec-bench-local-override` guides contributors through substituting a locally-built artifact (moose-cli, moose-lib, ClickHouse, a Claude skill, etc.) into a scenario image to test changes before a release. See [Testing Local Artifact Overrides](https://decbench.ai/docs/add-eval/testing-local-overrides) for the web-facing reference.
 
 ## Testing
 

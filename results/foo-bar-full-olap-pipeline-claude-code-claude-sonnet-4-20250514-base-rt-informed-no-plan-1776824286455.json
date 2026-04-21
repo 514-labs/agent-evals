@@ -1,0 +1,84 @@
+{
+  "agent": "claude-code",
+  "efficiency": {
+    "agentSteps": 101,
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cachedInputTokens": 0,
+    "inputTokens": 804,
+    "llmApiCostSource": "agent-reported",
+    "llmApiCostUsd": 1.6302902,
+    "outputTokens": 21251,
+    "tokensUsed": 22055,
+    "wallClockSeconds": 482
+  },
+  "gates": {
+    "correct": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "all_seed_events_ingested": true,
+        "funnel_counts_are_monotonic": true,
+        "funnel_has_three_steps": true,
+        "hourly_returns_data": true,
+        "top_products_returns_data": true
+      },
+      "score": 1
+    },
+    "functional": {
+      "core": {
+        "no_unhandled_errors": true,
+        "process_exits_clean": true
+      },
+      "passed": true,
+      "scenario": {
+        "api_server_responds": true,
+        "clickhouse_has_events_table": true,
+        "events_table_has_rows": true,
+        "http_ingest_endpoint_exists": true
+      },
+      "score": 1
+    },
+    "performant": {
+      "core": {},
+      "passed": false,
+      "scenario": {},
+      "score": 0
+    },
+    "production": {
+      "core": {},
+      "passed": false,
+      "scenario": {},
+      "score": 0
+    },
+    "robust": {
+      "core": {
+        "idempotent_rerun": true
+      },
+      "passed": false,
+      "scenario": {
+        "api_returns_valid_json": false,
+        "live_ingest_works": true,
+        "no_hardcoded_connection_strings": true,
+        "redpanda_topic_exists": false
+      },
+      "score": 0.5
+    }
+  },
+  "harness": "base-rt",
+  "highest_gate": 2,
+  "model": "claude-sonnet-4-20250514",
+  "normalized_score": 0.52,
+  "run_id": "foo-bar-full-olap-pipeline-claude-code-claude-sonnet-4-20250514-base-rt-informed-no-plan-1776824286455",
+  "run_metadata": {
+    "persona": "informed",
+    "planMode": "no-plan",
+    "promptContent": "Build an end-to-end streaming analytics pipeline.\n\n**Seed data**: 40 product interaction events (view, cart, purchase) as JSON files in `/data/events/`. Each event has: `event_id`, `event_ts` (ISO 8601), `user_id`, `product_id`, `event_type`, `properties` (JSON object; purchase events have `price`).\n\n**Starting state**: ClickHouse and Redpanda are installed but not running. Start them before building the pipeline.\n\n**Pipeline**:\n\n1. **HTTP ingestion** (port 4000 or any port you pick): `POST /ingest/events` accepts JSON event bodies and forwards them to a Redpanda topic named `product-events`.\n2. **Redpanda buffer**: The `product-events` topic persists events.\n3. **ClickHouse landing**: A consumer reads from the topic and writes to `analytics.product_events` with columns: `event_id` String, `event_ts` DateTime, `user_id` String, `product_id` String, `event_type` String, `properties` String (raw JSON). Order by `(event_type, product_id, event_ts)`.\n4. **Aggregations** (tables or materialized views):\n   - `analytics.top_products`: `product_id`, `view_count`, `cart_count`, `purchase_count`, `revenue` (sum of price on purchases). Ordered by `purchase_count DESC`.\n   - `analytics.conversion_funnel`: `step` (view/cart/purchase), `unique_users`, `total_events`. One row per step.\n   - `analytics.hourly_activity`: `hour` (DateTime), `event_type`, `event_count`. Ordered by `hour`.\n5. **Egress API** (port 3000): three endpoints, each responding under 200ms:\n   - `GET /api/top-products` → JSON array from `analytics.top_products` (limit 10)\n   - `GET /api/funnel` → JSON array from `analytics.conversion_funnel`\n   - `GET /api/hourly` → JSON array from `analytics.hourly_activity`\n\n**Loading the seed data**: POST each of the 40 JSON files through your `/ingest/events` endpoint. Verify all 40 rows land in `analytics.product_events` and the aggregations reflect them.\n",
+    "promptPath": "/scenario/harnesses/base-rt/prompts/informed.md",
+    "promptPreview": "Build an end-to-end streaming analytics pipeline.\n\n**Seed data**: 40 product interaction events (view, cart, purchase) as JSON files in `/data/events/`. Each event has: `event_id`, `event_ts` (ISO 8601), `user_id`, `product_id`, `event_type`, `properties` (JSON object; purchase events have `price`).\n\n**Starting state**: ClickHouse and Redpanda are installed but not running. Start them before building the pipeline.\n\n**Pipeline**:\n\n1. **HTTP ingestion** (port 4000 or any port you pick): `POST /ingest/events` accepts JSON event bodies and forwards them to a Redpanda topic named `product-events`.\n2. **Redpanda buffer**: The `product-events` topic persists events.\n3. **ClickHouse landing**: A consumer reads from the topic and writes to `analytics.product_events` with columns: `event_id` String, `event_ts` DateTime, `user_id` String, `product_id` String, `event_type` String, `properties` String (raw JSON). Order by `(event_type, product_id, event_ts)`.\n4. **Aggregations** (tables or material",
+    "promptSha256": "76cf0d7fac7d72e53a5601d173b534400b3f3d88256acaec0ee1993269ecb0cf"
+  },
+  "scenario": "foo-bar-full-olap-pipeline",
+  "version": "v0.2.0-patched"
+}

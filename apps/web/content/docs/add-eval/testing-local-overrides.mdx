@@ -1,0 +1,279 @@
+---
+title: "Testing Local Artifact Overrides"
+description: "Substitute a local build of any registered tool into a DEC Bench scenario image without publishing a release."
+---
+
+When you're iterating on a tool that a harness installs — `moose`, `moose-lib`, `ClickHouse`, a Claude skill — the normal feedback loop is "publish a release, bump a version in a harness JSON, rebuild." That's too slow for day-to-day development. The `--override` mechanism lets you swap a locally-built artifact into a scenario image so you can run the full scenario against your changes before anything ships.
+
+## The tool registry
+
+Each subdirectory of `tools/<name>/` is a substitutable tool. The registry ships with seven today:
+
+| Name | Kind | What the override replaces in the image |
+|------|------|-----------------------------------------|
+| `moose` | binary | `/usr/local/bin/moose`, `~/.moose/bin/moose`, every cached version under `~/.moose/versions/` |
+| `moose-lib` | tarball (`.tgz`) | Stages at `/opt/moose-lib/moose-lib.tgz`; if `moose-templates` is also overridden, rewrites each TS template's `@514labs/moose-lib` dep to `file:/opt/moose-lib/moose-lib.tgz` |
+| `moose-templates` | directory | Rsyncs into `/usr/template-packages/` (`manifest.toml` + template `.tgz`s) |
+| `clickhouse` | binary | Every cached ClickHouse binary under `~/.moose/binaries/clickhouse/...` |
+| `514` | binary | `~/.local/bin/514` and `/usr/local/bin/514` |
+| `claude-skills` | directory | Rsyncs into `$HOME/.claude/skills/`; same-named skills overwrite, defaults preserved |
+| `claude-mcp` | JSON fragment | Merges `{"mcpServers": {...}}` into `$HOME/.claude.json`; same-named entries overwrite, defaults preserved |
+
+Each tool module ships an `override.sh` that accepts a single argument (the staged path). Binary-tool modules (`moose`, `moose-lib`, `clickhouse`, `514`) also ship an `install.sh <version>` used at harness build time. Artifact-only modules (`moose-templates`, `claude-skills`, `claude-mcp`) are override-only — their "install" is an implicit side-effect of another tool's install.sh.
+
+## Building a scenario with an override
+
+```bash title="dec-bench build"
+./target/debug/dec-bench build \
+  --scenario <scenario-id> \
+  --harness olap-for-swe \
+  --version v0.2.0-patched \
+  --override <name>=<absolute-path>
+```
+
+`--override` is repeatable. The CLI validates `<name>` against the `tools/` directory listing (unknown names fail fast with the list of valid ones) and that `<path>` exists. Each staged artifact is copied under `docker/.tmp/overrides/<name>` before the harness layer is built; Docker copies the directory into the image, `docker/harness/apply-overrides.sh` iterates it, and dispatches to `/opt/dec-bench/tools/<name>/override.sh` with the staged path.
+
+Use a distinct `--version` (e.g. `v0.2.0-patched`) so your overridden image doesn't collide with the normal `v0.2.0` tag.
+
+## Worked example: `moose-cli`
+
+### Cross-compiling the Linux binary
+
+A macOS Mach-O binary won't run inside the Linux scenario container. Use [`cross`](https://github.com/cross-rs/cross) to produce an `aarch64-unknown-linux-gnu` (or `x86_64-unknown-linux-gnu`, depending on your Docker host arch) executable.
+
+```bash title="One-time setup"
+cargo install cross --git https://github.com/cross-rs/cross
+```
+
+```bash title="Cross-compile moose-cli"
+cd /path/to/moose
+CC=aarch64-linux-gnu-gcc \
+CXX=aarch64-linux-gnu-g++ \
+AR=aarch64-linux-gnu-ar \
+OPENSSL_NO_VENDOR=1 \
+OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu \
+OPENSSL_INCLUDE_DIR=/usr/include \
+OPENSSL_STATIC=1 \
+cross build \
+  --release \
+  -p moose-cli \
+  --target aarch64-unknown-linux-gnu \
+  --features rdkafka/cmake-build
+```
+
+Why each env var:
+
+| Var | Reason |
+|-----|--------|
+| `CC`, `CXX`, `AR` | `rdkafka-sys` runs `librdkafka`'s autoconf `./configure`, which reads bare `$CC` — not cargo's target-qualified `CC_aarch64_unknown_linux_gnu`. Without these, configure picks the host `gcc` (x86_64) and the link fails with `cannot find -lcrypto`. |
+| `OPENSSL_NO_VENDOR=1` | openssl-sys's vendored build uses OpenSSL 3.x, which strips `SSL_get_peer_certificate` — a deprecated symbol `librdkafka` still calls. This env var is openssl-sys's documented opt-out; Cargo.toml's `features = ["vendored"]` stays untouched. |
+| `OPENSSL_LIB_DIR`, `OPENSSL_INCLUDE_DIR` | Point openssl-sys at the system libssl 1.1 inside the cross container (Debian multiarch layout). |
+| `OPENSSL_STATIC=1` | Static-link libssl so the produced binary has no runtime libssl dependency. |
+
+The full Cross.toml recipe — base image, apt packages, sysroot symlinks — lives at `/path/to/moose/Cross.toml`.
+
+### Running a scenario
+
+```bash title="Single-scenario test"
+cd /path/to/agent-evals
+./target/debug/dec-bench build \
+  --scenario foo-bar-csv-ingest \
+  --harness olap-for-swe \
+  --version v0.2.0-patched \
+  --override moose=/path/to/moose/target/aarch64-unknown-linux-gnu/release/moose-cli
+
+./target/debug/dec-bench run \
+  --scenario foo-bar-csv-ingest \
+  --harness olap-for-swe \
+  --persona informed \
+  --version v0.2.0-patched \
+  --timeout 20
+```
+
+Verify the binary swap:
+
+```bash title="Inside the image"
+docker run --rm --entrypoint bash <image-tag> -c '
+  md5sum /usr/local/bin/moose ~/.moose/bin/moose ~/.moose/versions/stable/*/moose
+'
+```
+
+All md5s should match your local binary's md5.
+
+### Why `moose` usually needs three overrides together
+
+A dev-built `moose-cli` reports `CLI_VERSION=0.0.1`. Two side-effects follow:
+
+1. `framework-cli/src/cli/routines/templates.rs` flips onto the **local-templates** lookup path (`/usr/template-packages/manifest.toml`). Without `--override moose-templates`, `moose init` fails with `Local manifest not found`.
+2. The scaffolded project's `package.json` pins `@514labs/moose-lib@<released>` from npm, which often has a different API than the CLI you're testing. `--override moose-lib` rewrites that pin to `file:/opt/moose-lib/moose-lib.tgz` so the project uses your local library.
+
+The recommended combo when testing a local `moose-cli`:
+
+```bash
+./target/debug/dec-bench build \
+  --scenario <id> --harness olap-for-swe --version v0.2.0-patched \
+  --override moose=/path/to/moose/target/aarch64-unknown-linux-gnu/release/moose-cli \
+  --override moose-templates=/path/to/moose/template-packages \
+  --override moose-lib=/path/to/moose/packages/ts-moose-lib/514labs-moose-lib-<ver>.tgz
+```
+
+## Worked example: `moose-lib`
+
+```bash title="Build + pack moose-lib"
+cd /path/to/moose/packages/ts-moose-lib
+pnpm build
+pnpm pack
+# produces 514labs-moose-lib-<version>.tgz in the current directory
+```
+
+Use the tarball:
+
+```bash
+--override moose-lib=/path/to/moose/packages/ts-moose-lib/514labs-moose-lib-<ver>.tgz
+```
+
+Ordering is guaranteed by `tools/moose-lib/.order = 60` running after `tools/moose-templates/.order = 40`, so the template-rewrite side-effect works reliably when both overrides are passed.
+
+## Worked example: `moose-templates`
+
+The template registry is generated by `scripts/package-templates.js`, which needs the scripts workspace installed first:
+
+```bash title="Package templates"
+cd /path/to/moose
+pnpm install --filter=@repo/scripts
+node scripts/package-templates.js
+# produces template-packages/manifest.toml + template-packages/*.tgz
+```
+
+Pass the directory:
+
+```bash
+--override moose-templates=/path/to/moose/template-packages
+```
+
+## Worked example: Claude skills and MCP
+
+**Skills.** Layout mirrors `~/.claude/skills/` — one directory per skill containing its `SKILL.md`:
+
+```text
+/path/to/my-skills/
+  my-skill/
+    SKILL.md
+```
+
+```bash
+--override claude-skills=/path/to/my-skills
+```
+
+Same-named skills overwrite the defaults that `514 agent init` places in the image; other defaults are preserved.
+
+**MCP.** A JSON fragment whose top-level key is `mcpServers`:
+
+```json title="mcp-fragment.json"
+{
+  "mcpServers": {
+    "my-server": { "type": "http", "url": "http://localhost:9999/mcp" }
+  }
+}
+```
+
+```bash
+--override claude-mcp=/path/to/mcp-fragment.json
+```
+
+The fragment is deep-merged into `$HOME/.claude.json`; same-named servers overwrite, defaults preserved.
+
+## Worked example: 514 CLI
+
+The binary inside the image must be a **Linux** executable matching the container arch (`aarch64-unknown-linux-gnu` on Apple Silicon, `x86_64-unknown-linux-gnu` on Intel/Linux). Produce one from your local 514 source tree — this repo does not build 514 itself; `tools/514/install.sh` pulls published releases from `https://fiveonefour.com/install.sh`.
+
+```bash title="Single-scenario test"
+cd /path/to/agent-evals
+./target/debug/dec-bench build \
+  --scenario 514-list-projects \
+  --harness olap-for-swe \
+  --version v0.2.0-patched \
+  --override 514=/path/to/514-cli-linux
+
+./target/debug/dec-bench run \
+  --scenario 514-list-projects \
+  --harness olap-for-swe \
+  --persona baseline \
+  --version v0.2.0-patched \
+  --timeout 20
+```
+
+The override swaps both `~/.local/bin/514` and `/usr/local/bin/514` inside the image. Verify:
+
+```bash
+docker run --rm --entrypoint bash <image-tag> -c 'md5sum /usr/local/bin/514 ~/.local/bin/514'
+```
+
+### Auth caveat
+
+514 scenarios call the live 514 API. Export `HOSTING_CLI_API_KEY` (and optionally `HOSTING_CLI_EMAIL`, `HOSTING_CLI_ORG_ID`) on the host before `dec-bench run`; the CLI forwards them into the container, where `scenarios/514-list-projects/init/setup-514-auth.sh` writes them to `~/.fiveonefour/credentials.toml`.
+
+## Running the 514 sweep
+
+Canonical sweep for a local 514 CLI binary. Auto-discovers every `scenarios/514-*` directory and runs each against the `baseline` and `informed` personas at concurrency 2:
+
+```bash title="Full 514 sweep"
+./scripts/run-514-user-patched.sh /path/to/514-cli-linux
+```
+
+A companion `scripts/run-514-user-patched-images-only.sh` skips the build step and re-runs existing `v0.2.0-patched` images.
+
+## Running the full moose sweep
+
+For moose-family overrides, there's a canonical script that builds and runs the five moose scenarios at concurrency 2:
+
+```bash title="Full sweep"
+./scripts/run-moose-user-patched.sh \
+  /path/to/moose/target/aarch64-unknown-linux-gnu/release/moose-cli \
+  /path/to/moose/template-packages \
+  /path/to/moose/packages/ts-moose-lib/514labs-moose-lib-<ver>.tgz
+```
+
+All five images are built with the same three overrides at `--version v0.2.0-patched`, then `xargs -P 2` runs them concurrently. A companion script, `scripts/run-moose-user-patched-images-only.sh`, skips the build step and just re-runs against existing patched images.
+
+## Extending the registry with a new tool
+
+Add a new substitutable tool by creating a directory under `tools/`:
+
+```bash
+mkdir tools/<name>
+```
+
+For a **binary tool** (needs install + override), model after `tools/moose/`:
+
+- `tools/<name>/install.sh <version>` — runs at harness build time; downloads or compiles the released version.
+- `tools/<name>/override.sh <source>` — runs at `--override` time; swaps the staged local artifact in.
+
+For an **artifact-only tool** (override only), model after `tools/claude-skills/`:
+
+- `tools/<name>/override.sh <source>` only.
+
+If the new tool's override must run before or after another, add `tools/<name>/.order` with an integer (default 50; `moose-templates` is 40, `moose-lib` is 60).
+
+If the tool should be installed at harness build time (not just override-available), declare it in the harness JSON's `toolInstalls[]`:
+
+```json title="apps/web/data/harnesses/my-harness.json"
+{
+  "id": "my-harness",
+  "toolInstalls": [
+    { "name": "<new-tool>", "version": "1.2.3" }
+  ],
+  "postInstallScript": "..."
+}
+```
+
+## Cleanup
+
+Patched images accumulate between iterations. To reclaim disk:
+
+```bash title="Prune build cache and unused images"
+docker builder prune -af
+docker image prune -af
+```
+
+Keep your current patched images safe by using a unique `--version` tag and filtering prune by age or reference when needed.

@@ -1,0 +1,52 @@
+## ✅ Moose User Activity Analytics Setup Complete!
+
+I've successfully set up a Moose project for analyzing user activity events with auto-updating materialized views in ClickHouse. Here's what was accomplished:
+
+### 📊 **Data Model & Infrastructure**
+- **Created Moose project** with TypeScript template
+- **Defined UserActivity data model** with proper schema for events
+- **Started ClickHouse** and loaded the sample CSV data (11 events total)
+- **Handled nullable duration values** by defaulting to 0 as requested
+
+### 🔄 **Auto-Updating Materialized Views**
+
+**1. Daily Summary View** - Event count and total duration per user per day:
+```
+┌───────date─┬─userId─┬─dailyEvents─┬─dailyDurationMs─┐
+│ 2026-01-15 │ usr_01 │           2 │             460 │
+│ 2026-01-15 │ usr_02 │           2 │              90 │ 
+│ 2026-01-15 │ usr_03 │           1 │             200 │
+│ 2026-01-16 │ usr_01 │           2 │             245 │
+│ 2026-01-16 │ usr_02 │           2 │             410 │
+│ 2026-01-16 │ usr_03 │           2 │             280 │
+└────────────┴────────┴─────────────┴─────────────────┘
+```
+
+**2. Top Users Leaderboard** - All-time ranking by total duration:
+```
+┌─rank─┬─userId─┬─totalEvents─┬─totalDurationMs─┬─avgDurationMs─┐
+│    1 │ usr_01 │           4 │             705 │        176.25 │
+│    2 │ usr_02 │           4 │             500 │           125 │
+│    3 │ usr_03 │           3 │             480 │           160 │
+└──────┴────────┴─────────────┴─────────────────┴───────────────┘
+```
+
+### ✅ **Verified Auto-Updates**
+- Added a test event for usr_02 (+300ms)
+- Both views automatically updated with the new data
+- usr_02's daily count increased from 1 to 2 events on 2026-01-16
+- usr_02's leaderboard position improved with updated totals
+
+### 🗂️ **Project Structure**
+```
+app/
+├── index.ts                    # Exports all primitives
+├── ingest/
+│   └── UserActivity.ts         # Data model & ingestion pipeline  
+└── views/
+    ├── DailySummary.ts         # Daily aggregation view
+    └── TopUsersLeaderboard.ts  # User ranking view
+```
+
+The system is now ready for real-time user activity analytics with auto-updating dashboards!
+Found session JSONL at /root/.claude/projects/-/9ae99349-80c0-4d7b-b3a2-23cedf2bb4f9.jsonl

@@ -75,7 +75,7 @@ export default async function DocsPage({
 
   return (
     <TocAnchorProvider toc={toc}>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,900px)_260px]">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,900px)_208px]">
         <article className="min-w-0 px-6 md:px-10 pt-10 md:pt-12 pb-16 xl:border-r border-[color:var(--border)]">
           <div className="max-w-[820px] mx-auto">
             <header className="flex flex-col gap-[18px]">
@@ -86,7 +86,7 @@ export default async function DocsPage({
                 {page.data.title}
               </h1>
               {page.data.description ? (
-                <p className="font-[family-name:var(--font-display)] text-[18px] leading-[28px] text-[color:var(--muted-foreground)] max-w-[680px]">
+                <p className="font-[family-name:var(--font-display)] text-[18px] leading-[28px] text-[color:var(--muted-foreground)]">
                   {page.data.description}
                 </p>
               ) : null}
@@ -99,16 +99,16 @@ export default async function DocsPage({
             {previous || next ? (
               <nav
                 aria-label="Pagination"
-                className="mt-14 pt-8 border-t border-[color:var(--border)] flex items-center justify-between gap-4"
+                className="mt-20 flex items-center justify-between gap-4"
               >
                 <div>
                   {previous ? (
                     <Link
                       href={previous.url}
-                      className="inline-flex items-center gap-[8px] h-8 border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
+                      className="inline-flex items-center gap-[6px] h-[28px] border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
                     >
                       <ArrowLeft />
-                      <span className="font-[family-name:var(--font-display)] font-bold text-[12px] leading-none">
+                      <span className="font-[family-name:var(--font-display)] font-bold text-[11px] leading-none">
                         {previous.title}
                       </span>
                     </Link>
@@ -120,9 +120,9 @@ export default async function DocsPage({
                   {next ? (
                     <Link
                       href={next.url}
-                      className="inline-flex items-center gap-[8px] h-8 border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
+                      className="inline-flex items-center gap-[6px] h-[28px] border border-[color:var(--border)] bg-[color:var(--card)] px-4 text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)] transition-colors"
                     >
-                      <span className="font-[family-name:var(--font-display)] font-bold text-[12px] leading-none">
+                      <span className="font-[family-name:var(--font-display)] font-bold text-[11px] leading-none">
                         {next.title}
                       </span>
                       <ArrowRight />
@@ -136,7 +136,7 @@ export default async function DocsPage({
 
         {toc.length > 0 ? (
           <aside className="hidden xl:block">
-            <div className="sticky top-[60px] px-5 pt-10 pb-9 w-[260px]">
+            <div className="sticky top-[60px] px-5 pt-10 pb-9 w-[208px]">
               <DocsToc toc={toc} />
             </div>
           </aside>

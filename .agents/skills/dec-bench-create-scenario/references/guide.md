@@ -77,10 +77,6 @@ Use this shape as the working contract:
       "category": "ingestion"
     }
   ],
-  "personaPrompts": {
-    "baseline": "prompts/baseline.md",
-    "informed": "prompts/informed.md"
-  },
   "infrastructure": {
     "services": ["clickhouse"],
     "description": "ClickHouse running but empty. Five messy CSV files in /data/csv/."
@@ -108,7 +104,6 @@ Field notes:
 - `domain`: use one of the current enum values above.
 - `harnesses`: array of harness profiles. Default to all three unless you have a reason to exclude one.
 - `tasks[]`: one or more concrete tasks with a current task category.
-- `personaPrompts`: always point to both prompt files.
 - `infrastructure`: required in practice for clear starting-state docs, even if some code paths do not enforce it yet.
 - `tags`: use search-friendly terms like data source, workload, and failure mode.
 - `baselineMetrics`: before-agent state.

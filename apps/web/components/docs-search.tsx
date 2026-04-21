@@ -19,7 +19,7 @@ export function DocsSearch() {
 
   return (
     <div className="relative">
-      <div className="flex items-center gap-2 bg-[color:var(--secondary)] border border-[color:var(--border)] rounded-[3px] px-2.5 py-1.5">
+      <div className="flex items-center gap-2 bg-[color:var(--sidebar)] border border-[color:var(--border)] rounded-[3px] px-2.5 py-1.5">
         <Search
           aria-hidden="true"
           strokeWidth={2}
@@ -50,7 +50,7 @@ export function DocsSearch() {
             >
               <Link
                 href={result.url}
-                className="block px-3 py-1.5 text-[12px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--secondary)] transition-colors"
+                className="block px-3 py-1.5 text-[12px] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--sidebar)] transition-colors"
               >
                 <p className="line-clamp-1">{result.content}</p>
                 {result.breadcrumbs && result.breadcrumbs.length > 0 ? (

@@ -1,0 +1,45 @@
+Perfect! Both materialized views are working correctly and auto-updating. Let me provide a final summary of what we've accomplished:
+
+## Summary
+
+✅ **Moose Project Setup Complete**
+
+I've successfully set up a complete Moose analytics project with:
+
+### 1. **Data Model & Ingestion**
+- Created `UserActivity` interface for event tracking
+- Set up ingestion pipeline with optimized ordering (`user_id`, `event_ts`)
+- Successfully loaded 11 records from `/data/samples/user_activity_sample.csv`
+- Nullable duration values correctly default to 0
+
+### 2. **Materialized Views Created**
+
+**Daily Summary View (`UserDailySummary`)**:
+```
+user_id="usr_01", activity_date="2026-01-15", event_count=2, total_duration_ms=460
+user_id="usr_01", activity_date="2026-01-16", event_count=2, total_duration_ms=245  
+user_id="usr_01", activity_date="2026-01-17", event_count=1, total_duration_ms=250
+user_id="usr_02", activity_date="2026-01-15", event_count=2, total_duration_ms=90
+user_id="usr_02", activity_date="2026-01-16", event_count=1, total_duration_ms=110
+user_id="usr_03", activity_date="2026-01-15", event_count=1, total_duration_ms=200
+user_id="usr_03", activity_date="2026-01-16", event_count=2, total_duration_ms=280
+```
+
+**Top Users Leaderboard (`TopUsersLeaderboard`)**:
+```
+1. usr_01: 955ms total duration, 5 events, avg 191ms
+2. usr_03: 480ms total duration, 3 events, avg 160ms  
+3. usr_02: 200ms total duration, 3 events, avg 67ms
+4. test_user: 100ms total duration, 1 event, avg 100ms
+```
+
+### 3. **Auto-Update Verification** ✅
+Both materialized views automatically update when new data arrives through the ingestion API - confirmed by adding a test record and seeing both views update in real-time.
+
+### 4. **Query Access**
+Both views are now available in ClickHouse for dashboard queries:
+- `SELECT * FROM UserDailySummary` for daily user activity patterns
+- `SELECT * FROM TopUsersLeaderboard ORDER BY total_duration_ms DESC` for user rankings
+
+The Moose stack is running successfully with `moose dev --dockerless` and ready for production use!
+Found session JSONL at /root/.claude/projects/-/ffec1346-1169-4b9d-8a34-67061dca077c.jsonl

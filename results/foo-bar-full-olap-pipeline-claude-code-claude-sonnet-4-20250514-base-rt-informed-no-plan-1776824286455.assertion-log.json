@@ -1,0 +1,212 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "api_server_responds": {
+        "passed": true,
+        "durationMs": 70,
+        "message": "API server responded on port 4000.",
+        "details": {
+          "port": 4000,
+          "status": 404
+        }
+      },
+      "clickhouse_has_events_table": {
+        "passed": true,
+        "durationMs": 11,
+        "message": "Events table exists at analytics.product_events.",
+        "details": {
+          "found": {
+            "database": "analytics",
+            "table": "product_events",
+            "engine": "MergeTree",
+            "total_rows": 40
+          }
+        }
+      },
+      "events_table_has_rows": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Table has 40 rows.",
+        "details": {
+          "count": 40,
+          "location": "analytics.product_events"
+        }
+      },
+      "http_ingest_endpoint_exists": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Ingest endpoint responded at 3000/ingest/events (status 404).",
+        "details": {
+          "port": 3000,
+          "path": "/ingest/events",
+          "status": 404
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "all_seed_events_ingested": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "40 events ingested (>= 40).",
+        "details": {
+          "count": 40,
+          "location": "analytics.product_events"
+        }
+      },
+      "funnel_counts_are_monotonic": {
+        "passed": true,
+        "durationMs": 47,
+        "message": "Funnel is monotonic (api): 18 views >= 11 carts >= 11 purchases.",
+        "details": {
+          "views": 18,
+          "carts": 11,
+          "purchases": 11,
+          "source": "api"
+        }
+      },
+      "funnel_has_three_steps": {
+        "passed": true,
+        "durationMs": 42,
+        "message": "Funnel API has view, cart, and purchase steps.",
+        "details": {
+          "source": "api",
+          "steps": [
+            "view",
+            "cart",
+            "purchase"
+          ]
+        }
+      },
+      "hourly_returns_data": {
+        "passed": true,
+        "durationMs": 44,
+        "message": "Hourly API returned 18 rows.",
+        "details": {
+          "source": "api",
+          "sample": [
+            {
+              "event_count": 2,
+              "event_type": "cart",
+              "hour": "2026-01-15 09:00:00"
+            },
+            {
+              "event_count": 2,
+              "event_type": "purchase",
+              "hour": "2026-01-15 09:00:00"
+            },
+            {
+              "event_count": 6,
+              "event_type": "view",
+              "hour": "2026-01-15 09:00:00"
+            }
+          ]
+        }
+      },
+      "top_products_returns_data": {
+        "passed": true,
+        "durationMs": 47,
+        "message": "Top products aggregation has 3 rows at analytics.top_products (API did not respond).",
+        "details": {
+          "source": "clickhouse",
+          "location": "analytics.top_products",
+          "rows": 3
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found in session log.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "api_returns_valid_json": {
+        "passed": false,
+        "durationMs": 118,
+        "message": "Some endpoints did not return valid JSON: [{\"endpoint\":\"/api/top-products\",\"validJson\":false,\"status\":404},{\"endpoint\":\"/api/funnel\",\"validJson\":true,\"status\":200},{\"endpoint\":\"/api/hourly\",\"validJson\":true,\"status\":200}].",
+        "details": {
+          "results": [
+            {
+              "endpoint": "/api/top-products",
+              "validJson": false,
+              "status": 404
+            },
+            {
+              "endpoint": "/api/funnel",
+              "validJson": true,
+              "status": 200
+            },
+            {
+              "endpoint": "/api/hourly",
+              "validJson": true,
+              "status": 200
+            }
+          ]
+        }
+      },
+      "live_ingest_works": {
+        "passed": true,
+        "durationMs": 522,
+        "message": "Live ingest confirmed: probe event landed in ClickHouse after 1000ms.",
+        "details": {
+          "probeId": "probe_live_1776824769621",
+          "latencyMs": 1000
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "redpanda_topic_exists": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Redpanda broker localhost:9092 connection failed.",
+        "details": {
+          "broker": "localhost:9092"
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {}
+  },
+  "production": {
+    "core": {},
+    "scenario": {}
+  }
+}

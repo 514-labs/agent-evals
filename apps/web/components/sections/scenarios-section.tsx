@@ -261,7 +261,7 @@ export function ScenariosSection() {
                       {g5.n > 0 ? <>{formatCost(g5.medianCost)} <span className="text-[10px] text-[color:var(--chart-4)]">n={g5.n}</span></> : <span className="text-[10px] text-[color:var(--chart-4)]">{"\u2014"}</span>}
                     </td>
                   </tr>
-                  <tr className="border-b border-[color:var(--secondary)]">
+                  <tr className="border-b border-[color:var(--sidebar)]">
                     <td className="pt-0 pb-2.5 pr-4 text-[10px] text-right tabular-nums text-[color:var(--chart-4)]">
                       {formatTime(all.medianTime)}
                     </td>

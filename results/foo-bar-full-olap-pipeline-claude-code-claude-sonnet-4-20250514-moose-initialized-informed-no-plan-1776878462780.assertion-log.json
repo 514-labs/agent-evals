@@ -1,0 +1,132 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "api_server_responds": {
+        "passed": true,
+        "durationMs": 22,
+        "message": "API server responded on port 8080.",
+        "details": {
+          "port": 8080,
+          "status": 200
+        }
+      },
+      "clickhouse_has_events_table": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Events table exists at local.ProductEvent.",
+        "details": {
+          "found": {
+            "database": "local",
+            "table": "ProductEvent",
+            "engine": "MergeTree",
+            "total_rows": 14
+          }
+        }
+      },
+      "events_table_has_rows": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Table has 14 rows.",
+        "details": {
+          "count": 14,
+          "location": "local.ProductEvent"
+        }
+      },
+      "http_ingest_endpoint_exists": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Ingest endpoint responded at 8080/ingest/events (status 400).",
+        "details": {
+          "port": 8080,
+          "path": "/ingest/events",
+          "status": 400
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "all_seed_events_ingested": {
+        "passed": false,
+        "durationMs": 7,
+        "message": "Expected 40 events, got 14.",
+        "details": {
+          "count": 14,
+          "location": "local.ProductEvent"
+        }
+      },
+      "funnel_counts_are_monotonic": {
+        "passed": false,
+        "durationMs": 22,
+        "error": "Error: Illegal type Enum8('view' = 1, 'cart' = 2, 'purchase' = 3) of argument of function lower: In scope SELECT lower(event_type) AS step, count() AS n FROM local.ProductEvent GROUP BY event_type. \n    at parseError (/opt/dec-bench/eval-core/node_modules/@clickhouse/client-common/src/error/error.ts:31:12)\n    at ClientRequest.onResponse (/opt/dec-bench/eval-core/node_modules/@clickhouse/client/src/connection/socket_pool.ts:317:25)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+      },
+      "funnel_has_three_steps": {
+        "passed": false,
+        "durationMs": 19,
+        "error": "Error: Illegal type Enum8('view' = 1, 'cart' = 2, 'purchase' = 3) of argument of function lower: In scope SELECT DISTINCT lower(event_type) AS step FROM local.ProductEvent. \n    at parseError (/opt/dec-bench/eval-core/node_modules/@clickhouse/client-common/src/error/error.ts:31:12)\n    at ClientRequest.onResponse (/opt/dec-bench/eval-core/node_modules/@clickhouse/client/src/connection/socket_pool.ts:317:25)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+      },
+      "hourly_returns_data": {
+        "passed": true,
+        "durationMs": 14,
+        "message": "Base events have timestamps for hourly aggregation (no aggregation table or API).",
+        "details": {
+          "source": "base-table",
+          "count": 14
+        }
+      },
+      "top_products_returns_data": {
+        "passed": true,
+        "durationMs": 23,
+        "message": "Top products computed from base table: 3 products (no aggregation table or API).",
+        "details": {
+          "source": "base-table",
+          "sample": [
+            {
+              "product_id": "prod_b",
+              "n": 2
+            },
+            {
+              "product_id": "prod_a",
+              "n": 2
+            },
+            {
+              "product_id": "prod_c",
+              "n": 1
+            }
+          ]
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {},
+    "scenario": {}
+  },
+  "performant": {
+    "core": {},
+    "scenario": {}
+  },
+  "production": {
+    "core": {},
+    "scenario": {}
+  }
+}

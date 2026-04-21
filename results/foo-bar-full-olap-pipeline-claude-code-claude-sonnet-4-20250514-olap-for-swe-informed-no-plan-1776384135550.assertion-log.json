@@ -1,0 +1,412 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "api_server_responds": {
+        "passed": true,
+        "durationMs": 24,
+        "message": "API server responded on port 3000.",
+        "details": {
+          "port": 3000,
+          "status": 200
+        }
+      },
+      "clickhouse_has_events_table": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Events table exists at analytics.product_events.",
+        "details": {
+          "found": {
+            "database": "analytics",
+            "table": "product_events",
+            "engine": "MergeTree",
+            "total_rows": 41
+          }
+        }
+      },
+      "events_table_has_rows": {
+        "passed": true,
+        "durationMs": 7,
+        "message": "Table has 41 rows.",
+        "details": {
+          "count": 41,
+          "location": "analytics.product_events"
+        }
+      },
+      "http_ingest_endpoint_exists": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Ingest endpoint responded at 3000/ingest/events (status 404).",
+        "details": {
+          "port": 3000,
+          "path": "/ingest/events",
+          "status": 404
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "all_seed_events_ingested": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "41 events ingested (>= 40).",
+        "details": {
+          "count": 41,
+          "location": "analytics.product_events"
+        }
+      },
+      "funnel_counts_are_monotonic": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Funnel is monotonic (api): 19 views >= 11 carts >= 11 purchases.",
+        "details": {
+          "views": 19,
+          "carts": 11,
+          "purchases": 11,
+          "source": "api"
+        }
+      },
+      "funnel_has_three_steps": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Funnel API has view, cart, and purchase steps.",
+        "details": {
+          "source": "api",
+          "steps": [
+            "view",
+            "cart",
+            "purchase"
+          ]
+        }
+      },
+      "hourly_returns_data": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Hourly API returned 19 rows.",
+        "details": {
+          "source": "api",
+          "sample": [
+            {
+              "hour": "2026-01-15 09:00:00",
+              "event_type": "cart",
+              "event_count": 2
+            },
+            {
+              "hour": "2026-01-15 09:00:00",
+              "event_type": "purchase",
+              "event_count": 2
+            },
+            {
+              "hour": "2026-01-15 09:00:00",
+              "event_type": "view",
+              "event_count": 6
+            }
+          ]
+        }
+      },
+      "top_products_returns_data": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Top products API returned 4 rows.",
+        "details": {
+          "source": "api",
+          "sample": [
+            {
+              "product_id": "prod_b",
+              "view_count": 7,
+              "cart_count": 4,
+              "purchase_count": 4,
+              "revenue": 196
+            },
+            {
+              "product_id": "prod_a",
+              "view_count": 7,
+              "cart_count": 4,
+              "purchase_count": 4,
+              "revenue": 119.96
+            },
+            {
+              "product_id": "prod_c",
+              "view_count": 4,
+              "cart_count": 3,
+              "purchase_count": 3,
+              "revenue": 46.5
+            }
+          ]
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found in session log.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "api_returns_valid_json": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "All egress APIs return valid JSON.",
+        "details": {
+          "results": [
+            {
+              "endpoint": "/api/top-products",
+              "validJson": true,
+              "status": 200
+            },
+            {
+              "endpoint": "/api/funnel",
+              "validJson": true,
+              "status": 200
+            },
+            {
+              "endpoint": "/api/hourly",
+              "validJson": true,
+              "status": 200
+            }
+          ]
+        }
+      },
+      "live_ingest_works": {
+        "passed": true,
+        "durationMs": 14,
+        "message": "Live ingest confirmed: probe event landed in ClickHouse after 500ms.",
+        "details": {
+          "probeId": "probe_live_1776384408662",
+          "latencyMs": 500
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "redpanda_topic_exists": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "Redpanda broker reachable at localhost:9092.",
+        "details": {
+          "broker": "localhost:9092"
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "avoids_select_star_queries": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace avoids `SELECT *` queries in checked source files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "funnel_under_200ms": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Funnel responded in 3ms.",
+        "details": {
+          "elapsedMs": 3
+        }
+      },
+      "hourly_under_200ms": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Hourly responded in 4ms.",
+        "details": {
+          "elapsedMs": 4
+        }
+      },
+      "top_products_under_200ms": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Top products responded in 3ms.",
+        "details": {
+          "elapsedMs": 3
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No data store environment variables are required for this scenario.",
+        "details": {
+          "declaredServices": [],
+          "requiredEnvVars": [],
+          "missingEnvVars": [],
+          "hasPostgresUrl": false,
+          "hasClickhouseUrl": true,
+          "hasRedpandaBroker": true
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded secrets detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 0,
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "output_line_count_reasonable": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace output stays within the hard 625-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-3",
+          "mode": "reasonable",
+          "totalLines": 0,
+          "maxExpectedLines": 500,
+          "maxLines": 625,
+          "scannedFiles": 0,
+          "largestFiles": []
+        }
+      },
+      "output_line_count_disciplined": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace output stays within the target 500-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-3",
+          "mode": "disciplined",
+          "totalLines": 0,
+          "maxExpectedLines": 500,
+          "maxLines": 500,
+          "scannedFiles": 0,
+          "largestFiles": []
+        }
+      },
+      "no_dead_code_markers": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No dead-code markers detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "files_are_reasonably_sized": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No workspace file exceeds 250 lines.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-3",
+          "maxFileLines": 250,
+          "offenders": []
+        }
+      },
+      "no_debug_artifacts": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No obvious debug artifacts detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "zero_compiler_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported compiler target detected; compiler check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 500,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "zero_lint_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported lint configuration detected; lint check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 500,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "has_type_safety": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No TypeScript sources detected; type-safety check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 0
+        }
+      },
+      "functions_are_focused": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No oversized functions detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      },
+      "no_deep_nesting": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No deeply nested control flow detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      }
+    },
+    "scenario": {
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  }
+}

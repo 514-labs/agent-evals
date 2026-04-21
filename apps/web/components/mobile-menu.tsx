@@ -36,7 +36,7 @@ export function MobileMenu({ links }: MobileMenuProps) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 border-b border-[color:var(--secondary)] bg-[color:var(--card)] z-50">
+        <div className="absolute top-full left-0 right-0 border-b border-[color:var(--sidebar)] bg-[color:var(--card)] z-50">
           <div className="max-w-[1070px] mx-auto px-6 py-4 flex flex-col gap-3">
             {links.map((link) =>
               link.href.startsWith("#") || link.href.startsWith("http") ? (

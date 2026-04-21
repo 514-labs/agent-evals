@@ -1,0 +1,129 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "api_server_responds": {
+        "passed": true,
+        "durationMs": 24,
+        "message": "API server responded on port 8080.",
+        "details": {
+          "port": 8080,
+          "status": 200
+        }
+      },
+      "clickhouse_has_events_table": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Events table exists at local.ProductEvent.",
+        "details": {
+          "found": {
+            "database": "local",
+            "table": "ProductEvent",
+            "engine": "MergeTree",
+            "total_rows": 30
+          }
+        }
+      },
+      "events_table_has_rows": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Table has 30 rows.",
+        "details": {
+          "count": 30,
+          "location": "local.ProductEvent"
+        }
+      },
+      "http_ingest_endpoint_exists": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Ingest endpoint responded at 8080/ingest/events (status 400).",
+        "details": {
+          "port": 8080,
+          "path": "/ingest/events",
+          "status": 400
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "all_seed_events_ingested": {
+        "passed": false,
+        "durationMs": 8,
+        "message": "Expected 40 events, got 30.",
+        "details": {
+          "count": 30,
+          "location": "local.ProductEvent"
+        }
+      },
+      "funnel_counts_are_monotonic": {
+        "passed": false,
+        "durationMs": 20,
+        "message": "Funnel not monotonic (base-table): 19 views, 11 carts, 0 purchases.",
+        "details": {
+          "views": 19,
+          "carts": 11,
+          "purchases": 0,
+          "source": "base-table"
+        }
+      },
+      "funnel_has_three_steps": {
+        "passed": false,
+        "durationMs": 20,
+        "message": "Funnel data not available via API, aggregation table, or base table.",
+        "details": {
+          "apiData": null
+        }
+      },
+      "hourly_returns_data": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "Base events have timestamps for hourly aggregation (no aggregation table or API).",
+        "details": {
+          "source": "base-table",
+          "count": 30
+        }
+      },
+      "top_products_returns_data": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Top products aggregation has 30 rows at local.ProductEvent (API did not respond).",
+        "details": {
+          "source": "clickhouse",
+          "location": "local.ProductEvent",
+          "rows": 30
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {},
+    "scenario": {}
+  },
+  "performant": {
+    "core": {},
+    "scenario": {}
+  },
+  "production": {
+    "core": {},
+    "scenario": {}
+  }
+}

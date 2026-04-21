@@ -51,8 +51,10 @@ function GateDots({ highestGate }: { highestGate: number }) {
         <div
           key={g}
           className={cn(
-            "w-2.5 h-2.5 border-[1.5px] border-black",
-            g <= highestGate ? "bg-[#B91C1C]" : "bg-transparent",
+            "w-2.5 h-2.5 border border-[color:var(--border)]",
+            g <= highestGate
+              ? "bg-[color:var(--accent)] border-[color:var(--accent)]"
+              : "bg-transparent",
           )}
         />
       ))}
@@ -94,19 +96,19 @@ function RunSelector({
   return (
     <div ref={containerRef} className="relative">
       {/* Trigger */}
-      <div className="border-[3px] border-black">
-        <div className="bg-black px-3 py-1.5 flex items-center justify-between">
-          <span className="font-[family-name:var(--font-display)] text-xs uppercase tracking-[0.2em] text-white">
+      <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+        <div className="bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)] px-3 py-2 flex items-center justify-between">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
             {side}
           </span>
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
             className={cn(
-              "text-xs font-bold uppercase tracking-[0.14em] px-2.5 py-1 border-2 transition-colors",
+              "font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-1 border transition-colors",
               open
-                ? "border-[#B91C1C] bg-[#B91C1C] text-black"
-                : "border-[#B91C1C] text-[#B91C1C] hover:bg-[#B91C1C] hover:text-black",
+                ? "border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-foreground)]"
+                : "border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]",
             )}
           >
             {open ? "Close" : "Change"}
@@ -114,15 +116,15 @@ function RunSelector({
         </div>
         <div className="px-3 py-2 flex items-center gap-3">
           <GateDots highestGate={current.highestGate} />
-          <span className="font-[family-name:var(--font-display)] text-2xl">
+          <span className="font-[family-name:var(--font-display)] text-2xl text-[color:var(--foreground)]">
             {Math.round(current.normalizedScore * 100)}%
           </span>
         </div>
         <div className="px-3 pb-2.5 flex items-center justify-between">
-          <span className="text-xs text-black/60 truncate">
+          <span className="text-xs text-[color:var(--muted-foreground)] truncate">
             {current.agent} · {current.model.replace("claude-", "").slice(0, 16)}
           </span>
-          <span className="text-xs text-black/35 shrink-0 ml-2">
+          <span className="text-xs text-[color:var(--chart-4)] shrink-0 ml-2">
             {formatTimestamp(current.timestamp)}
           </span>
         </div>
@@ -130,7 +132,7 @@ function RunSelector({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 top-full left-0 right-0 border-[3px] border-black border-t-0 bg-white max-h-64 overflow-auto">
+        <div className="absolute z-50 top-full left-0 right-0 border border-[color:var(--border)] border-t-0 bg-[color:var(--card)] max-h-64 overflow-auto">
           {runs.map((run) => {
             const isActive = run.runId === currentRunId;
             return (
@@ -143,26 +145,26 @@ function RunSelector({
                   setOpen(false);
                 }}
                 className={cn(
-                  "w-full text-left px-3 py-2 border-b border-black/10 last:border-b-0 transition-colors",
+                  "w-full text-left px-3 py-2 border-b border-[color:var(--border)] last:border-b-0 transition-colors",
                   isActive
-                    ? "bg-[#B91C1C] cursor-default"
-                    : "hover:border-l-[4px] hover:border-l-[#B91C1C] hover:bg-black/3",
+                    ? "bg-[color:var(--accent)]/10 border-l-2 border-l-[color:var(--accent)] cursor-default"
+                    : "hover:border-l-2 hover:border-l-[color:var(--accent)] hover:bg-[color:var(--secondary)]/60",
                 )}
               >
                 <div className="flex items-center gap-3 mb-1">
                   <GateDots highestGate={run.highestGate} />
-                  <span className="font-[family-name:var(--font-display)] text-lg">
+                  <span className="font-[family-name:var(--font-display)] text-lg text-[color:var(--foreground)]">
                     {Math.round(run.normalizedScore * 100)}%
                   </span>
-                  <span className="text-xs font-bold uppercase tracking-[0.1em]">
+                  <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--muted-foreground)]">
                     G{run.highestGate}/5
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-black/55 truncate">
+                  <span className="text-xs text-[color:var(--muted-foreground)] truncate">
                     {run.agent} · {run.model.replace("claude-", "").slice(0, 16)}
                   </span>
-                  <span className="text-xs text-black/30 shrink-0">
+                  <span className="text-xs text-[color:var(--chart-4)] shrink-0">
                     {formatTimestamp(run.timestamp)}
                   </span>
                 </div>
@@ -293,20 +295,20 @@ export function CompareShell({
       </div>
 
       {/* Playback controls */}
-      <div className="border-[3px] border-black mb-4">
-        <div className="bg-black px-4 py-2 flex items-center justify-between">
+      <div className="border border-[color:var(--border)] bg-[color:var(--card)] mb-4">
+        <div className="bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)] px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-white">
+            <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
               Trace Playback
             </span>
             <button
               type="button"
               onClick={() => setSynced((s) => !s)}
               className={cn(
-                "text-xs font-bold uppercase tracking-[0.14em] px-2.5 py-1 border transition-colors",
+                "font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] px-2.5 py-1 border transition-colors",
                 synced
-                  ? "border-[#B91C1C] bg-[#B91C1C] text-black"
-                  : "border-white/30 text-white/50 hover:text-white",
+                  ? "border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-foreground)]"
+                  : "border-[color:var(--border)] text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)]",
               )}
             >
               {synced ? "Synced" : "Independent"}
@@ -315,7 +317,7 @@ export function CompareShell({
         </div>
 
         {synced && (
-          <div className="bg-[#0d0d0d] px-4 py-2 flex items-center gap-3 border-t border-white/5">
+          <div className="bg-[#0d0d0d] px-4 py-2 flex items-center gap-3 border-t border-[color:var(--border)]">
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -383,9 +385,9 @@ export function CompareShell({
         )}
 
         {synced && (
-          <div className="h-1 bg-black relative">
+          <div className="h-1 bg-[color:var(--secondary)] relative">
             <div
-              className="h-full bg-[#B91C1C] transition-all duration-100 ease-linear"
+              className="h-full bg-[color:var(--accent)] transition-all duration-100 ease-linear"
               style={{ width: `${progress * 100}%` }}
             />
           </div>

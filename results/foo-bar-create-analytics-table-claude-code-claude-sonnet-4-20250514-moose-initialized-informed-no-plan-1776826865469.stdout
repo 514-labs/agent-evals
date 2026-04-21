@@ -1,0 +1,30 @@
+## Summary
+
+Successfully set up the Moose project with user activity events! Here's what was accomplished:
+
+### ✅ Data Model Created
+- Defined `UserActivity` interface in `app/index.ts` based on CSV structure
+- Set up `IngestPipeline` with optimized table ordering: `["user_id", "event_ts", "action"]`
+- This ordering efficiently supports both required query patterns
+
+### ✅ Data Successfully Loaded
+- All 10 sample records ingested via `/ingest/UserActivity` endpoint
+- Data properly stored in ClickHouse with correct types and ordering
+
+### ✅ Query Performance Verified
+
+**Query 1 - Activity counts per user over date range:**
+- Returns user activity counts with first/last activity timestamps
+- Efficiently uses the `user_id, event_ts` ordering
+
+**Query 2 - Total duration per action type:**
+- Aggregates duration by action type (page_view: 13,001.5ms, form_submit: 1,770.3ms, button_click: 0ms)
+- Uses `COALESCE(duration_ms, 0)` to handle nullable durations as required
+
+### ✅ Table Optimization Confirmed
+- ClickHouse table uses `MergeTree` engine
+- `ORDER BY (user_id, event_ts, action)` optimizes for both query patterns
+- Date range queries by user are highly efficient due to primary key structure
+
+The Moose dev server is running at `http://localhost:4000` and the data pipeline is fully operational for both ingestion and querying.
+Found session JSONL at /root/.claude/projects/-/bb1b693e-e47d-41ad-a4ec-5e12be0dd249.jsonl

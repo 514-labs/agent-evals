@@ -35,7 +35,7 @@ export function Nav({
 
   return (
     <nav
-      className={`relative z-20 border-b border-[color:var(--secondary)] bg-[color:var(--card)]/95 backdrop-blur-sm ${
+      className={`relative z-20 border-b border-[color:var(--sidebar)] bg-[color:var(--card)]/95 backdrop-blur-sm ${
         isSticky ? "sticky top-0 z-50" : ""
       }`}
     >
@@ -95,7 +95,7 @@ export function Nav({
               >
                 GitHub
               </a>
-              <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--accent)] border border-[color:var(--secondary)] px-2 py-0.5 font-[family-name:var(--font-mono)]">
+              <span className="text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--accent)] border border-[color:var(--sidebar)] px-2 py-0.5 font-[family-name:var(--font-mono)]">
                 V0.1
               </span>
               <MobileMenu

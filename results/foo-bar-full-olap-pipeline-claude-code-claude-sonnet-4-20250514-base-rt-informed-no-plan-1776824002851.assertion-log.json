@@ -1,0 +1,232 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "api_server_responds": {
+        "passed": true,
+        "durationMs": 23,
+        "message": "API server responded on port 3000.",
+        "details": {
+          "port": 3000,
+          "status": 200
+        }
+      },
+      "clickhouse_has_events_table": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Events table exists at analytics.product_events.",
+        "details": {
+          "found": {
+            "database": "analytics",
+            "table": "product_events",
+            "engine": "MergeTree",
+            "total_rows": 42
+          }
+        }
+      },
+      "events_table_has_rows": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Table has 42 rows.",
+        "details": {
+          "count": 42,
+          "location": "analytics.product_events"
+        }
+      },
+      "http_ingest_endpoint_exists": {
+        "passed": true,
+        "durationMs": 10,
+        "message": "Ingest endpoint responded at 4000/ingest/events (status 200).",
+        "details": {
+          "port": 4000,
+          "path": "/ingest/events",
+          "status": 200
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "all_seed_events_ingested": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "43 events ingested (>= 40).",
+        "details": {
+          "count": 43,
+          "location": "analytics.product_events"
+        }
+      },
+      "funnel_counts_are_monotonic": {
+        "passed": false,
+        "durationMs": 21,
+        "message": "Funnel not monotonic (base-table): 20 views, 11 carts, 12 purchases.",
+        "details": {
+          "views": 20,
+          "carts": 11,
+          "purchases": 12,
+          "source": "base-table"
+        }
+      },
+      "funnel_has_three_steps": {
+        "passed": true,
+        "durationMs": 20,
+        "message": "Funnel steps present in base events table (no aggregation table or API).",
+        "details": {
+          "source": "base-table",
+          "steps": [
+            "cart",
+            "purchase",
+            "view"
+          ]
+        }
+      },
+      "hourly_returns_data": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Hourly API returned 21 rows.",
+        "details": {
+          "source": "api",
+          "sample": [
+            {
+              "hour": "2026-01-15 09:00:00",
+              "event_type": "cart",
+              "event_count": 2
+            },
+            {
+              "hour": "2026-01-15 09:00:00",
+              "event_type": "purchase",
+              "event_count": 2
+            },
+            {
+              "hour": "2026-01-15 09:00:00",
+              "event_type": "view",
+              "event_count": 7
+            }
+          ]
+        }
+      },
+      "top_products_returns_data": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "Top products API returned 9 rows.",
+        "details": {
+          "source": "api",
+          "sample": [
+            {
+              "product_id": "prod_a",
+              "view_count": 4,
+              "cart_count": 4,
+              "purchase_count": 4,
+              "revenue": 119.96
+            },
+            {
+              "product_id": "prod_b",
+              "view_count": 5,
+              "cart_count": 4,
+              "purchase_count": 3,
+              "revenue": 147
+            },
+            {
+              "product_id": "prod_c",
+              "view_count": 3,
+              "cart_count": 2,
+              "purchase_count": 2,
+              "revenue": 31
+            }
+          ]
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No idempotency failure markers found in session log.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "api_returns_valid_json": {
+        "passed": false,
+        "durationMs": 7,
+        "message": "Some endpoints did not return valid JSON: [{\"endpoint\":\"/api/top-products\",\"validJson\":true,\"status\":200},{\"endpoint\":\"/api/funnel\",\"validJson\":false,\"status\":404},{\"endpoint\":\"/api/hourly\",\"validJson\":true,\"status\":200}].",
+        "details": {
+          "results": [
+            {
+              "endpoint": "/api/top-products",
+              "validJson": true,
+              "status": 200
+            },
+            {
+              "endpoint": "/api/funnel",
+              "validJson": false,
+              "status": 404
+            },
+            {
+              "endpoint": "/api/hourly",
+              "validJson": true,
+              "status": 200
+            }
+          ]
+        }
+      },
+      "live_ingest_works": {
+        "passed": false,
+        "durationMs": 5098,
+        "message": "Event posted to ingest endpoint but did not land in ClickHouse within 5s.",
+        "details": {
+          "probeId": "probe_live_1776824480187"
+        }
+      },
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "redpanda_topic_exists": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "Redpanda broker reachable at localhost:9092.",
+        "details": {
+          "broker": "localhost:9092"
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {}
+  },
+  "production": {
+    "core": {},
+    "scenario": {}
+  }
+}

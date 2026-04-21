@@ -1,0 +1,353 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "table_has_rows": {
+        "passed": true,
+        "durationMs": 18,
+        "message": "Table has 10 rows.",
+        "details": {
+          "count": 10,
+          "location": "analytics.user_activity"
+        }
+      },
+      "target_table_exists": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Target table exists at analytics.user_activity.",
+        "details": {
+          "found": {
+            "database": "analytics",
+            "table": "user_activity",
+            "engine": "MergeTree",
+            "total_rows": 10
+          }
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "column_types_are_compatible": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "All column types are compatible.",
+        "details": {
+          "checks": [
+            {
+              "column": "event_id",
+              "ok": true,
+              "actual": "String"
+            },
+            {
+              "column": "event_ts",
+              "ok": true,
+              "actual": "DateTime64(3, 'UTC')"
+            },
+            {
+              "column": "user_id",
+              "ok": true,
+              "actual": "String"
+            },
+            {
+              "column": "action",
+              "ok": true,
+              "actual": "LowCardinality(String)"
+            },
+            {
+              "column": "duration_ms",
+              "ok": true,
+              "actual": "Float32"
+            }
+          ]
+        }
+      },
+      "sample_data_loaded": {
+        "passed": true,
+        "durationMs": 7,
+        "message": "Sample data loaded (10 rows).",
+        "details": {
+          "count": 10
+        }
+      },
+      "table_has_expected_columns": {
+        "passed": true,
+        "durationMs": 7,
+        "message": "Table has all expected columns.",
+        "details": {
+          "expectedGroups": [
+            [
+              "action"
+            ],
+            [
+              "duration_ms",
+              "durationms"
+            ],
+            [
+              "event_id",
+              "eventid"
+            ],
+            [
+              "event_ts",
+              "eventts"
+            ],
+            [
+              "user_id",
+              "userid"
+            ]
+          ],
+          "actual": [
+            "action",
+            "duration_ms",
+            "event_id",
+            "event_ts",
+            "user_id"
+          ]
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found; session log contains rerun-safety signals.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            "- **Engine**: MergeTree for optimal performance"
+          ],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "no_null_event_ids": {
+        "passed": true,
+        "durationMs": 11,
+        "message": "No null/empty event IDs.",
+        "details": {
+          "count": 0,
+          "column": "event_id"
+        }
+      },
+      "table_accepts_zero_duration": {
+        "passed": true,
+        "durationMs": 10,
+        "message": "Table has 3 rows with zero duration.",
+        "details": {
+          "count": 3,
+          "column": "duration_ms"
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "avoids_select_star_queries": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace avoids `SELECT *` queries in checked source files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "order_by_key_is_not_single_column": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "ORDER BY key has 2 columns: event_ts, user_id",
+        "details": {
+          "sortingKey": "event_ts, user_id",
+          "keyColumns": [
+            "event_ts",
+            "user_id"
+          ],
+          "columnCount": 2
+        }
+      },
+      "order_by_key_supports_date_range_queries": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "ORDER BY key includes event_ts for date-range queries: event_ts, user_id",
+        "details": {
+          "sortingKey": "event_ts, user_id",
+          "keyColumns": [
+            "event_ts",
+            "user_id"
+          ]
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No data store environment variables are required for this scenario.",
+        "details": {
+          "declaredServices": [],
+          "requiredEnvVars": [],
+          "missingEnvVars": [],
+          "hasPostgresUrl": false,
+          "hasClickhouseUrl": true,
+          "hasRedpandaBroker": false
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded secrets detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 0,
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "output_line_count_reasonable": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace output stays within the hard 250-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-1",
+          "mode": "reasonable",
+          "totalLines": 0,
+          "maxExpectedLines": 200,
+          "maxLines": 250,
+          "scannedFiles": 0,
+          "largestFiles": []
+        }
+      },
+      "output_line_count_disciplined": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Workspace output stays within the target 200-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-1",
+          "mode": "disciplined",
+          "totalLines": 0,
+          "maxExpectedLines": 200,
+          "maxLines": 200,
+          "scannedFiles": 0,
+          "largestFiles": []
+        }
+      },
+      "no_dead_code_markers": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No dead-code markers detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "files_are_reasonably_sized": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No workspace file exceeds 250 lines.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-1",
+          "maxFileLines": 250,
+          "offenders": []
+        }
+      },
+      "no_debug_artifacts": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No obvious debug artifacts detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "zero_compiler_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported compiler target detected; compiler check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 200,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "zero_lint_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported lint configuration detected; lint check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 200,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "has_type_safety": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No TypeScript sources detected; type-safety check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 0
+        }
+      },
+      "functions_are_focused": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No oversized functions detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      },
+      "no_deep_nesting": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No deeply nested control flow detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      }
+    },
+    "scenario": {
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  }
+}

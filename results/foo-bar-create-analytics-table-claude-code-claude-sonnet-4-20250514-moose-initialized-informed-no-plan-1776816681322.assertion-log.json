@@ -1,0 +1,498 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "table_has_rows": {
+        "passed": true,
+        "durationMs": 19,
+        "message": "Table has 11 rows.",
+        "details": {
+          "count": 11,
+          "location": "local.UserActivity"
+        }
+      },
+      "target_table_exists": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "Target table exists at local.UserActivity.",
+        "details": {
+          "found": {
+            "database": "local",
+            "table": "UserActivity",
+            "engine": "MergeTree",
+            "total_rows": 11
+          }
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "column_types_are_compatible": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "All column types are compatible.",
+        "details": {
+          "checks": [
+            {
+              "column": "event_id",
+              "ok": true,
+              "actual": "String"
+            },
+            {
+              "column": "event_ts",
+              "ok": true,
+              "actual": "DateTime('UTC')"
+            },
+            {
+              "column": "user_id",
+              "ok": true,
+              "actual": "String"
+            },
+            {
+              "column": "action",
+              "ok": true,
+              "actual": "String"
+            },
+            {
+              "column": "duration_ms",
+              "ok": true,
+              "actual": "Float64"
+            }
+          ]
+        }
+      },
+      "sample_data_loaded": {
+        "passed": true,
+        "durationMs": 7,
+        "message": "Sample data loaded (11 rows).",
+        "details": {
+          "count": 11
+        }
+      },
+      "table_has_expected_columns": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Table has all expected columns.",
+        "details": {
+          "expectedGroups": [
+            [
+              "action"
+            ],
+            [
+              "duration_ms",
+              "durationms"
+            ],
+            [
+              "event_id",
+              "eventid"
+            ],
+            [
+              "event_ts",
+              "eventts"
+            ],
+            [
+              "user_id",
+              "userid"
+            ]
+          ],
+          "actual": [
+            "action",
+            "duration_ms",
+            "event_id",
+            "event_ts",
+            "user_id"
+          ]
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No idempotency failure markers found in session log.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "no_null_event_ids": {
+        "passed": true,
+        "durationMs": 10,
+        "message": "No null/empty event IDs.",
+        "details": {
+          "count": 0,
+          "column": "event_id"
+        }
+      },
+      "table_accepts_zero_duration": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "Table has 3 rows with zero duration.",
+        "details": {
+          "count": 3,
+          "column": "duration_ms"
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "avoids_select_star_queries": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Workspace avoids `SELECT *` queries in checked source files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "order_by_key_is_not_single_column": {
+        "passed": true,
+        "durationMs": 13,
+        "message": "ORDER BY key has 3 columns: user_id, event_ts, action",
+        "details": {
+          "sortingKey": "user_id, event_ts, action",
+          "keyColumns": [
+            "user_id",
+            "event_ts",
+            "action"
+          ],
+          "columnCount": 3
+        }
+      },
+      "order_by_key_supports_date_range_queries": {
+        "passed": true,
+        "durationMs": 17,
+        "message": "ORDER BY key includes event_ts for date-range queries: user_id, event_ts, action",
+        "details": {
+          "sortingKey": "user_id, event_ts, action",
+          "keyColumns": [
+            "user_id",
+            "event_ts",
+            "action"
+          ]
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No data store environment variables are required for this scenario.",
+        "details": {
+          "declaredServices": [],
+          "requiredEnvVars": [],
+          "missingEnvVars": [],
+          "hasPostgresUrl": false,
+          "hasClickhouseUrl": true,
+          "hasRedpandaBroker": false
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": false,
+        "durationMs": 28,
+        "message": "Potential hardcoded secrets detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 58,
+          "totalFindings": 1,
+          "findings": [
+            {
+              "file": "moose-project/moose.config.toml",
+              "line": 17,
+              "kind": "generic_secret_assignment",
+              "excerpt": "password = \"pandapass\""
+            }
+          ]
+        }
+      },
+      "output_line_count_reasonable": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Workspace output exceeds the hard 250-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-1",
+          "mode": "reasonable",
+          "totalLines": 4741,
+          "maxExpectedLines": 200,
+          "maxLines": 250,
+          "scannedFiles": 23,
+          "largestFiles": [
+            {
+              "file": "moose-project/package-lock.json",
+              "lineCount": 4216
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "lineCount": 164
+            },
+            {
+              "file": "moose-project/moose.config.toml",
+              "lineCount": 59
+            },
+            {
+              "file": "moose-project/.moose/openapi.yaml",
+              "lineCount": 48
+            },
+            {
+              "file": "moose-project/load_data.js",
+              "lineCount": 45
+            }
+          ]
+        }
+      },
+      "output_line_count_disciplined": {
+        "passed": false,
+        "durationMs": 2,
+        "message": "Workspace output exceeds the target 200-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-1",
+          "mode": "disciplined",
+          "totalLines": 4741,
+          "maxExpectedLines": 200,
+          "maxLines": 200,
+          "scannedFiles": 23,
+          "largestFiles": [
+            {
+              "file": "moose-project/package-lock.json",
+              "lineCount": 4216
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "lineCount": 164
+            },
+            {
+              "file": "moose-project/moose.config.toml",
+              "lineCount": 59
+            },
+            {
+              "file": "moose-project/.moose/openapi.yaml",
+              "lineCount": 48
+            },
+            {
+              "file": "moose-project/load_data.js",
+              "lineCount": 45
+            }
+          ]
+        }
+      },
+      "no_dead_code_markers": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "No dead-code markers detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "files_are_reasonably_sized": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "One or more workspace files exceed 250 lines.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-1",
+          "maxFileLines": 250,
+          "offenders": [
+            {
+              "file": "moose-project/package-lock.json",
+              "lineCount": 4216
+            }
+          ]
+        }
+      },
+      "no_debug_artifacts": {
+        "passed": false,
+        "durationMs": 9,
+        "message": "Debug artifacts detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 3,
+          "findings": [
+            {
+              "file": "moose-project/load_data.js",
+              "line": 21,
+              "kind": "console_log",
+              "excerpt": "console.log(`Converting ${events.length} events`);"
+            },
+            {
+              "file": "moose-project/load_data.js",
+              "line": 37,
+              "kind": "console_log",
+              "excerpt": "console.log(`✓ Ingested event ${event.event_id}`);"
+            },
+            {
+              "file": "moose-project/load_data.js",
+              "line": 44,
+              "kind": "console_log",
+              "excerpt": "console.log('Data ingestion complete!');"
+            }
+          ]
+        }
+      },
+      "zero_compiler_errors": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "No supported compiler target detected; compiler check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 200,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "zero_lint_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported lint configuration detected; lint check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 200,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "has_type_safety": {
+        "passed": false,
+        "durationMs": 5,
+        "message": "Type-safety escapes detected in TypeScript sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": [
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 64,
+              "kind": "explicit_any",
+              "excerpt": "} as any, JSON.parse(\"[{\\\"name\\\":\\\"event_id\\\",\\\"data_type\\\":\\\"String\\\",\\\"primary_key\\\":false,\\\"required\\\":true,\\\"unique\\\":false,\\\"default\\\":null,\\\"materialized\\\":null,\\\"alias\\\":..."
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 66,
+              "kind": "explicit_any",
+              "excerpt": "const result = (() => { const _io0 = (input: any): boolean => \"string\" === typeof input.event_id && input.event_ts instanceof Date && \"string\" === typeof input.user_id && \"strin..."
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 86,
+              "kind": "explicit_any",
+              "excerpt": "})].every((flag: boolean) => flag); const __is = (input: any): input is UserActivity => \"object\" === typeof input && null !== input && _io0(input); let errors: any; let _report:..."
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 89,
+              "kind": "explicit_any",
+              "excerpt": "_report = (______moose____typia_validateReport._validateReport as any)(errors);"
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 90,
+              "kind": "explicit_any",
+              "excerpt": "((input: any, _path: string, _exceptionable: boolean = true) => (\"object\" === typeof input && null !== input || _report(true, {"
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 107,
+              "kind": "explicit_any",
+              "excerpt": "} as any;"
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 112,
+              "kind": "explicit_any",
+              "excerpt": "} as any;"
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 120,
+              "kind": "explicit_any",
+              "excerpt": "assert: (() => { const _io0 = (input: any): boolean => \"string\" === typeof input.event_id && input.event_ts instanceof Date && \"string\" === typeof input.user_id && \"string\" === ..."
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 145,
+              "kind": "explicit_any",
+              "excerpt": "}, _errorFactory)); const __is = (input: any): input is UserActivity => \"object\" === typeof input && null !== input && _io0(input); let _errorFactory: any; return (input: any, e..."
+            },
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "line": 148,
+              "kind": "explicit_any",
+              "excerpt": "((input: any, _path: string, _exceptionable: boolean = true) => (\"object\" === typeof input && null !== input || ______moose____typia_assertGuard._assertGuard(true, {"
+            }
+          ]
+        }
+      },
+      "functions_are_focused": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No oversized functions detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      },
+      "no_deep_nesting": {
+        "passed": false,
+        "durationMs": 9,
+        "message": "Deeply nested control flow detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": [
+            {
+              "file": "moose-project/.moose/api-compile-step/index.ts",
+              "kind": "deep_nesting",
+              "excerpt": "properties: {"
+            },
+            {
+              "file": "moose-project/load_data.js",
+              "kind": "deep_nesting",
+              "excerpt": "headers: {"
+            }
+          ]
+        }
+      }
+    },
+    "scenario": {
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+Perfect! I've successfully completed all the requirements. Here's a summary of what was accomplished:
+
+## ✅ Setup Complete
+
+**Base Table Created:**
+- `user_activity` table with columns: `event_id`, `event_ts`, `user_id`, `action`, `duration_ms` (nullable)
+- Uses MergeTree engine ordered by `(user_id, event_ts)`
+
+**Materialized Views Created:**
+
+1. **`daily_summary`** - Per user per day aggregations
+   - Columns: `day` (Date), `user_id` (String), `event_count` (UInt64), `total_duration_ms` (Float64)
+   - Uses `SummingMergeTree` ordered by `(day, user_id)`
+   - Nullable duration values default to 0 using `coalesce(duration_ms, 0)`
+
+2. **`top_users`** - All-time leaderboard  
+   - Columns: `user_id` (String), `total_duration_ms` (Float64), `event_count` (UInt64)
+   - Uses `SummingMergeTree` ordered by `user_id`
+
+## ✅ Verification Results
+
+**Sample Data Loaded:** All 10 events from the CSV file were successfully inserted
+
+**Daily Summary (aggregated by day):**
+```
+2026-01-15  usr_01  2 events  460ms total
+2026-01-15  usr_02  2 events   90ms total  
+2026-01-15  usr_03  1 event   200ms total
+2026-01-16  usr_01  2 events  245ms total
+2026-01-16  usr_02  2 events  610ms total (including test insert)
+2026-01-16  usr_03  2 events  280ms total
+```
+
+**Top Users Leaderboard:**
+```
+1. usr_01: 705ms total, 4 events
+2. usr_02: 700ms total, 4 events  
+3. usr_03: 480ms total, 3 events
+```
+
+**✅ Automatic Updates Verified:** Added a test event and confirmed both materialized views updated automatically.
+
+The system correctly handles nullable duration values (defaulting to 0) and the SummingMergeTree engines properly aggregate data during background merges.
+Found session JSONL at /root/.claude/projects/-/fcaaa863-4dd9-48ab-b5e5-e3d02c1ad35e.jsonl

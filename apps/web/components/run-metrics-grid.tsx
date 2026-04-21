@@ -18,30 +18,32 @@ interface MetricItem {
 export function RunMetricsGrid({ metrics }: { metrics: MetricItem[] }) {
   return (
     <TooltipProvider delayDuration={400}>
-      <div className="grid grid-cols-4 lg:grid-cols-7 gap-0">
+      <div className="grid grid-cols-4 lg:grid-cols-7">
         {metrics.map((metric) => (
           <Tooltip key={metric.label}>
             <TooltipTrigger asChild>
               <div
-                className={`p-2.5 border-r border-black/10 last:border-r-0 border-b lg:border-b-0 cursor-default ${
-                  metric.dividerAfter ? "lg:border-r-2 lg:border-r-black/20" : ""
+                className={`p-3 border-r border-[color:var(--border)] last:border-r-0 border-b lg:border-b-0 border-b-[color:var(--border)] cursor-default ${
+                  metric.dividerAfter
+                    ? "lg:border-r-2 lg:border-r-[color:var(--border)]"
+                    : ""
                 }`}
               >
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-black/40">
+                <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--chart-4)]">
                   {metric.label}
                 </p>
                 <p
                   className={`font-[family-name:var(--font-display)] text-lg mt-0.5 ${
-                    metric.accent ? "text-[#B91C1C]" : ""
+                    metric.accent
+                      ? "text-[color:var(--accent)]"
+                      : "text-[color:var(--foreground)]"
                   }`}
                 >
                   {metric.value}
                 </p>
               </div>
             </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {metric.description}
-            </TooltipContent>
+            <TooltipContent side="bottom">{metric.description}</TooltipContent>
           </Tooltip>
         ))}
       </div>

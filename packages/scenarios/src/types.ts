@@ -12,7 +12,8 @@ export type TaskCategory =
   | "partitioning"
   | "replication"
   | "compression"
-  | "monitoring";
+  | "monitoring"
+  | "cli-tooling";
 
 // Business domains used by scenario registry entries.
 export type BusinessDomain =
@@ -22,7 +23,8 @@ export type BusinessDomain =
   | "ugc"
   | "e-commerce"
   | "advertising"
-  | "consumption-based-infra";
+  | "consumption-based-infra"
+  | "514";
 
 // Built-in harnesses plus custom user harness names.
 export type BuiltInHarness = "base-rt" | "classic-de" | "olap-for-swe";

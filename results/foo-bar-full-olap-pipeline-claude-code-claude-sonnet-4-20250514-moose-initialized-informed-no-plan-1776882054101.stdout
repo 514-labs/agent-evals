@@ -1,0 +1,101 @@
+## Rules Checked
+- `schema-types-native-types` - Optimal type selection needed
+- `schema-types-lowcardinality` - For repeated string values like event_type, user_id, product_id
+- `schema-types-enum` - For finite event_type values
+- `schema-pk-cardinality-order` - ORDER BY should go low-to-high cardinality
+- `schema-pk-prioritize-filters` - Include commonly filtered columns in ORDER BY
+- `schema-json-when-to-use` - JSON type for dynamic properties
+- `schema-partition-lifecycle` - Time-based partitioning for data management
+
+## Findings
+
+### Recommended Schema Design
+
+Based on your query patterns (top products, conversion funnels, hourly activity), here's the optimal schema:
+
+```typescript
+import { Key, LowCardinality, OlapTable, IngestPipeline } from "@514labs/moose-lib";
+import { tags } from "typia";
+
+enum EventType {
+  VIEW = "view",
+  CART = "cart", 
+  PURCHASE = "purchase"
+}
+
+interface ProductEvent {
+  eventId: string & tags.Format<"uuid">;           // UUID - 16 bytes native storage
+  eventTs: Date;                                   // DateTime - 4 bytes
+  userId: string & LowCardinality;                 // LowCardinality - dictionary encoding
+  productId: string & LowCardinality;              // LowCardinality - dictionary encoding  
+  eventType: EventType;                            // Enum8 - 1 byte with validation
+  properties: Record<string, any>;                 // JSON type for dynamic fields
+}
+
+export const ProductEventPipeline = new IngestPipeline<ProductEvent>("ProductEvent", {
+  table: { 
+    orderByFields: ["eventType", "userId", "eventTs"],  // Low→high cardinality
+    partitionBy: "toStartOfHour(eventTs)",              // Hourly partitions for your queries
+  },
+  stream: true,
+  ingestApi: true,
+});
+```
+
+### Key Design Decisions
+
+**Per `schema-types-enum`**: EventType uses enum for the 3 fixed values (view/cart/purchase) providing insert-time validation and natural ordering for funnel analysis.
+
+**Per `schema-types-lowcardinality`**: userId and productId use LowCardinality for dictionary encoding since these will have many repeated values across events.
+
+**Per `schema-pk-cardinality-order`**: ORDER BY places eventType first (3 values), then userId (medium cardinality), then eventTs (high cardinality) to enable efficient block skipping.
+
+**Per `schema-pk-prioritize-filters`**: This ordering optimizes your three query patterns:
+- Top products: `WHERE eventType IN ('view','cart','purchase')` uses first column
+- Conversion funnels: `WHERE userId = 'usr_01'` uses first two columns  
+- Hourly activity: `WHERE eventType = 'view' AND eventTs >= ...` uses all columns
+
+**Per `schema-json-when-to-use`**: Properties field uses JSON type since it contains different fields per event type (price for purchases, page for views).
+
+**Per `schema-partition-lifecycle`**: Hourly partitioning aligns with your hourly activity queries and enables efficient time-based data management.
+
+### Optimal Query Patterns
+
+With this schema, your aggregation queries will be highly efficient:
+
+```typescript
+// Top products - uses eventType index
+const topProducts = `
+  SELECT 
+    productId,
+    countIf(eventType = 'view') as views,
+    countIf(eventType = 'cart') as carts, 
+    countIf(eventType = 'purchase') as purchases,
+    sumIf(toFloat64OrZero(properties.price), eventType = 'purchase') as revenue
+  FROM ProductEvent 
+  WHERE eventType IN ('view','cart','purchase')
+  GROUP BY productId
+  ORDER BY revenue DESC`;
+
+// Conversion funnel - uses eventType + userId index
+const conversionFunnel = `
+  SELECT 
+    uniqIf(userId, eventType = 'view') as unique_views,
+    uniqIf(userId, eventType = 'cart') as unique_carts,
+    uniqIf(userId, eventType = 'purchase') as unique_purchases
+  FROM ProductEvent`;
+
+// Hourly activity - partition pruning + eventType index
+const hourlyActivity = `
+  SELECT 
+    toStartOfHour(eventTs) as hour,
+    eventType,
+    count(*) as event_count
+  FROM ProductEvent 
+  WHERE eventTs >= now() - INTERVAL 24 HOUR
+  GROUP BY hour, eventType
+  ORDER BY hour, eventType`;
+```
+
+This schema design will deliver sub-200ms response times for your aggregation APIs by leveraging ClickHouse's columnar storage and sparse indexing optimally.
+Found session JSONL at /root/.claude/projects/-/08b6cfce-e7a6-4f7e-a476-b4fbf56f4f57.jsonl

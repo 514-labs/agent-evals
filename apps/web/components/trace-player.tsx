@@ -313,14 +313,14 @@ export function TracePlayer({
 
   if (error) {
     return (
-      <div className="border-[3px] border-black bg-[#0d0d0d] p-6">
+      <div className="border border-[color:var(--border)] bg-[#0d0d0d] p-6">
         <p className="text-sm text-red-400">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="border-[3px] border-black overflow-hidden flex flex-col">
+    <div className="border border-[color:var(--border)] overflow-hidden flex flex-col">
       {/* Chrome */}
       <div className="bg-black px-3 py-2 flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
