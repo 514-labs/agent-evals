@@ -60,10 +60,10 @@ pub async fn execute(args: ListArgs) -> Result<()> {
     }
 
     println!(
-        "{:<36} {:<8} {:<24} {:<24} {}",
+        "{:<42} {:<8} {:<24} {:<24} {}",
         "ID", "TIER", "DOMAIN", "CATEGORY", "DESCRIPTION"
     );
-    println!("{}", "-".repeat(130));
+    println!("{}", "-".repeat(136));
     for scenario in filtered {
         let category = scenario
             .task_categories
@@ -71,7 +71,7 @@ pub async fn execute(args: ListArgs) -> Result<()> {
             .cloned()
             .unwrap_or_else(|| "-".to_string());
         println!(
-            "{:<36} {:<8} {:<24} {:<24} {}",
+            "{:<42} {:<8} {:<24} {:<24} {}",
             scenario.id, scenario.tier, scenario.domain, category, scenario.description
         );
     }
