@@ -75,7 +75,7 @@ export default async function DocsPage({
 
   return (
     <TocAnchorProvider toc={toc}>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,900px)_260px]">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,900px)_208px]">
         <article className="min-w-0 px-6 md:px-10 pt-10 md:pt-12 pb-16 xl:border-r border-[color:var(--border)]">
           <div className="max-w-[820px] mx-auto">
             <header className="flex flex-col gap-[18px]">
@@ -136,7 +136,7 @@ export default async function DocsPage({
 
         {toc.length > 0 ? (
           <aside className="hidden xl:block">
-            <div className="sticky top-[60px] px-5 pt-10 pb-9 w-[260px]">
+            <div className="sticky top-[60px] px-5 pt-10 pb-9 w-[208px]">
               <DocsToc toc={toc} />
             </div>
           </aside>
