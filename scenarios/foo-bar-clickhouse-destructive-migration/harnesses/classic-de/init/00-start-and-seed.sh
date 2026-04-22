@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Per-harness init for base-rt: start system ClickHouse, seed pre-migration data.
-# Moved here from flat init/ because scenario-global supervisord.conf is empty
-# (the moose harnesses run their own ClickHouse via `moose dev --dockerless`).
+# Per-harness init for base-rt: start system ClickHouse, seed the
+# pre-migration schema with 10,000 deterministic rows, and write anchor
+# tables (_seed_meta, _seed_spotchecks) that assertions read.
+#
+# Moved out of the flat init/ because scenario-global supervisord.conf is
+# empty (moose harnesses run their own ClickHouse via `moose dev --dockerless`).
 set -euo pipefail
 
 # Ownership on data + log dirs; harmless if already correct.
@@ -27,7 +30,12 @@ if [[ "${READY}" != "1" ]]; then
   exit 1
 fi
 
-# Seed the pre-migration schema + 8 deterministic rows.
+# Seed schema, data, and anchor tables.
+# - analytics.events: 10,000 deterministic rows via cityHash64 so the
+#   content is reproducible across runs.
+# - _seed_meta (key,value): invariants assertions read (total_rows + per-type counts).
+# - _seed_spotchecks: 5 rows assertions use to probe latency & correctness
+#   without hard-coding event_ids in TypeScript.
 clickhouse-client --host localhost --port 9000 --multiquery <<'EOF'
 CREATE DATABASE IF NOT EXISTS analytics;
 
@@ -39,15 +47,52 @@ CREATE TABLE analytics.events (
 ) ENGINE = MergeTree()
 ORDER BY (event_ts, event_id);
 
-INSERT INTO analytics.events (event_id, event_ts, event_type, user_id) VALUES
-  ('e1', '2026-01-15 10:00:00', 'pv',       'u1_001'),
-  ('e2', '2026-01-15 10:01:00', 'pv',       'u1_002'),
-  ('e3', '2026-01-15 11:00:00', 'click',    'u2_001'),
-  ('e4', '2026-01-16 09:00:00', 'pv',       'u1_003'),
-  ('e5', '2026-01-16 09:05:00', 'pv',       'u3_001'),
-  ('e6', '2026-01-16 10:00:00', 'purchase', 'u2_001'),
-  ('e7', '2026-01-17 14:00:00', 'click',    'u1_004'),
-  ('e8', '2026-01-17 14:30:00', 'purchase', 'u3_001');
+-- Deterministic seed: cityHash64 on the row number produces the same
+-- event_type/event_ts/user_id distribution on every run.
+INSERT INTO analytics.events (event_id, event_ts, event_type, user_id)
+SELECT
+  concat('evt_', leftPad(toString(number + 1), 6, '0')) AS event_id,
+  toDateTime('2026-01-01 00:00:00')
+    + toIntervalSecond(cityHash64(number) % (30 * 86400)) AS event_ts,
+  ['pv','click','purchase','signup','logout'][(cityHash64(number + 1) % 5) + 1] AS event_type,
+  concat('usr_', leftPad(toString((cityHash64(number + 2) % 500) + 1), 4, '0')) AS user_id
+FROM numbers(10000);
+
+-- _seed_meta: key/value anchor table read by assertions. Populated from
+-- the live events table so the numbers stay truthful if seed SQL changes.
+CREATE TABLE analytics._seed_meta (
+  key String,
+  value String
+) ENGINE = MergeTree ORDER BY key;
+
+INSERT INTO analytics._seed_meta
+SELECT key, value FROM (
+  SELECT 'total_rows' AS key, toString(count()) AS value FROM analytics.events
+  UNION ALL
+  SELECT 'count_pv', toString(countIf(event_type = 'pv')) FROM analytics.events
+  UNION ALL
+  SELECT 'count_click', toString(countIf(event_type = 'click')) FROM analytics.events
+  UNION ALL
+  SELECT 'count_purchase', toString(countIf(event_type = 'purchase')) FROM analytics.events
+  UNION ALL
+  SELECT 'count_signup', toString(countIf(event_type = 'signup')) FROM analytics.events
+  UNION ALL
+  SELECT 'count_logout', toString(countIf(event_type = 'logout')) FROM analytics.events
+);
+
+-- _seed_spotchecks: 5 rows assertions probe for point-lookup latency + row survival.
+-- Keyed by event_id for stable targeting; reads the actual seeded row values.
+CREATE TABLE analytics._seed_spotchecks (
+  event_id String,
+  event_ts DateTime,
+  event_type String,
+  user_id String
+) ENGINE = MergeTree ORDER BY event_id;
+
+INSERT INTO analytics._seed_spotchecks
+SELECT event_id, event_ts, event_type, user_id
+FROM analytics.events
+WHERE event_id IN ('evt_000001', 'evt_002500', 'evt_005000', 'evt_007500', 'evt_010000');
 EOF
 
-echo "00-start-and-seed.sh (${EVAL_HARNESS:-unknown}): done"
+echo "00-start-and-seed.sh (${EVAL_HARNESS:-unknown}): done (10000 rows + anchor tables)"
