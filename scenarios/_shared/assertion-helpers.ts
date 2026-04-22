@@ -1,31 +1,14 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 
-import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
+import {
+  IGNORED_SCAN_DIRS,
+  IGNORED_SCAN_FILENAMES,
+  type AssertionContext,
+  type AssertionResult,
+} from "@dec-bench/eval-core";
 
 const WORKSPACE_ROOT = "/workspace";
-const IGNORED_DIRS = new Set([
-  ".git",
-  ".next",
-  ".turbo",
-  ".moose",
-  "dist",
-  "build",
-  "coverage",
-  "node_modules",
-  "__pycache__",
-  ".venv",
-  "venv",
-]);
-// Scaffolded / auto-generated files that aren't agent-authored code. Mirror
-// of IGNORED_SCAN_FILENAMES in packages/eval-core/src/runner.ts so the
-// scenario-level helpers stay consistent with the core gate scanners.
-const IGNORED_FILENAMES = new Set([
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "moose.config.toml",
-]);
 const TEXT_FILE_EXTENSIONS = new Set([
   ".py",
   ".js",
@@ -341,7 +324,7 @@ function collectWorkspaceTextFiles(): WorkspaceTextFile[] {
   const visit = (current: string, relativePrefix = "") => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS.has(entry.name)) {
+        if (IGNORED_SCAN_DIRS.has(entry.name)) {
           continue;
         }
         visit(join(current, entry.name), join(relativePrefix, entry.name));
@@ -350,7 +333,7 @@ function collectWorkspaceTextFiles(): WorkspaceTextFile[] {
       if (!entry.isFile()) {
         continue;
       }
-      if (IGNORED_FILENAMES.has(entry.name)) {
+      if (IGNORED_SCAN_FILENAMES.has(entry.name)) {
         continue;
       }
       const extension = extname(entry.name).toLowerCase();

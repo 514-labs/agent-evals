@@ -10,6 +10,7 @@ export { createAssertionContext } from "./context.js";
 export { loadScenarioAssertions } from "./discovery.js";
 export { runGateEvaluation } from "./runner.js";
 export { createEvalOutput } from "./output.js";
+export { IGNORED_SCAN_DIRS, IGNORED_SCAN_FILENAMES } from "./workspace-scan.js";
 export type {
   AssertionLog,
   AssertionLogMap,
