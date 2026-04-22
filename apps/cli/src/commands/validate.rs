@@ -30,11 +30,9 @@ const FEATURE_SLUGS: [&str; 5] = [
     "analytical-chat",
 ];
 
-const REQUIRED_FILES: [&str; 8] = [
+const REQUIRED_FILES: [&str; 6] = [
     "scenario.json",
     "supervisord.conf",
-    "prompts/baseline.md",
-    "prompts/informed.md",
     "assertions/functional.ts",
     "assertions/correct.ts",
     "assertions/robust.ts",
@@ -42,10 +40,8 @@ const REQUIRED_FILES: [&str; 8] = [
 ];
 
 const PRODUCTION_ASSERTION: &str = "assertions/production.ts";
-const SCAFFOLD_NAIVE_PROMPT: &str =
-    "<!-- Describe the task in plain language. No tool names, no implementation hints. -->";
-const SCAFFOLD_SAVVY_PROMPT: &str =
-    "<!-- Describe the task with specific tools, targets, and technical constraints. -->";
+const SCAFFOLD_NAIVE_PROMPT: &str = "Describe the task in plain language. No tool names, no implementation hints.";
+const SCAFFOLD_SAVVY_PROMPT: &str = "Describe the task with specific tools, targets, and technical constraints";
 
 #[derive(Args, Clone, Debug)]
 pub struct ValidateArgs {
@@ -101,8 +97,6 @@ struct ScenarioJson {
     domain: String,
     harnesses: Vec<String>,
     tasks: Vec<ScenarioTask>,
-    #[serde(rename = "personaPrompts")]
-    persona_prompts: Option<std::collections::BTreeMap<String, String>>,
     infrastructure: Option<ScenarioInfrastructure>,
 }
 
@@ -227,23 +221,15 @@ fn validate_with_repo_root(
         }
     }
 
-    let persona_prompts = scenario.persona_prompts.clone().unwrap_or_default();
-    validate_prompt(
-        &scenario_dir,
-        &persona_prompts,
-        "baseline",
-        SCAFFOLD_NAIVE_PROMPT,
-        &mut errors,
-        &mut warnings,
-    );
-    validate_prompt(
-        &scenario_dir,
-        &persona_prompts,
-        "informed",
-        SCAFFOLD_SAVVY_PROMPT,
-        &mut errors,
-        &mut warnings,
-    );
+    // Each declared harness must own its prompts at harnesses/{harness}/prompts/.
+    for harness in &scenario.harnesses {
+        validate_harness_prompts(
+            &scenario_dir,
+            harness,
+            &mut errors,
+            &mut warnings,
+        );
+    }
 
     validate_assertion_file(
         &scenario_dir.join("assertions/functional.ts"),
@@ -274,8 +260,12 @@ fn validate_with_repo_root(
     validate_supervisord(&scenario_dir.join("supervisord.conf"), &mut warnings);
     validate_init_dir(
         &scenario_dir.join("init"),
-        &scenario.harnesses,
         &mut errors,
+        &mut warnings,
+    );
+    validate_harnesses_dir(
+        &scenario_dir.join("harnesses"),
+        &scenario.harnesses,
         &mut warnings,
     );
     for harness in &scenario.harnesses {
@@ -352,40 +342,34 @@ fn resolve_scenario_dir(input: &str) -> Result<PathBuf> {
     )
 }
 
-fn validate_prompt(
+fn validate_harness_prompts(
     scenario_dir: &Path,
-    persona_prompts: &std::collections::BTreeMap<String, String>,
-    persona: &str,
-    scaffold_placeholder: &str,
+    harness: &str,
     errors: &mut Vec<String>,
     warnings: &mut Vec<String>,
 ) {
-    let Some(rel_path) = persona_prompts.get(persona) else {
-        errors.push(format!(
-            "`scenario.json` must include a `{}` prompt path in `personaPrompts`.",
-            persona
-        ));
-        return;
-    };
-
-    let prompt_path = scenario_dir.join(rel_path);
-    if !prompt_path.exists() {
-        errors.push(format!(
-            "Referenced `{}` prompt file does not exist: {}",
-            persona,
-            prompt_path.display()
-        ));
-        return;
-    }
-
-    let content = fs::read_to_string(&prompt_path).unwrap_or_default();
-    if content.trim().is_empty() {
-        errors.push(format!("`{}` prompt file is empty.", persona));
-    } else if content.trim() == scaffold_placeholder {
-        warnings.push(format!(
-            "`{}` prompt still contains the scaffold placeholder text.",
-            persona
-        ));
+    let prompts_dir = scenario_dir.join("harnesses").join(harness).join("prompts");
+    for (persona, scaffold_hint) in &[
+        ("baseline", SCAFFOLD_NAIVE_PROMPT),
+        ("informed", SCAFFOLD_SAVVY_PROMPT),
+    ] {
+        let path = prompts_dir.join(format!("{persona}.md"));
+        if !path.exists() {
+            errors.push(format!(
+                "Missing prompt file for harness `{harness}`: harnesses/{harness}/prompts/{persona}.md"
+            ));
+            continue;
+        }
+        let content = fs::read_to_string(&path).unwrap_or_default();
+        if content.trim().is_empty() {
+            errors.push(format!(
+                "Prompt file is empty: harnesses/{harness}/prompts/{persona}.md"
+            ));
+        } else if content.contains(scaffold_hint) {
+            warnings.push(format!(
+                "harnesses/{harness}/prompts/{persona}.md still contains the scaffold placeholder text."
+            ));
+        }
     }
 }
 
@@ -414,7 +398,6 @@ fn validate_supervisord(path: &Path, warnings: &mut Vec<String>) {
 
 fn validate_init_dir(
     path: &Path,
-    declared_harnesses: &[String],
     errors: &mut Vec<String>,
     warnings: &mut Vec<String>,
 ) {
@@ -423,60 +406,47 @@ fn validate_init_dir(
         return;
     }
 
-    let entries: Vec<_> = match fs::read_dir(path) {
-        Ok(rd) => rd.filter_map(|entry| entry.ok()).collect(),
-        Err(_) => {
-            errors.push(format!("Cannot read init directory: {}", path.display()));
-            return;
-        }
-    };
+    let file_count = fs::read_dir(path)
+        .ok()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .count();
 
-    let mut total_files: usize = 0;
+    if file_count == 0 {
+        warnings.push(format!(
+            "Flat init/ directory has no files. All seed data for this scenario is harness-specific."
+        ));
+    }
 
-    for entry in &entries {
+    let _ = warnings; // suppress unused warning if caller adds more checks
+}
+
+fn validate_harnesses_dir(
+    harnesses_path: &Path,
+    declared_harnesses: &[String],
+    warnings: &mut Vec<String>,
+) {
+    if !harnesses_path.is_dir() {
+        return; // harnesses/ is optional (only needed when per-harness overrides exist)
+    }
+
+    let Ok(entries) = fs::read_dir(harnesses_path) else { return };
+    for entry in entries.filter_map(|e| e.ok()) {
         let entry_path = entry.path();
-        if entry_path.is_file() {
-            total_files += 1;
-            continue;
-        }
         if !entry_path.is_dir() {
             continue;
         }
-
         let subdir_name = entry_path
             .file_name()
-            .map(|name| name.to_string_lossy().to_string())
+            .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
-
-        let subdir_files: usize = fs::read_dir(&entry_path)
-            .ok()
-            .into_iter()
-            .flatten()
-            .filter_map(|sub| sub.ok())
-            .filter(|sub| sub.path().is_file())
-            .count();
-        total_files += subdir_files;
-
-        if !declared_harnesses.iter().any(|harness| harness == &subdir_name) {
+        if !declared_harnesses.iter().any(|h| h == &subdir_name) {
             warnings.push(format!(
-                "Init subdirectory '{}' does not match any harness in `harnesses[]`. Files in this subdir will never run.",
-                subdir_name
+                "harnesses/{subdir_name}/ does not match any harness in `harnesses[]` and will never be used."
             ));
         }
-
-        if subdir_files == 0 {
-            warnings.push(format!(
-                "Init subdirectory '{}' is empty.",
-                subdir_name
-            ));
-        }
-    }
-
-    if total_files == 0 {
-        errors.push(format!(
-            "Init directory does not contain any files (flat or in harness subdirs): {}",
-            path.display()
-        ));
     }
 }
 
@@ -583,7 +553,7 @@ mod tests {
         fs::create_dir_all(root.join(".git")).expect("git dir");
         let scenario_dir = root.join("scenarios/test-scenario");
         fs::create_dir_all(scenario_dir.join("assertions")).expect("assertions");
-        fs::create_dir_all(scenario_dir.join("prompts")).expect("prompts");
+        fs::create_dir_all(scenario_dir.join("harnesses/base-rt/prompts")).expect("harness prompts");
         fs::create_dir_all(scenario_dir.join("init")).expect("init");
         fs::create_dir_all(root.join("apps/web/data/harnesses")).expect("harness dir");
 
@@ -597,12 +567,11 @@ mod tests {
   "domain": "foo-bar",
   "harnesses": ["base-rt"],
   "tasks": [{"id":"task-1","description":"Do the thing","category":"ingestion"}],
-  "personaPrompts": {"baseline":"prompts/baseline.md","informed":"prompts/informed.md"},
   "infrastructure": {"services": ["clickhouse"]}
 }"#,
         );
-        write_file(&scenario_dir.join("prompts/baseline.md"), "Do the task.\n");
-        write_file(&scenario_dir.join("prompts/informed.md"), "Use ClickHouse.\n");
+        write_file(&scenario_dir.join("harnesses/base-rt/prompts/baseline.md"), "Do the task.\n");
+        write_file(&scenario_dir.join("harnesses/base-rt/prompts/informed.md"), "Use ClickHouse.\n");
         write_file(&scenario_dir.join("supervisord.conf"), "[program:clickhouse]\n");
         write_file(&scenario_dir.join("init/setup.sh"), "#!/usr/bin/env bash\n");
         for gate in ["functional", "correct", "robust", "performant", "production"] {
@@ -663,12 +632,11 @@ mod tests {
     }
 
     #[test]
-    fn validate_accepts_per_harness_init_subdirs() {
+    fn validate_accepts_multi_harness_scenario_with_harness_prompts() {
         let temp = tempfile::tempdir().expect("temp dir");
         seed_valid_scenario(temp.path());
         let scenario_dir = temp.path().join("scenarios/test-scenario");
 
-        // Switch the scenario to declare two harnesses and add a matching subdir.
         write_file(
             &scenario_dir.join("scenario.json"),
             r#"{
@@ -679,18 +647,13 @@ mod tests {
   "domain": "foo-bar",
   "harnesses": ["base-rt", "olap-for-swe"],
   "tasks": [{"id":"task-1","description":"Do the thing","category":"ingestion"}],
-  "personaPrompts": {"baseline":"prompts/baseline.md","informed":"prompts/informed.md"},
   "infrastructure": {"services": ["clickhouse"]}
 }"#,
         );
-        write_file(
-            &temp.path().join("apps/web/data/harnesses/olap-for-swe.json"),
-            "{}\n",
-        );
-        write_file(
-            &scenario_dir.join("init/olap-for-swe/seed-workspace.sh"),
-            "#!/usr/bin/env bash\n",
-        );
+        write_file(&temp.path().join("apps/web/data/harnesses/olap-for-swe.json"), "{}\n");
+        write_file(&scenario_dir.join("harnesses/olap-for-swe/prompts/baseline.md"), "Do the task.\n");
+        write_file(&scenario_dir.join("harnesses/olap-for-swe/prompts/informed.md"), "Use Moose.\n");
+        write_file(&scenario_dir.join("harnesses/olap-for-swe/init/seed-workspace.sh"), "#!/usr/bin/env bash\n");
 
         let args = ValidateArgs {
             scenario: "test-scenario".to_string(),
@@ -700,28 +663,21 @@ mod tests {
             services: None,
             format: OutputFormat::Table,
         };
-        let report =
-            validate_at_dir(&scenario_dir, &args).expect("validate");
+        let report = validate_at_dir(&scenario_dir, &args).expect("validate");
 
         assert!(report.passed, "errors: {:?}", report.errors);
-        // No subdir-mismatch warning should fire for `olap-for-swe`.
-        assert!(!report
-            .warnings
-            .iter()
-            .any(|w| w.contains("does not match any harness")));
+        assert!(!report.warnings.iter().any(|w| w.contains("does not match any harness")));
     }
 
     #[test]
-    fn validate_warns_when_init_subdir_does_not_match_a_harness() {
+    fn validate_errors_when_harness_prompt_is_missing() {
         let temp = tempfile::tempdir().expect("temp dir");
         seed_valid_scenario(temp.path());
         let scenario_dir = temp.path().join("scenarios/test-scenario");
 
-        // Subdir name `not-a-harness` is not in the scenario's harnesses array.
-        write_file(
-            &scenario_dir.join("init/not-a-harness/seed.sh"),
-            "#!/usr/bin/env bash\n",
-        );
+        // Remove informed.md from the only harness.
+        fs::remove_file(scenario_dir.join("harnesses/base-rt/prompts/informed.md"))
+            .expect("remove informed.md");
 
         let args = ValidateArgs {
             scenario: "test-scenario".to_string(),
@@ -731,27 +687,45 @@ mod tests {
             services: None,
             format: OutputFormat::Table,
         };
-        let report =
-            validate_at_dir(&scenario_dir, &args).expect("validate");
+        let report = validate_at_dir(&scenario_dir, &args).expect("validate");
 
-        assert!(report.passed, "should still pass; subdir mismatch is a warning");
-        assert!(report
-            .warnings
-            .iter()
-            .any(|w| w.contains("'not-a-harness'") && w.contains("does not match any harness")));
+        assert!(!report.passed);
+        assert!(report.errors.iter().any(|e| e.contains("harnesses/base-rt/prompts/informed.md")));
     }
 
     #[test]
-    fn validate_accepts_subdir_only_init_without_flat_files() {
+    fn validate_warns_when_harnesses_dir_contains_unknown_harness() {
         let temp = tempfile::tempdir().expect("temp dir");
         seed_valid_scenario(temp.path());
         let scenario_dir = temp.path().join("scenarios/test-scenario");
 
-        // Remove the flat init file; rely entirely on a subdir.
-        fs::remove_file(scenario_dir.join("init/setup.sh")).expect("remove flat init");
+        // Create a harnesses/ subdir that isn't declared in scenario.json.
+        write_file(&scenario_dir.join("harnesses/not-a-harness/prompts/baseline.md"), "x\n");
+
+        let args = ValidateArgs {
+            scenario: "test-scenario".to_string(),
+            competencies: None,
+            features: None,
+            starting_state: None,
+            services: None,
+            format: OutputFormat::Table,
+        };
+        let report = validate_at_dir(&scenario_dir, &args).expect("validate");
+
+        assert!(report.passed, "should pass; unknown harness dir is a warning");
+        assert!(report.warnings.iter().any(|w| w.contains("not-a-harness") && w.contains("will never be used")));
+    }
+
+    #[test]
+    fn validate_warns_on_scaffold_placeholder_in_prompt() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        seed_valid_scenario(temp.path());
+        let scenario_dir = temp.path().join("scenarios/test-scenario");
+
+        // Overwrite baseline.md with scaffold placeholder text.
         write_file(
-            &scenario_dir.join("init/base-rt/seed.sh"),
-            "#!/usr/bin/env bash\n",
+            &scenario_dir.join("harnesses/base-rt/prompts/baseline.md"),
+            "<!-- [base-rt] Describe the task in plain language. No tool names, no implementation hints. -->\n",
         );
 
         let args = ValidateArgs {
@@ -762,9 +736,9 @@ mod tests {
             services: None,
             format: OutputFormat::Table,
         };
-        let report =
-            validate_at_dir(&scenario_dir, &args).expect("validate");
+        let report = validate_at_dir(&scenario_dir, &args).expect("validate");
 
-        assert!(report.passed, "errors: {:?}", report.errors);
+        assert!(report.passed, "placeholder prompt is a warning not an error");
+        assert!(report.warnings.iter().any(|w| w.contains("baseline.md") && w.contains("scaffold placeholder")));
     }
 }

@@ -60,7 +60,7 @@ for scn in "${SCENARIOS[@]}"; do
 done
 
 echo
-echo "== Running S1..S5 (moose-user, concurrency=2) =="
+echo "== Running S1..S5 (olap-for-swe informed, concurrency=2) =="
 # xargs gives portable -P 2 concurrency. Matrix mode would sweep all 22
 # harness-compatible scenarios and also auto-rebuild missing images without
 # the override, so we enumerate the 5 we care about explicitly.
@@ -68,7 +68,7 @@ printf '%s\n' "${SCENARIOS[@]}" | xargs -n 1 -P 2 -I {} \
   "$DEC" run \
     --scenario "{}" \
     --harness "$HARNESS" \
-    --persona moose-user \
+    --persona informed \
     --mode no-plan \
     --version "$VERSION" \
     --timeout 20

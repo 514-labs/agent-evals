@@ -45,7 +45,6 @@ fn create_then_registry_add_scenario_generates_registry_entry() {
       "tasks": [
         {"id": "task-a", "description": "task", "category": "ingestion"}
       ],
-      "personaPrompts": { "baseline": "prompts/baseline.md", "informed": "prompts/informed.md" },
       "tags": ["integration"],
       "baselineMetrics": {"queryLatencyMs": 1, "storageBytes": 1, "costPerQueryUsd": 1},
       "referenceMetrics": {"queryLatencyMs": 1, "storageBytes": 1, "costPerQueryUsd": 1}

@@ -85,7 +85,7 @@ test("audit loaders index manifests and read log chunks", () => {
       "utf8",
     );
 
-    mkdirSync(join(fixtureRoot, "scenarios", scenario, "prompts"), { recursive: true });
+    mkdirSync(join(fixtureRoot, "scenarios", scenario, "harnesses", "base-rt", "prompts"), { recursive: true });
     writeFileSync(
       join(fixtureRoot, "scenarios", scenario, "scenario.json"),
       JSON.stringify(
@@ -95,18 +95,15 @@ test("audit loaders index manifests and read log chunks", () => {
           description: "Fixture scenario",
           tier: "tier-1",
           domain: "foo",
-          harness: "base-rt",
+          harnesses: ["base-rt"],
           tasks: [{ id: "task-1", description: "Do thing", category: "ingestion" }],
-          personaPrompts: {
-            baseline: "prompts/baseline.md",
-          },
         },
         null,
         2,
       ),
       "utf8",
     );
-    writeFileSync(join(fixtureRoot, "scenarios", scenario, "prompts", "baseline.md"), "hello prompt", "utf8");
+    writeFileSync(join(fixtureRoot, "scenarios", scenario, "harnesses", "base-rt", "prompts", "baseline.md"), "hello prompt", "utf8");
 
     process.env.DEC_BENCH_AUDITS_DIR = join(fixtureRoot, "data", "audits");
 

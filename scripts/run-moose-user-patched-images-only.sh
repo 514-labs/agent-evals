@@ -29,12 +29,12 @@ for scn in "${SCENARIOS[@]}"; do
   fi
 done
 
-echo "== Running S1..S5 (moose-user, concurrency=2) =="
+echo "== Running S1..S5 (olap-for-swe informed, concurrency=2) =="
 printf '%s\n' "${SCENARIOS[@]}" | xargs -n 1 -P 2 -I {} \
   "$DEC" run \
     --scenario "{}" \
     --harness "$HARNESS" \
-    --persona moose-user \
+    --persona informed \
     --mode no-plan \
     --version "$VERSION" \
     --timeout 20

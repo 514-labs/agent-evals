@@ -8,7 +8,6 @@ export type {
   Persona,
   BaselineMetrics,
   ReferenceMetrics,
-  PersonaPrompts,
   Task,
   Scenario,
   ScenarioProductionChecks,

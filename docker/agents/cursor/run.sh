@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROMPT_FILE="/scenario/prompts/${PERSONA:-baseline}.md"
+PROMPT_FILE="/scenario/harnesses/${EVAL_HARNESS}/prompts/${PERSONA:-baseline}.md"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 METRICS_PATH="${OUTPUT_DIR}/agent-metrics.json"
 RUN_META_PATH="${OUTPUT_DIR}/run-meta.json"

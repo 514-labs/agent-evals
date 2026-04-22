@@ -149,6 +149,7 @@ docker build \
   -f docker/harness/Dockerfile \
   --build-arg SCENARIO_IMAGE="${SCENARIO_TAG}" \
   --build-arg HARNESS_SCRIPT="${HARNESS_SCRIPT_REL}" \
+  --build-arg HARNESS_ID="${HARNESS}" \
   ${OVERRIDES_BUILD_ARG[@]+"${OVERRIDES_BUILD_ARG[@]}"} \
   -t "${HARNESS_TAG}" \
   .

@@ -412,8 +412,6 @@ fn validate_scenario_dir(dir: &Path) -> Result<()> {
     let required = [
         "scenario.json",
         "supervisord.conf",
-        "prompts/baseline.md",
-        "prompts/informed.md",
         "assertions/functional.ts",
         "assertions/correct.ts",
         "assertions/robust.ts",
@@ -425,6 +423,21 @@ fn validate_scenario_dir(dir: &Path) -> Result<()> {
         let path = dir.join(rel);
         if !path.exists() {
             bail!("Missing required scenario file: {}", path.display());
+        }
+    }
+
+    // Prompts are owned by the harness-scenario pair at harnesses/{harness}/prompts/.
+    // Validate that at least one harness has prompts rather than checking a flat prompts/ dir.
+    let harnesses_dir = dir.join("harnesses");
+    if harnesses_dir.is_dir() {
+        let has_prompts = std::fs::read_dir(&harnesses_dir)
+            .ok()
+            .into_iter()
+            .flatten()
+            .filter_map(|e| e.ok())
+            .any(|e| e.path().join("prompts/baseline.md").exists());
+        if !has_prompts {
+            bail!("No harness prompt files found. Each harness must have harnesses/<harness>/prompts/baseline.md and informed.md.");
         }
     }
 
