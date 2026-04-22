@@ -95,4 +95,44 @@ FROM analytics.events
 WHERE event_id IN ('evt_000001', 'evt_002500', 'evt_005000', 'evt_007500', 'evt_010000');
 EOF
 
-echo "00-start-and-seed.sh (${EVAL_HARNESS:-unknown}): done (10000 rows + anchor tables)"
+# Tear down ClickHouse so the agent has to bring it back up themselves
+# when they start. Data on disk (/var/lib/clickhouse) is preserved — the
+# migration task needs the seeded 10k rows to survive the stop/start.
+# Walks /proc to find the server PID without requiring procps (pgrep/pkill
+# are not installed in docker/base/Dockerfile). The clickhouse-client
+# processes spawned above have already exited by this point, so the first
+# match under /proc is the server.
+CH_PID=""
+for proc_dir in /proc/[0-9]*; do
+  exe_path=$(readlink "$proc_dir/exe" 2>/dev/null) || continue
+  case "$(basename "$exe_path")" in
+    clickhouse|clickhouse-server)
+      CH_PID="${proc_dir##*/}"
+      break
+      ;;
+  esac
+done
+
+if [[ -n "$CH_PID" ]]; then
+  kill -TERM "$CH_PID" 2>/dev/null || true
+  # Graceful shutdown up to 15s before SIGKILL.
+  for _ in $(seq 1 15); do
+    kill -0 "$CH_PID" 2>/dev/null || break
+    sleep 1
+  done
+  kill -KILL "$CH_PID" 2>/dev/null || true
+fi
+
+# Belt-and-suspenders: pure-bash TCP probe until the HTTP port releases,
+# so a follow-up `clickhouse-server --daemon` doesn't race a still-exiting
+# process. Mirrors the pattern used by the moose harness seed scripts.
+port_bound() {
+  (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; }
+  return 1
+}
+for _ in $(seq 1 15); do
+  port_bound 8123 || break
+  sleep 1
+done
+
+echo "00-start-and-seed.sh (${EVAL_HARNESS:-unknown}): ClickHouse stopped; agent must restart (10000 rows + anchor tables on disk)"
