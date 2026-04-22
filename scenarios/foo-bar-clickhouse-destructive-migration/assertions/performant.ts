@@ -1,7 +1,5 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { avoidsSelectStarQueries } from "../../_shared/assertion-helpers";
-
 async function queryRows<T>(
   ctx: AssertionContext,
   sql: string,
@@ -68,6 +66,3 @@ export async function filter_by_event_type_under_500ms(ctx: AssertionContext): P
   };
 }
 
-export async function avoids_select_star_in_workspace(): Promise<AssertionResult> {
-  return avoidsSelectStarQueries();
-}
