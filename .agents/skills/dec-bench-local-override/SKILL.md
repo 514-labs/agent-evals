@@ -34,7 +34,7 @@ Before suggesting commands, ask these three questions — but skip any the user 
 
 3. **Which scenario(s)?** Offer three modes:
    - single: `--scenario foo-bar-csv-ingest`
-   - full moose-user sweep: `scripts/run-moose-user-patched.sh` (5 scenarios × moose-user × concurrency 2)
+   - full moose sweep: `scripts/run-moose-user-patched.sh` (5 moose scenarios × concurrency 2)
    - just re-run without rebuilding: `scripts/run-moose-user-patched-images-only.sh`
 
 ## Mental model
@@ -204,7 +204,7 @@ Deep-merged into `$HOME/.claude.json`; same-named entries overwrite; defaults pr
 ./target/debug/dec-bench run --scenario <id> --harness <h> --persona <p> --version v0.2.0-patched --timeout 20
 ```
 
-### Full moose-user sweep (5 scenarios, concurrency 2)
+### Full moose sweep (5 scenarios, concurrency 2)
 
 The canonical full-sweep for moose-family overrides:
 
@@ -215,7 +215,7 @@ The canonical full-sweep for moose-family overrides:
   /path/to/moose/packages/ts-moose-lib/514labs-moose-lib-<ver>.tgz
 ```
 
-This builds images for all 5 moose-user scenarios with the three overrides, then runs them at concurrency 2. Defined in `scripts/run-moose-user-patched.sh`; the script is moose-focused — for other tools, compose your own `for` loop around `dec-bench build` + `dec-bench run`.
+This builds images for all 5 moose scenarios with the three overrides, then runs them at concurrency 2. Defined in `scripts/run-moose-user-patched.sh`; the script is moose-focused — for other tools, compose your own `for` loop around `dec-bench build` + `dec-bench run`.
 
 ### Re-run without rebuilding
 
@@ -262,7 +262,7 @@ Real failures we hit this week while validating this workflow:
 | `tools/<name>/install.sh` | Installs the released version at harness build. |
 | `tools/<name>/override.sh` | Handler that swaps the staged local artifact into place. |
 | `tools/<name>/.order` | Optional ordering hint (integer). |
-| `scripts/run-moose-user-patched.sh` | Canonical full-sweep for moose-family overrides. |
+| `scripts/run-moose-user-patched.sh` | Canonical full moose sweep (5 scenarios, concurrency 2). |
 | `docker/harness/apply-overrides.sh` | Dispatcher — no per-tool knowledge; iterates `/tmp/overrides/*` and calls the matching `override.sh`. |
 | `docker/harness/Dockerfile` | COPYs `tools/` into `/opt/dec-bench/tools/` and runs the dispatcher. |
 | `docker/.tmp/harness-<harness>.sh` | Composed install script for the harness (generated per build, useful for debugging). |
