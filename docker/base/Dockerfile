@@ -59,9 +59,21 @@ RUN curl -fsSL https://cursor.com/install | bash \
     && ln -sf /root/.local/bin/cursor-agent /usr/local/bin/cursor-agent
 
 WORKDIR /opt/dec-bench/eval-core
+COPY packages/eval-core/package.json ./package.json
 COPY packages/eval-core/src ./src
-RUN npm init -y \
-    && npm install --omit=dev @clickhouse/client pg
+# Strip monorepo-only `workspace:*` refs (the @dec-bench/scenarios import is
+# type-only in every consuming file, and devDependencies aren't needed at
+# runtime — tsx is already installed globally in this image) so npm install
+# succeeds outside the workspace context. Then install the real runtime
+# deps against the real package.json so its `name: "@dec-bench/eval-core"`
+# and `main: "./src/index.ts"` fields make the package resolvable by name.
+RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));delete p.devDependencies;delete p.dependencies['@dec-bench/scenarios'];fs.writeFileSync('package.json',JSON.stringify(p,null,2));" \
+    && npm install --omit=dev --no-audit --no-fund
+# Symlink into / so Node's walk-up resolver finds @dec-bench/eval-core from
+# scenario-side .ts files loaded via dynamic import (scenarios and _shared
+# live outside any node_modules tree).
+RUN mkdir -p /node_modules/@dec-bench \
+    && ln -s /opt/dec-bench/eval-core /node_modules/@dec-bench/eval-core
 
 WORKDIR /
 COPY docker/base/entrypoint.sh /opt/dec-bench/entrypoint.sh
