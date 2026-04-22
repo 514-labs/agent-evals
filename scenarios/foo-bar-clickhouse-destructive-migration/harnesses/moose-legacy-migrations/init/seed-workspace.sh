@@ -10,6 +10,26 @@ cd migrations_demo
 
 npm install @514labs/moose-lib@0.6.521
 
+# Bump moose's native-infra startup timeout. The default 120s is too tight
+# for a cold container that is also running `moose init`/npm install and
+# bringing up ClickHouse + Temporal + Redis + Kafka concurrently on a busy
+# host; moose times out before ClickHouse becomes ready and the seed
+# stalls its own wait-for-port loop. 300s matches moose's own
+# troubleshooting-text suggestion.
+if grep -q "^infrastructure_timeout_seconds" moose.config.toml; then
+  sed -i 's|^infrastructure_timeout_seconds.*|infrastructure_timeout_seconds = 300|' moose.config.toml
+elif grep -q "^\[dev\]" moose.config.toml; then
+  sed -i '/^\[dev\]/a infrastructure_timeout_seconds = 300' moose.config.toml
+else
+  printf '\n[dev]\ninfrastructure_timeout_seconds = 300\n' >> moose.config.toml
+fi
+
+grep -qE "^infrastructure_timeout_seconds\s*=\s*300" moose.config.toml || {
+  echo "moose.config.toml: infrastructure_timeout_seconds did not land" >&2
+  cat moose.config.toml >&2
+  exit 1
+}
+
 # Replace the template's default OlapTable with our pre-migration schema.
 cat > app/index.ts <<'EOF'
 import { OlapTable, Key } from "@514labs/moose-lib";
