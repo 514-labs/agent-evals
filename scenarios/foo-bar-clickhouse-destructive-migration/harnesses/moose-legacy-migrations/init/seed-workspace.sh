@@ -42,6 +42,27 @@ if [[ "${READY}" != "1" ]]; then
   exit 1
 fi
 
+# Wait for moose to materialize local.events from the OlapTable<Event>
+# declaration in app/index.ts. ClickHouse being up doesn't mean moose has
+# applied the inframap yet — there's a compile + apply step after.
+TABLE_READY=0
+for _ in $(seq 1 90); do
+  EXISTS=$(curl -fsS -u panda:pandapass \
+    "http://localhost:18123/?query=SELECT+count()+FROM+system.tables+WHERE+database%3D%27local%27+AND+name%3D%27events%27+FORMAT+TSV" \
+    2>/dev/null | tr -d '[:space:]')
+  if [[ "${EXISTS}" == "1" ]]; then
+    TABLE_READY=1
+    break
+  fi
+  sleep 1
+done
+if [[ "${TABLE_READY}" != "1" ]]; then
+  echo "ERROR: moose did not materialize local.events within 90s" >&2
+  tail -120 /tmp/moose-dev-seed.log >&2
+  kill $MOOSE_PID 2>/dev/null || true
+  exit 1
+fi
+
 curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
 INSERT INTO local.events (event_id, event_ts, event_type, user_id) VALUES
   ('e1', '2026-01-15 10:00:00', 'pv',       'u1_001'),
