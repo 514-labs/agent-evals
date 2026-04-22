@@ -147,7 +147,14 @@ EOF
 # devredis/devkafka spawned by moose stay running and hold ports 8080, 18123,
 # 6379 etc. That forces the agent to manually kill stragglers before its own
 # `moose dev` can bind those ports. Kill the whole process group to cascade.
-MOOSE_PGID=$(ps -o pgid= -p "$MOOSE_PID" 2>/dev/null | tr -d ' ')
+# /proc/<PID>/stat field 5 is the process group ID. Avoids a `ps` dependency
+# (procps isn't installed in docker/base/Dockerfile), and the file missing
+# just means the moose parent already died — guard with a readability test
+# so the assignment doesn't fail under set -o pipefail.
+MOOSE_PGID=""
+if [[ -r /proc/$MOOSE_PID/stat ]]; then
+  MOOSE_PGID=$(awk '{print $5}' /proc/$MOOSE_PID/stat 2>/dev/null)
+fi
 if [[ -n "$MOOSE_PGID" ]]; then
   kill -TERM -"$MOOSE_PGID" 2>/dev/null || true
   # Give graceful shutdown up to 8s before escalating to SIGKILL.
