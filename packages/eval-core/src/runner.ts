@@ -34,6 +34,7 @@ const IGNORED_SCAN_DIRS = new Set([
   ".git",
   ".next",
   ".turbo",
+  ".moose",
   "dist",
   "build",
   "coverage",
@@ -41,6 +42,12 @@ const IGNORED_SCAN_DIRS = new Set([
   "__pycache__",
   ".venv",
   "venv",
+]);
+const IGNORED_SCAN_FILES = new Set([
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "moose.config.toml",
 ]);
 const SECRET_PATTERNS: Array<{ kind: string; regex: RegExp }> = [
   { kind: "anthropic_api_key", regex: /\bsk-ant-[A-Za-z0-9_-]{16,}\b/g },
@@ -1407,6 +1414,10 @@ function listWorkspaceFiles(root: string): string[] {
       }
 
       if (!entry.isFile()) {
+        continue;
+      }
+
+      if (IGNORED_SCAN_FILES.has(entry.name)) {
         continue;
       }
 

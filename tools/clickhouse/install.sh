@@ -9,8 +9,8 @@ ver_lts="${VERSION}-lts"
 
 arch="$(uname -m)"
 case "$arch" in
-  aarch64|arm64) ch_arch="arm64"; platform="linux-aarch64" ;;
-  x86_64|amd64)  ch_arch="amd64"; platform="linux-x86_64" ;;
+  aarch64|arm64) ch_arch="arm64"; platform="linux-arm64" ;;
+  x86_64|amd64)  ch_arch="amd64"; platform="linux-amd64" ;;
   *) echo "[install:clickhouse] unsupported arch: $arch" >&2; exit 1 ;;
 esac
 

@@ -1,0 +1,1 @@
+I have user activity events in /data/samples/user_activity_sample.csv. I need them in ClickHouse with two dashboard views: one that shows daily activity per user (event count and total duration), and one that ranks users by their all-time total duration. Use the Moose project at `/workspace/moose-project` to set that up.
