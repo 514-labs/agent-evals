@@ -157,9 +157,17 @@ Binary must be Linux + matching arch. The override replaces every cached ClickHo
 
 ### `514` — substitute a local 514 CLI binary
 
+The binary inside the image must be a **Linux** executable matching the container arch (`aarch64-unknown-linux-gnu` on Apple Silicon, `x86_64-unknown-linux-gnu` on Intel/Linux). Produce one from your local 514 source tree — this repo does not build 514 itself; `tools/514/install.sh` pulls releases from `https://fiveonefour.com/install.sh`.
+
 ```bash
---override 514=/path/to/514-binary
+./target/debug/dec-bench build \
+  --scenario 514-list-projects --harness olap-for-swe --version v0.2.0-patched \
+  --override 514=/path/to/514-cli-linux
 ```
+
+The override replaces `~/.local/bin/514` and `/usr/local/bin/514` inside the image with your local binary.
+
+**Auth caveat.** 514 scenarios call the live 514 API, so `HOSTING_CLI_API_KEY` (and optionally `HOSTING_CLI_EMAIL`, `HOSTING_CLI_ORG_ID`) must be exported on the host before `dec-bench run`. They're forwarded into the container by `apps/cli/src/commands/run.rs` and consumed by `scenarios/514-list-projects/init/setup-514-auth.sh`.
 
 ### `claude-skills` — iterate on Claude skills without cutting a CLI release
 
@@ -217,12 +225,23 @@ The canonical full-sweep for moose-family overrides:
 
 This builds images for all 5 moose scenarios with the three overrides, then runs them at concurrency 2. Defined in `scripts/run-moose-user-patched.sh`; the script is moose-focused — for other tools, compose your own `for` loop around `dec-bench build` + `dec-bench run`.
 
+### Full 514 sweep (every `scenarios/514-*`, concurrency 2)
+
+Canonical sweep for a local 514 CLI binary. Auto-discovers every `scenarios/514-*` directory and runs each against the `baseline` and `informed` personas:
+
+```bash
+./scripts/run-514-user-patched.sh /path/to/514-cli-linux
+```
+
+Companion `scripts/run-514-user-patched-images-only.sh` skips the build step when patched images already exist.
+
 ### Re-run without rebuilding
 
 If the images from a prior build with the same `--version` still exist:
 
 ```bash
-./scripts/run-moose-user-patched-images-only.sh
+./scripts/run-moose-user-patched-images-only.sh   # moose family
+./scripts/run-514-user-patched-images-only.sh     # 514 family
 ```
 
 ## Extending the registry with a new tool
