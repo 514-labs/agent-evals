@@ -39,7 +39,10 @@ interface Event {
   user_id: string;
 }
 
-export const events = new OlapTable<Event>("events");
+export const events = new OlapTable<Event>("events", {
+  orderByFields: ["event_ts", "event_id"],
+  primaryKeyExpression: "(event_ts, event_id)",
+});
 EOF
 
 moose dev --dockerless > /tmp/moose-dev-seed.log 2>&1 &

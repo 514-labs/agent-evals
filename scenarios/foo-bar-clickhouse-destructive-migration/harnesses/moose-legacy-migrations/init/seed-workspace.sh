@@ -21,7 +21,10 @@ interface Event {
   user_id: string;
 }
 
-export const events = new OlapTable<Event>("events");
+export const events = new OlapTable<Event>("events", {
+  orderByFields: ["event_ts", "event_id"],
+  primaryKeyExpression: "(event_ts, event_id)",
+});
 EOF
 
 # Bring up ClickHouse (18123) + devredis (6379), seed rows, tear down cleanly.
