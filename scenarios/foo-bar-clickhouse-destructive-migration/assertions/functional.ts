@@ -1,23 +1,36 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
-  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+async function queryRows<T>(
+  ctx: AssertionContext,
+  sql: string,
+  query_params?: Record<string, unknown>,
+): Promise<T[]> {
+  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow", query_params });
   return (await (result as any).json()) as T[];
 }
 
 function eventsDb(ctx: AssertionContext): string {
-  // Set by env.sh based on EVAL_HARNESS: "analytics" for classic harnesses,
-  // "local" for moose harnesses.
   const db = ctx.env("EVENTS_DATABASE");
   if (!db) throw new Error("EVENTS_DATABASE env var not set — check scenario env.sh");
   return db;
+}
+
+async function readSeedMeta(ctx: AssertionContext, key: string): Promise<string | null> {
+  const db = eventsDb(ctx);
+  const rows = await queryRows<{ value: string }>(
+    ctx,
+    `SELECT value FROM \`${db}\`._seed_meta WHERE key = {k:String}`,
+    { k: key },
+  );
+  return rows[0]?.value ?? null;
 }
 
 export async function events_table_exists(ctx: AssertionContext): Promise<AssertionResult> {
   const db = eventsDb(ctx);
   const rows = await queryRows<{ n: number }>(
     ctx,
-    `SELECT count() AS n FROM system.tables WHERE database = '${db}' AND name = 'events'`,
+    `SELECT count() AS n FROM system.tables WHERE database = {db:String} AND name = 'events'`,
+    { db },
   );
   const count = Number(rows[0]?.n ?? 0);
   const passed = count === 1;
@@ -28,14 +41,25 @@ export async function events_table_exists(ctx: AssertionContext): Promise<Assert
   };
 }
 
-export async function events_table_has_rows(ctx: AssertionContext): Promise<AssertionResult> {
+export async function events_table_has_expected_row_count(ctx: AssertionContext): Promise<AssertionResult> {
   const db = eventsDb(ctx);
+  const expectedRaw = await readSeedMeta(ctx, "total_rows");
+  if (expectedRaw === null) {
+    return {
+      passed: false,
+      message: `Seed anchor missing: ${db}._seed_meta has no 'total_rows' row.`,
+      details: {},
+    };
+  }
+  const expected = Number(expectedRaw);
   const rows = await queryRows<{ n: number }>(ctx, `SELECT count() AS n FROM \`${db}\`.events`);
-  const count = Number(rows[0]?.n ?? 0);
-  const passed = count > 0;
+  const actual = Number(rows[0]?.n ?? 0);
+  const passed = actual === expected;
   return {
     passed,
-    message: passed ? `${db}.events has ${count} rows.` : `${db}.events is empty.`,
-    details: { database: db, count },
+    message: passed
+      ? `${db}.events has ${actual} rows (matches seed).`
+      : `${db}.events has ${actual} rows, expected ${expected}.`,
+    details: { expected, actual },
   };
 }
