@@ -100,12 +100,16 @@ SELECT
 FROM numbers(10000);
 EOF
 
+# ClickHouse's HTTP interface accepts ONE statement per request, so each
+# CREATE / INSERT below goes as its own curl call.
 curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
 CREATE TABLE IF NOT EXISTS local._seed_meta (
   key String,
   value String
-) ENGINE = MergeTree ORDER BY key;
+) ENGINE = MergeTree ORDER BY key
+EOF
 
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
 INSERT INTO local._seed_meta
 SELECT key, value FROM (
   SELECT 'total_rows' AS key, toString(count()) AS value FROM local.events
@@ -119,19 +123,23 @@ SELECT key, value FROM (
   SELECT 'count_signup', toString(countIf(event_type = 'signup')) FROM local.events
   UNION ALL
   SELECT 'count_logout', toString(countIf(event_type = 'logout')) FROM local.events
-);
+)
+EOF
 
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
 CREATE TABLE IF NOT EXISTS local._seed_spotchecks (
   event_id String,
   event_ts DateTime,
   event_type String,
   user_id String
-) ENGINE = MergeTree ORDER BY event_id;
+) ENGINE = MergeTree ORDER BY event_id
+EOF
 
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
 INSERT INTO local._seed_spotchecks
 SELECT event_id, event_ts, event_type, user_id
 FROM local.events
-WHERE event_id IN ('evt_000001', 'evt_002500', 'evt_005000', 'evt_007500', 'evt_010000');
+WHERE event_id IN ('evt_000001', 'evt_002500', 'evt_005000', 'evt_007500', 'evt_010000')
 EOF
 
 # Clean teardown of moose dev AND its native-infra children.
