@@ -100,12 +100,19 @@ EOF
 # migration task needs the seeded 10k rows to survive the stop/start.
 # Walks /proc to find server PIDs without requiring procps (pgrep/pkill
 # are not installed in docker/base/Dockerfile).
+#
+# Reads /proc/<pid>/comm instead of readlink'ing /proc/<pid>/exe: under
+# containerized namespacing, readlink of `exe` for a process owned by a
+# different UID (clickhouse) silently returns empty even when running as
+# root. `comm` is always readable, but is truncated to TASK_COMM_LEN=16
+# (15 chars + nul) by the kernel, so "clickhouse-server" appears as
+# "clickhouse-serv". Match both the truncated and full forms.
 collect_clickhouse_pids() {
-  local proc_dir exe_path
+  local proc_dir comm
   for proc_dir in /proc/[0-9]*; do
-    exe_path=$(readlink "$proc_dir/exe" 2>/dev/null) || continue
-    case "$(basename "$exe_path")" in
-      clickhouse|clickhouse-server) echo "${proc_dir##*/}" ;;
+    comm=$(cat "$proc_dir/comm" 2>/dev/null) || continue
+    case "$comm" in
+      clickhouse-serv|clickhouse-server|clickhouse) echo "${proc_dir##*/}" ;;
     esac
   done
 }
