@@ -98,41 +98,67 @@ EOF
 # Tear down ClickHouse so the agent has to bring it back up themselves
 # when they start. Data on disk (/var/lib/clickhouse) is preserved — the
 # migration task needs the seeded 10k rows to survive the stop/start.
-# Walks /proc to find the server PID without requiring procps (pgrep/pkill
-# are not installed in docker/base/Dockerfile). The clickhouse-client
-# processes spawned above have already exited by this point, so the first
-# match under /proc is the server.
-CH_PID=""
-for proc_dir in /proc/[0-9]*; do
-  exe_path=$(readlink "$proc_dir/exe" 2>/dev/null) || continue
-  case "$(basename "$exe_path")" in
-    clickhouse|clickhouse-server)
-      CH_PID="${proc_dir##*/}"
-      break
-      ;;
-  esac
-done
+# Walks /proc to find server PIDs without requiring procps (pgrep/pkill
+# are not installed in docker/base/Dockerfile).
+collect_clickhouse_pids() {
+  local proc_dir exe_path
+  for proc_dir in /proc/[0-9]*; do
+    exe_path=$(readlink "$proc_dir/exe" 2>/dev/null) || continue
+    case "$(basename "$exe_path")" in
+      clickhouse|clickhouse-server) echo "${proc_dir##*/}" ;;
+    esac
+  done
+}
 
-if [[ -n "$CH_PID" ]]; then
-  kill -TERM "$CH_PID" 2>/dev/null || true
+# Signal every matching PID (not just the first) in case any child or
+# companion process is holding a port.
+mapfile -t CH_PIDS < <(collect_clickhouse_pids)
+if (( ${#CH_PIDS[@]} > 0 )); then
+  for pid in "${CH_PIDS[@]}"; do
+    kill -TERM "$pid" 2>/dev/null || true
+  done
   # Graceful shutdown up to 15s before SIGKILL.
   for _ in $(seq 1 15); do
-    kill -0 "$CH_PID" 2>/dev/null || break
+    ANY_ALIVE=0
+    for pid in "${CH_PIDS[@]}"; do
+      if kill -0 "$pid" 2>/dev/null; then ANY_ALIVE=1; break; fi
+    done
+    (( ANY_ALIVE == 0 )) && break
     sleep 1
   done
-  kill -KILL "$CH_PID" 2>/dev/null || true
+  for pid in "${CH_PIDS[@]}"; do
+    kill -KILL "$pid" 2>/dev/null || true
+  done
 fi
 
-# Belt-and-suspenders: pure-bash TCP probe until the HTTP port releases,
-# so a follow-up `clickhouse-server --daemon` doesn't race a still-exiting
+# Pure-bash TCP probe until every port ClickHouse binds is released, so a
+# follow-up `clickhouse-server --daemon` doesn't race a still-exiting
 # process. Mirrors the pattern used by the moose harness seed scripts.
 port_bound() {
   (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; }
   return 1
 }
+STILL_BOUND=""
 for _ in $(seq 1 15); do
-  port_bound 8123 || break
+  STILL_BOUND=""
+  for port in 8123 9000; do
+    if port_bound "$port"; then STILL_BOUND="$port"; break; fi
+  done
+  [[ -z "$STILL_BOUND" ]] && break
   sleep 1
 done
+
+# Fail loud if teardown was incomplete — the agent must walk into a cold
+# environment. Leaving stragglers would silently change the starting
+# contract for downstream runs.
+if [[ -n "$STILL_BOUND" ]]; then
+  echo "ERROR: ClickHouse port $STILL_BOUND still bound after teardown" >&2
+  exit 1
+fi
+mapfile -t LINGERING < <(collect_clickhouse_pids)
+if (( ${#LINGERING[@]} > 0 )); then
+  echo "ERROR: clickhouse-server PIDs still running after teardown: ${LINGERING[*]}" >&2
+  exit 1
+fi
 
 echo "00-start-and-seed.sh (${EVAL_HARNESS:-unknown}): ClickHouse stopped; agent must restart (10000 rows + anchor tables on disk)"

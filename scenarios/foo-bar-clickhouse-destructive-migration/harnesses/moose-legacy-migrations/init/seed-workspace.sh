@@ -152,6 +152,7 @@ port_bound() {
   (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; }
   return 1
 }
+STILL_BOUND=""
 for _ in $(seq 1 15); do
   STILL_BOUND=""
   for port in 18123 19000 9000 6379 7233 8080 9092 4000; do
@@ -162,5 +163,17 @@ for _ in $(seq 1 15); do
 done
 
 rm -f .moose/native_infra/clickhouse/status 2>/dev/null || true
+
+# Fail loud if teardown was incomplete. The agent must walk into a cold
+# environment — leaving stragglers would silently change the starting
+# contract for downstream runs.
+if [[ -n "$STILL_BOUND" ]]; then
+  echo "ERROR: moose port $STILL_BOUND still bound after teardown" >&2
+  exit 1
+fi
+if kill -0 "$MOOSE_PID" 2>/dev/null; then
+  echo "ERROR: moose parent PID $MOOSE_PID still running after teardown" >&2
+  exit 1
+fi
 
 echo "seed-workspace.sh (moose-legacy-migrations): moose dev torn down"
