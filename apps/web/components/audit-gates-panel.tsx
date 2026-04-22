@@ -72,6 +72,7 @@ interface AuditGatesPanelProps {
   gates: Record<GateName, GateResult>
   passedAssertions: number
   totalAssertions: number
+  highestGate: number
   highlightedSources: HighlightedSources
   assertionLogs: AssertionLogOutput | null
   assertionCatalog?: AssertionCatalog
@@ -140,6 +141,7 @@ export function AuditGatesPanel({
   gates,
   passedAssertions,
   totalAssertions,
+  highestGate,
   highlightedSources,
   assertionLogs,
   assertionCatalog,
@@ -188,8 +190,60 @@ export function AuditGatesPanel({
             Gates
           </span>
           <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[color:var(--chart-4)]">
-            {passedAssertions}/{totalAssertions}
+            Reached {highestGate}/5 · {passedAssertions}/{totalAssertions} assertions
           </span>
+        </div>
+        {/* Progression strip: five-gate summary at a glance */}
+        <div className="flex border-b border-[color:var(--border)]">
+          {GATE_ORDER.map((gate, i) => {
+            const detail = gates[gate]
+            const passed = detail?.passed ?? false
+            const isHighest = i + 1 === highestGate
+            return (
+              <div
+                key={gate}
+                className={cn(
+                  "flex-1 px-3 py-2 border-r border-[color:var(--border)] last:border-r-0",
+                  passed
+                    ? isHighest
+                      ? "bg-[color:var(--accent)]/20"
+                      : "bg-[color:var(--accent)]/5"
+                    : "bg-transparent",
+                )}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "font-[family-name:var(--font-display)] text-lg leading-none",
+                      passed
+                        ? "text-[color:var(--foreground)]"
+                        : "text-[color:var(--chart-4)]",
+                    )}
+                  >
+                    {GATE_LABELS[gate]!.number}
+                  </span>
+                  <div
+                    className={cn(
+                      "w-1.5 h-1.5 border",
+                      passed
+                        ? "border-[color:var(--accent)] bg-[color:var(--accent)]"
+                        : "border-[color:var(--border)] bg-transparent",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] truncate",
+                      passed
+                        ? "text-[color:var(--foreground)]"
+                        : "text-[color:var(--chart-4)]",
+                    )}
+                  >
+                    {GATE_LABELS[gate]!.label}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
         </div>
         <div className="divide-y divide-[color:var(--border)]">
           {GATE_ORDER.map((gate) => {
