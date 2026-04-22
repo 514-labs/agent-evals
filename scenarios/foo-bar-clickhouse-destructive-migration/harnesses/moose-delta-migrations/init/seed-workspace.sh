@@ -68,18 +68,56 @@ export const events = new OlapTable<Event>("events", {
 EOF
 
 # Bring up ClickHouse (18123) + devredis (6379), seed rows, tear down cleanly.
-moose dev --dockerless > /tmp/moose-dev-seed.log 2>&1 &
-MOOSE_PID=$!
-
+#
+# moose-lib v0.6.521 has a hardcoded 120s native-infra startup timeout
+# (the `infrastructure_timeout_seconds` config is cosmetic on this
+# version — the error message suggests it but the binary ignores it).
+# On a busy host, moose dev sometimes exits before ClickHouse binds
+# :18123. Retry up to 3 attempts with a full process-group kill and a
+# short settle window between attempts.
+MOOSE_PID=""
 READY=0
-for _ in $(seq 1 300); do
-  if curl -fsS --max-time 2 "http://panda:pandapass@localhost:18123/?query=SELECT%201" >/dev/null 2>&1; then
-    READY=1; break
+for attempt in 1 2 3; do
+  # Clear stale native-infra state from a prior failed attempt so moose
+  # doesn't trip on its own crash breadcrumbs.
+  rm -f .moose/native_infra/clickhouse/status 2>/dev/null || true
+
+  moose dev --dockerless > /tmp/moose-dev-seed.log 2>&1 &
+  MOOSE_PID=$!
+
+  # Per-attempt: wait up to 180s for ClickHouse on :18123.
+  READY=0
+  for _ in $(seq 1 180); do
+    if curl -fsS --max-time 2 "http://panda:pandapass@localhost:18123/?query=SELECT%201" >/dev/null 2>&1; then
+      READY=1; break
+    fi
+    sleep 1
+  done
+
+  if [[ "${READY}" == "1" ]]; then
+    break
   fi
-  sleep 1
+
+  echo "moose dev attempt ${attempt}/3 did not produce ClickHouse on :18123 — retrying" >&2
+  tail -30 /tmp/moose-dev-seed.log >&2
+
+  # Kill the whole moose process group so Temporal/Redis/Kafka children
+  # release ports before the next attempt.
+  MOOSE_PGID=""
+  if [[ -r /proc/$MOOSE_PID/stat ]]; then
+    MOOSE_PGID=$(awk '{print $5}' /proc/$MOOSE_PID/stat 2>/dev/null)
+  fi
+  if [[ -n "$MOOSE_PGID" ]]; then
+    kill -TERM -"$MOOSE_PGID" 2>/dev/null || true
+    sleep 2
+    kill -KILL -"$MOOSE_PGID" 2>/dev/null || true
+  fi
+  wait "$MOOSE_PID" 2>/dev/null || true
+  sleep 5
 done
+
 if [[ "${READY}" != "1" ]]; then
-  echo "moose dev --dockerless did not become ready" >&2
+  echo "moose dev --dockerless did not become ready after 3 attempts" >&2
   tail -80 /tmp/moose-dev-seed.log >&2
   kill $MOOSE_PID 2>/dev/null || true
   exit 1
