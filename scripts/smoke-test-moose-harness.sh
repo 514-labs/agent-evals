@@ -26,7 +26,9 @@ fi
 # Run the full toolchain inside the container. We set EVAL_HARNESS so the
 # scenario's env.sh exports the right CLICKHOUSE_URL (18123 for moose
 # harnesses), matching what the agent would see.
-docker run --rm -e EVAL_HARNESS="${HARNESS_ID}" "${IMAGE}" bash -euo pipefail -c '
+docker run --rm --entrypoint bash -e EVAL_HARNESS="${HARNESS_ID}" "${IMAGE}" -euo pipefail -c '
+  # entrypoint.sh normally creates /workspace; we bypassed it, so create it here.
+  mkdir -p /workspace
   cd /workspace
   moose init smoke_test typescript-empty
   cd smoke_test
@@ -74,7 +76,9 @@ docker run --rm -e EVAL_HARNESS="${HARNESS_ID}" "${IMAGE}" bash -euo pipefail -c
     exit 1
   fi
 
-  # Clean teardown.
+  # Clean teardown — kill moose dev ourselves; wait reaps it so we exit cleanly.
+  # (The EXIT trap is still a safety net for early-exit paths.)
+  kill $MOOSE_PID 2>/dev/null || true
   wait $MOOSE_PID 2>/dev/null || true
 
   echo "PASS: ${EVAL_HARNESS}"
