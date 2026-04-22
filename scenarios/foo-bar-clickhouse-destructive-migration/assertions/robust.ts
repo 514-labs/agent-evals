@@ -2,8 +2,12 @@ import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
 import { scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 
-async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
-  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+async function queryRows<T>(
+  ctx: AssertionContext,
+  sql: string,
+  query_params?: Record<string, unknown>,
+): Promise<T[]> {
+  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow", query_params });
   return (await (result as any).json()) as T[];
 }
 
@@ -27,24 +31,40 @@ export async function select_star_works(ctx: AssertionContext): Promise<Assertio
   };
 }
 
-export async function filter_by_event_type_returns_expected_count(ctx: AssertionContext): Promise<AssertionResult> {
+// Mutation test: INSERT a sentinel row with a distinctive event_type and
+// verify it surfaces in filter queries. If the agent partially rebuilt the
+// table (e.g. a read-only staging copy that isn't the live table), this
+// INSERT either errors or the SELECT can't find it.
+export async function insert_and_filter_roundtrip(ctx: AssertionContext): Promise<AssertionResult> {
   const db = eventsDb(ctx);
-  // Seed data has 4 'pv' rows, 2 'click' rows, 2 'purchase' rows.
-  const rows = await queryRows<{ event_type: string; n: number }>(
+  const sentinelId = `sentinel_${Date.now()}`;
+  const sentinelType = "robust_probe"; // not in the 5 seed types
+  try {
+    await ctx.clickhouse.command({
+      query:
+        `INSERT INTO \`${db}\`.events (event_id, event_ts, event_type, user_id) ` +
+        `VALUES ({id:String}, now(), {et:String}, 'usr_robust')`,
+      query_params: { id: sentinelId, et: sentinelType },
+    });
+  } catch (err) {
+    return {
+      passed: false,
+      message: `INSERT of sentinel row failed: ${(err as Error).message}`,
+      details: { sentinelId },
+    };
+  }
+  const rows = await queryRows<{ event_id: string }>(
     ctx,
-    `SELECT event_type, count() AS n FROM \`${db}\`.events GROUP BY event_type ORDER BY event_type`,
+    `SELECT event_id FROM \`${db}\`.events WHERE event_type = {et:String}`,
+    { et: sentinelType },
   );
-  const expected = [
-    { event_type: "click", n: 2 },
-    { event_type: "purchase", n: 2 },
-    { event_type: "pv", n: 4 },
-  ];
-  const actual = rows.map((r) => ({ event_type: r.event_type, n: Number(r.n) }));
-  const passed = JSON.stringify(actual) === JSON.stringify(expected);
+  const found = rows.some((r) => r.event_id === sentinelId);
   return {
-    passed,
-    message: passed ? "Event type counts match seed." : "Event type counts diverged from seed.",
-    details: { expected, actual },
+    passed: found,
+    message: found
+      ? "Sentinel row visible via event_type filter after INSERT."
+      : "INSERT accepted but sentinel row not returned by event_type filter.",
+    details: { sentinelId, rowsFound: rows.length },
   };
 }
 
