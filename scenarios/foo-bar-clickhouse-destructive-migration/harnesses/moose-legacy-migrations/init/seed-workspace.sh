@@ -66,16 +66,52 @@ if [[ "${TABLE_READY}" != "1" ]]; then
   exit 1
 fi
 
+# Seed 10,000 deterministic rows plus anchor tables. moose already created
+# local.events from the OlapTable<Event> declaration; we INSERT + add two
+# anchor tables assertions read.
 curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
-INSERT INTO local.events (event_id, event_ts, event_type, user_id) VALUES
-  ('e1', '2026-01-15 10:00:00', 'pv',       'u1_001'),
-  ('e2', '2026-01-15 10:01:00', 'pv',       'u1_002'),
-  ('e3', '2026-01-15 11:00:00', 'click',    'u2_001'),
-  ('e4', '2026-01-16 09:00:00', 'pv',       'u1_003'),
-  ('e5', '2026-01-16 09:05:00', 'pv',       'u3_001'),
-  ('e6', '2026-01-16 10:00:00', 'purchase', 'u2_001'),
-  ('e7', '2026-01-17 14:00:00', 'click',    'u1_004'),
-  ('e8', '2026-01-17 14:30:00', 'purchase', 'u3_001')
+INSERT INTO local.events (event_id, event_ts, event_type, user_id)
+SELECT
+  concat('evt_', leftPad(toString(number + 1), 6, '0')),
+  toDateTime('2026-01-01 00:00:00')
+    + toIntervalSecond(cityHash64(number) % (30 * 86400)),
+  ['pv','click','purchase','signup','logout'][(cityHash64(number + 1) % 5) + 1],
+  concat('usr_', leftPad(toString((cityHash64(number + 2) % 500) + 1), 4, '0'))
+FROM numbers(10000);
+EOF
+
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
+CREATE TABLE IF NOT EXISTS local._seed_meta (
+  key String,
+  value String
+) ENGINE = MergeTree ORDER BY key;
+
+INSERT INTO local._seed_meta
+SELECT key, value FROM (
+  SELECT 'total_rows' AS key, toString(count()) AS value FROM local.events
+  UNION ALL
+  SELECT 'count_pv', toString(countIf(event_type = 'pv')) FROM local.events
+  UNION ALL
+  SELECT 'count_click', toString(countIf(event_type = 'click')) FROM local.events
+  UNION ALL
+  SELECT 'count_purchase', toString(countIf(event_type = 'purchase')) FROM local.events
+  UNION ALL
+  SELECT 'count_signup', toString(countIf(event_type = 'signup')) FROM local.events
+  UNION ALL
+  SELECT 'count_logout', toString(countIf(event_type = 'logout')) FROM local.events
+);
+
+CREATE TABLE IF NOT EXISTS local._seed_spotchecks (
+  event_id String,
+  event_ts DateTime,
+  event_type String,
+  user_id String
+) ENGINE = MergeTree ORDER BY event_id;
+
+INSERT INTO local._seed_spotchecks
+SELECT event_id, event_ts, event_type, user_id
+FROM local.events
+WHERE event_id IN ('evt_000001', 'evt_002500', 'evt_005000', 'evt_007500', 'evt_010000');
 EOF
 
 # Clean teardown of moose dev AND its native-infra children.
