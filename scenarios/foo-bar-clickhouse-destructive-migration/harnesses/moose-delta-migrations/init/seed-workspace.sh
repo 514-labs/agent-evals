@@ -95,8 +95,38 @@ INSERT INTO local.events (event_id, event_ts, event_type, user_id) VALUES
   ('e8', '2026-01-17 14:30:00', 'purchase', 'u3_001')
 EOF
 
-kill $MOOSE_PID 2>/dev/null || true
-wait $MOOSE_PID 2>/dev/null || true
+# Clean teardown of moose dev AND its native-infra children.
+# Plain `kill $MOOSE_PID` only signals the moose parent; Temporal/ClickHouse/
+# devredis/devkafka spawned by moose stay running and hold ports 8080, 18123,
+# 6379 etc. That forces the agent to manually kill stragglers before its own
+# `moose dev` can bind those ports. Kill the whole process group to cascade.
+MOOSE_PGID=$(ps -o pgid= -p "$MOOSE_PID" 2>/dev/null | tr -d ' ')
+if [[ -n "$MOOSE_PGID" ]]; then
+  kill -TERM -"$MOOSE_PGID" 2>/dev/null || true
+  # Give graceful shutdown up to 8s before escalating to SIGKILL.
+  for _ in $(seq 1 8); do
+    if ! kill -0 "$MOOSE_PID" 2>/dev/null; then break; fi
+    sleep 1
+  done
+  kill -KILL -"$MOOSE_PGID" 2>/dev/null || true
+fi
+wait "$MOOSE_PID" 2>/dev/null || true
+
+# Belt-and-suspenders: wait for the OS to release known moose ports.
+# Uses pure bash /dev/tcp probe — no fuser/lsof dependency.
+port_bound() {
+  (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; }
+  return 1
+}
+for _ in $(seq 1 15); do
+  STILL_BOUND=""
+  for port in 18123 19000 9000 6379 7233 8080 9092 4000; do
+    if port_bound "$port"; then STILL_BOUND="$port"; break; fi
+  done
+  [[ -z "$STILL_BOUND" ]] && break
+  sleep 1
+done
+
 rm -f .moose/native_infra/clickhouse/status 2>/dev/null || true
 
-echo "seed-workspace.sh (moose-delta-migrations): done"
+echo "seed-workspace.sh (moose-delta-migrations): moose dev torn down"
