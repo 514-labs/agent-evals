@@ -1,1 +1,5 @@
-<!-- [moose-legacy-migrations] Describe the task with specific tools, targets, and technical constraints for this harness. -->
+A MooseStack project is scaffolded at `/workspace/migrations_demo` pinned to `@514labs/moose-lib@0.6.521`. The project declares `analytics.events` with ORDER BY `(event_ts, event_id)`; 8 rows are already seeded. `moose dev` is NOT running — start it yourself with `moose dev --dockerless`.
+
+Change the `OlapTable<Event>` so the effective ORDER BY becomes `(event_type, event_ts, event_id)`, generate a migration plan, and apply it. All 8 original rows must survive the migration.
+
+Use the standard Moose migration workflow: `moose generate migration --save --clickhouse-url http://panda:pandapass@localhost:18123`, review the plan, then `moose migrate --clickhouse-url http://panda:pandapass@localhost:18123`.
