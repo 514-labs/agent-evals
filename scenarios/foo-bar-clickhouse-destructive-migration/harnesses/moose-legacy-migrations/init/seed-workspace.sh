@@ -30,7 +30,6 @@ EOF
 # Bring up ClickHouse (18123) + devredis (6379), seed rows, tear down cleanly.
 moose dev --dockerless > /tmp/moose-dev-seed.log 2>&1 &
 MOOSE_PID=$!
-disown
 
 READY=0
 for _ in $(seq 1 300); do
@@ -79,8 +78,8 @@ INSERT INTO local.events (event_id, event_ts, event_type, user_id) VALUES
   ('e8', '2026-01-17 14:30:00', 'purchase', 'u3_001')
 EOF
 
-# Leave `moose dev --dockerless` running — the agent inherits the running
-# webserver + native ClickHouse/Temporal/devredis/devkafka. Killing the moose
-# parent doesn't reliably cascade to the infra children, which caused port
-# conflicts when the agent tried to restart it.
-echo "seed-workspace.sh (moose-legacy-migrations): moose dev left running (pid=$MOOSE_PID)"
+kill $MOOSE_PID 2>/dev/null || true
+wait $MOOSE_PID 2>/dev/null || true
+rm -f .moose/native_infra/clickhouse/status 2>/dev/null || true
+
+echo "seed-workspace.sh (moose-legacy-migrations): done"
