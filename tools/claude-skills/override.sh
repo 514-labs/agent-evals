@@ -15,11 +15,17 @@ fi
 dest="$HOME/.claude/skills"
 mkdir -p "$dest"
 
-if command -v rsync >/dev/null 2>&1; then
-  rsync -a "${SRC%/}/" "${dest}/"
-else
-  cp -R "${SRC%/}/." "${dest}/"
-fi
+# `514 agent init` installs default skills as SYMLINKS under $dest, pointing
+# to /root/.agents/skills/<ns>/<skill>/. To overlay a same-named entry from
+# the staged overrides, we need to unlink the symlink first — plain `cp -R`
+# refuses to overwrite a non-directory (the symlink) with a directory, and
+# rsync isn't installed in the scenario image. Iterate manually.
+shopt -s nullglob dotglob
+for entry in "${SRC%/}"/*; do
+  name=$(basename "$entry")
+  rm -rf "$dest/$name"
+  cp -R "$entry" "$dest/$name"
+done
 
 count=$(find "$SRC" -maxdepth 1 -mindepth 1 | wc -l | tr -d ' ')
 echo "[override:claude-skills] overlaid ${count} entry/entries into ${dest}"

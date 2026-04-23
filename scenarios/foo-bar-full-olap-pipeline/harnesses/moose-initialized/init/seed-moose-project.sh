@@ -18,7 +18,7 @@ fi
 
 nohup moose dev --dockerless > /workspace/moose-project/moose.log 2>&1 &
 echo "moose dev --dockerless started (pid $!)"
-for i in $(seq 1 60); do
+for i in $(seq 1 120); do
   if curl -sf http://localhost:4000/health >/dev/null 2>&1; then
     echo "moose dev is ready after ${i}s"
     break
