@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+import { probeEgress, probeIngest, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -36,29 +36,18 @@ export async function live_ingest_works(ctx: AssertionContext): Promise<Assertio
     properties: {},
   };
 
-  // Try to POST to common ingest paths/ports
-  let posted = false;
-  const ingestPaths = ["/ingest/events", "/ingest/ProductEvent", "/ingest", "/events"];
-  for (const port of [3000, 4000, 8080]) {
-    for (const path of ingestPaths) {
-      try {
-        const response = await fetch(`http://localhost:${port}${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(event),
-          signal: AbortSignal.timeout(3000),
-        });
-        if (response.status < 400) {
-          posted = true;
-          break;
-        }
-      } catch {}
-    }
-    if (posted) break;
-  }
-
-  if (!posted) {
-    return { passed: false, message: "Could not POST to any ingest endpoint.", details: {} };
+  // POST via INGEST_URL (env) or fallback to port-scan.
+  const ingestResult = await probeIngest(ctx, {
+    paths: ["/ingest/events", "/ingest/ProductEvent", "/ingest", "/events"],
+    body: JSON.stringify(event),
+    timeoutMs: 3000,
+  });
+  if (!ingestResult || ingestResult.response.status >= 400) {
+    return {
+      passed: false,
+      message: "Could not POST to ingest endpoint.",
+      details: { url: ingestResult?.url, status: ingestResult?.response.status },
+    };
   }
 
   // Wait up to 5s for the event to land
@@ -84,27 +73,23 @@ export async function live_ingest_works(ctx: AssertionContext): Promise<Assertio
   };
 }
 
-export async function api_returns_valid_json(): Promise<AssertionResult> {
-  const endpoints = ["/api/top-products", "/api/funnel", "/api/hourly"];
-  const results: Array<{ endpoint: string; validJson: boolean; status?: number }> = [];
-  for (const endpoint of endpoints) {
-    let ok = false;
-    let status: number | undefined;
-    for (const port of [3000, 4000, 8080]) {
+export async function api_returns_valid_json(ctx: AssertionContext): Promise<AssertionResult> {
+  const endpoints: Array<{ name: string; paths: string[] }> = [
+    { name: "top-products", paths: ["/api/top-products", "/api/topProducts"] },
+    { name: "funnel", paths: ["/api/funnel", "/api/conversion-funnel"] },
+    { name: "hourly", paths: ["/api/hourly", "/api/hourly-activity"] },
+  ];
+  const results: Array<{ endpoint: string; validJson: boolean; status?: number; url?: string }> = [];
+  for (const { name, paths } of endpoints) {
+    const probe = await probeEgress(ctx, name, { paths, timeoutMs: 2000 });
+    let validJson = false;
+    if (probe && probe.response.ok) {
       try {
-        const response = await fetch(`http://localhost:${port}${endpoint}`, {
-          signal: AbortSignal.timeout(2000),
-        });
-        status = response.status;
-        if (response.ok) {
-          const text = await response.text();
-          JSON.parse(text);
-          ok = true;
-          break;
-        }
+        JSON.parse(await probe.response.text());
+        validJson = true;
       } catch {}
     }
-    results.push({ endpoint, validJson: ok, status });
+    results.push({ endpoint: name, validJson, status: probe?.response.status, url: probe?.url });
   }
   const passed = results.every((r) => r.validJson);
   return {

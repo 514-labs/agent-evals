@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findUserActivityTable } from "../../_shared/assertion-helpers";
+import { describeTable, findUserActivityTable } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -12,11 +12,8 @@ export async function table_has_expected_columns(ctx: AssertionContext): Promise
   if (!found) {
     return { passed: false, message: "Table user_activity not found.", details: {} };
   }
-  const rows = await queryRows<{ name: string; type: string }>(
-    ctx,
-    `SELECT name, type FROM system.columns WHERE database = '${found.database}' AND table = '${found.table}' ORDER BY name`,
-  );
-  const columnNames = rows.map((r) => r.name.toLowerCase()).sort();
+  const cols = await describeTable(ctx, found.database, found.table);
+  const columnNames = cols.map((c) => c.name.toLowerCase()).sort();
   // Accept both snake_case (event_id) and camelCase (eventid) column names
   const expectedGroups = [
     ["action"],
@@ -42,13 +39,10 @@ export async function column_types_are_compatible(ctx: AssertionContext): Promis
   if (!found) {
     return { passed: false, message: "Table user_activity not found.", details: {} };
   }
-  const rows = await queryRows<{ name: string; type: string }>(
-    ctx,
-    `SELECT lower(name) AS name, type FROM system.columns WHERE database = '${found.database}' AND table = '${found.table}'`,
-  );
+  const cols = await describeTable(ctx, found.database, found.table);
   const typeMap: Record<string, string> = {};
-  for (const row of rows) {
-    typeMap[row.name] = row.type;
+  for (const c of cols) {
+    typeMap[c.name.toLowerCase()] = c.type;
   }
 
   const checks: Array<{ column: string; ok: boolean; actual: string }> = [];

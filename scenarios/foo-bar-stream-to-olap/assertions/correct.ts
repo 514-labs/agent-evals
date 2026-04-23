@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { describeTable } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
@@ -21,11 +23,8 @@ export async function value_checksum_matches_seed(ctx: AssertionContext): Promis
 }
 
 export async function host_and_metric_columns_present(ctx: AssertionContext): Promise<AssertionResult> {
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    "SELECT name FROM system.columns WHERE database = 'analytics' AND table = 'metrics'",
-  );
-  const names = rows.map((r) => r.name);
+  const cols = await describeTable(ctx, "analytics", "metrics");
+  const names = cols.map((c) => c.name);
   const hasHost = names.includes("host_id");
   const hasMetric = names.includes("metric_name");
   const hasValue = names.includes("value");

@@ -1,24 +1,10 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findProductEventsTable, resolveColumn } from "../../_shared/assertion-helpers";
+import { fetchEgressJson, findProductEventsTable, resolveColumn } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
-}
-
-async function fetchJsonAnyPort(paths: string[]): Promise<any | null> {
-  for (const port of [3000, 4000, 8080]) {
-    for (const p of paths) {
-      try {
-        const res = await fetch(`http://localhost:${port}${p}`, {
-          signal: AbortSignal.timeout(3000),
-        });
-        if (res.ok) return await res.json();
-      } catch {}
-    }
-  }
-  return null;
 }
 
 export async function all_thirty_events_ingested(ctx: AssertionContext): Promise<AssertionResult> {
@@ -61,23 +47,29 @@ export async function event_types_preserved(ctx: AssertionContext): Promise<Asse
   };
 }
 
-export async function top_products_returns_data(): Promise<AssertionResult> {
-  const data = await fetchJsonAnyPort(["/api/top-products", "/api/topProducts"]);
+export async function top_products_returns_data(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await fetchEgressJson<unknown[]>(ctx, "top-products", {
+    paths: ["/api/top-products", "/api/topProducts"],
+  });
+  const data = result?.data;
   const passed = Array.isArray(data) && data.length > 0;
   return {
     passed,
-    message: passed ? `Top products API returns ${data.length} rows.` : "Top products API returned empty or invalid data.",
-    details: { length: Array.isArray(data) ? data.length : 0 },
+    message: passed ? `Top products API returns ${data.length} rows (at ${result!.url}).` : "Top products API returned empty or invalid data.",
+    details: { url: result?.url, length: Array.isArray(data) ? data.length : 0 },
   };
 }
 
-export async function funnel_has_three_steps(): Promise<AssertionResult> {
-  const data = await fetchJsonAnyPort(["/api/funnel", "/api/conversion-funnel"]);
+export async function funnel_has_three_steps(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await fetchEgressJson<unknown[]>(ctx, "funnel", {
+    paths: ["/api/funnel", "/api/conversion-funnel"],
+  });
+  const data = result?.data;
   if (!Array.isArray(data) || data.length < 3) {
     return {
       passed: false,
       message: "Funnel API returned insufficient data.",
-      details: { length: Array.isArray(data) ? data.length : 0 },
+      details: { url: result?.url, length: Array.isArray(data) ? data.length : 0 },
     };
   }
   const steps = data.map((d: any) => (d.step ?? d.event_type ?? "").toLowerCase());
@@ -85,22 +77,25 @@ export async function funnel_has_three_steps(): Promise<AssertionResult> {
   return {
     passed,
     message: passed ? "Funnel has view, cart, and purchase steps." : `Missing steps. Got: ${JSON.stringify([...new Set(steps)])}.`,
-    details: { steps: [...new Set(steps)] },
+    details: { url: result.url, steps: [...new Set(steps)] },
   };
 }
 
-export async function funnel_counts_are_monotonic(): Promise<AssertionResult> {
-  const data = await fetchJsonAnyPort(["/api/funnel", "/api/conversion-funnel"]);
+export async function funnel_counts_are_monotonic(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await fetchEgressJson<unknown[]>(ctx, "funnel", {
+    paths: ["/api/funnel", "/api/conversion-funnel"],
+  });
+  const data = result?.data;
   if (!Array.isArray(data) || data.length < 3) {
     return {
       passed: false,
       message: "Funnel API returned insufficient data.",
-      details: { length: Array.isArray(data) ? data.length : 0 },
+      details: { url: result?.url, length: Array.isArray(data) ? data.length : 0 },
     };
   }
 
   const byStep: Record<string, number> = {};
-  for (const row of data) {
+  for (const row of data as any[]) {
     const step = (row.step ?? row.event_type ?? "").toLowerCase();
     byStep[step] = Number(row.unique_users ?? row.users ?? row.count ?? row.total_events ?? 0);
   }
@@ -112,17 +107,20 @@ export async function funnel_counts_are_monotonic(): Promise<AssertionResult> {
   return {
     passed,
     message: passed ? "Funnel counts are monotonic." : `Monotonic check failed: views=${views}, carts=${carts}, purchases=${purchases}.`,
-    details: { views, carts, purchases },
+    details: { url: result.url, views, carts, purchases },
   };
 }
 
-export async function hourly_returns_data(): Promise<AssertionResult> {
-  const data = await fetchJsonAnyPort(["/api/hourly", "/api/hourly-activity"]);
+export async function hourly_returns_data(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await fetchEgressJson<unknown[]>(ctx, "hourly", {
+    paths: ["/api/hourly", "/api/hourly-activity"],
+  });
+  const data = result?.data;
   const passed = Array.isArray(data) && data.length > 0;
   return {
     passed,
-    message: passed ? `Hourly API returns ${data.length} rows.` : "Hourly API returned empty or invalid data.",
-    details: { length: Array.isArray(data) ? data.length : 0 },
+    message: passed ? `Hourly API returns ${data.length} rows (at ${result!.url}).` : "Hourly API returned empty or invalid data.",
+    details: { url: result?.url, length: Array.isArray(data) ? data.length : 0 },
   };
 }
 
@@ -132,12 +130,15 @@ export async function revenue_checksum(ctx: AssertionContext): Promise<Assertion
   );
   const pgTotal = Number(pgResult.rows[0]?.total ?? 0);
 
-  const data = await fetchJsonAnyPort(["/api/top-products", "/api/topProducts"]);
+  const result = await fetchEgressJson<unknown[]>(ctx, "top-products", {
+    paths: ["/api/top-products", "/api/topProducts"],
+  });
+  const data = result?.data;
   if (!Array.isArray(data)) {
     return {
       passed: false,
       message: "Top products API returned invalid data.",
-      details: { pgTotal },
+      details: { url: result?.url, pgTotal },
     };
   }
 
@@ -149,6 +150,6 @@ export async function revenue_checksum(ctx: AssertionContext): Promise<Assertion
   return {
     passed,
     message: passed ? "Revenue checksum matches." : `Revenue mismatch: pg=${pgTotal}, api=${apiTotal}.`,
-    details: { pgTotal, apiTotal },
+    details: { url: result.url, pgTotal, apiTotal },
   };
 }

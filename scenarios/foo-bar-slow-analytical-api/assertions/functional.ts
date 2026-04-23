@@ -1,37 +1,29 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-export async function api_metrics_responds(): Promise<AssertionResult> {
-  try {
-    const response = await fetch("http://localhost:3000/api/metrics");
-    const passed = response.ok;
-    return {
-      passed,
-      message: passed ? "API metrics responds." : `API returned status ${response.status}.`,
-      details: { status: response.status },
-    };
-  } catch (e) {
-    return {
-      passed: false,
-      message: "API metrics did not respond.",
-      details: { error: e instanceof Error ? e.message : String(e) },
-    };
+import { probeEgress } from "../../_shared/assertion-helpers";
+
+export async function api_metrics_responds(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await probeEgress(ctx, "metrics", { paths: ["/api/metrics"] });
+  if (!result) {
+    return { passed: false, message: "API metrics did not respond.", details: {} };
   }
+  const passed = result.response.ok;
+  return {
+    passed,
+    message: passed ? "API metrics responds." : `API returned status ${result.response.status}.`,
+    details: { url: result.url, status: result.response.status },
+  };
 }
 
-export async function api_breakdown_responds(): Promise<AssertionResult> {
-  try {
-    const response = await fetch("http://localhost:3000/api/breakdown");
-    const passed = response.ok;
-    return {
-      passed,
-      message: passed ? "API breakdown responds." : `API returned status ${response.status}.`,
-      details: { status: response.status },
-    };
-  } catch (e) {
-    return {
-      passed: false,
-      message: "API breakdown did not respond.",
-      details: { error: e instanceof Error ? e.message : String(e) },
-    };
+export async function api_breakdown_responds(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await probeEgress(ctx, "breakdown", { paths: ["/api/breakdown"] });
+  if (!result) {
+    return { passed: false, message: "API breakdown did not respond.", details: {} };
   }
+  const passed = result.response.ok;
+  return {
+    passed,
+    message: passed ? "API breakdown responds." : `API returned status ${result.response.status}.`,
+    details: { url: result.url, status: result.response.status },
+  };
 }

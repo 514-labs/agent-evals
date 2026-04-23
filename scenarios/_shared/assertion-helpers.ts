@@ -41,6 +41,8 @@ const DEFAULT_CONNECTION_LITERALS = [
   "localhost:8123",
   "localhost:9000",
   "localhost:9092",
+  "localhost:7181",
+  "localhost:7182",
 ];
 const DEFAULT_ENV_TOKENS = [
   "process.env",
@@ -272,6 +274,54 @@ export async function findTable(
   return matches.length > 0 ? matches[0] : null;
 }
 
+export interface ColumnInfo {
+  name: string;
+  type: string;
+}
+
+/**
+ * List columns of a table via `DESCRIBE TABLE`.
+ *
+ * Why DESCRIBE, not `system.columns`: Tinybird (and some CH view setups)
+ * expose friendly data-source names as views over internal storage tables.
+ * Those views respond to `SELECT * FROM view` but don't always populate
+ * `system.columns` rows — `system.columns` only sees the physical backing
+ * table under a hashed name. `DESCRIBE TABLE name` resolves through the
+ * view and returns the projected column list, which works uniformly for
+ * physical tables, materialized views, and view layers.
+ *
+ * Returns [] (not throws) when the table can't be described — this matches
+ * the legacy `system.columns`-returning-zero-rows behavior so assertions
+ * that expected an empty list on misses keep their semantics.
+ */
+export async function describeTable(
+  ctx: AssertionContext,
+  database: string,
+  table: string,
+): Promise<ColumnInfo[]> {
+  try {
+    const rows = await queryRows<{ name: string; type: string }>(
+      ctx,
+      `DESCRIBE TABLE \`${database}\`.\`${table}\``,
+    );
+    return rows.map((r) => ({ name: r.name, type: r.type }));
+  } catch {
+    return [];
+  }
+}
+
+/** Convenience: case-insensitive existence check by column name. */
+export async function hasColumn(
+  ctx: AssertionContext,
+  database: string,
+  table: string,
+  ...names: string[]
+): Promise<boolean> {
+  const wanted = new Set(names.map((n) => n.toLowerCase()));
+  const cols = await describeTable(ctx, database, table);
+  return cols.some((c) => wanted.has(c.name.toLowerCase()));
+}
+
 /**
  * Find a column whose name matches one of the candidates (fuzzy: case-insensitive,
  * underscore-insensitive). Returns the actual column name (preserving case) or null.
@@ -287,13 +337,10 @@ export async function resolveColumn(
   ...candidates: string[]
 ): Promise<string | null> {
   const normalizedCandidates = candidates.map(normalize);
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    `SELECT name FROM system.columns WHERE database = '${database}' AND table = '${table}'`,
-  );
-  for (const row of rows) {
-    if (normalizedCandidates.includes(normalize(row.name))) {
-      return row.name;
+  const cols = await describeTable(ctx, database, table);
+  for (const col of cols) {
+    if (normalizedCandidates.includes(normalize(col.name))) {
+      return col.name;
     }
   }
   return null;
@@ -317,6 +364,185 @@ export async function findEventsTable(ctx: AssertionContext): Promise<TableRef |
 /** Find a product_events table (product + event). */
 export async function findProductEventsTable(ctx: AssertionContext): Promise<TableRef | null> {
   return findTable(ctx, { concepts: ["product", "event"] });
+}
+
+// --- API probing (port-flexible) ---
+
+export interface ApiProbeResult {
+  url: string;
+  response: Response;
+}
+
+export interface ApiProbeOptions {
+  /** Fallback request paths (used when env var is not set). Prepended with `http://localhost:<port>`. */
+  paths?: string[];
+  /** Fallback ports to scan when env var is not set. Default [3000, 4000, 8080]. */
+  ports?: number[];
+  method?: string;
+  body?: BodyInit | null;
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+}
+
+/**
+ * Try a single URL with timeout. Returns the result on any non-5xx status, null on network error.
+ * Callers that require `response.ok` should check it on the returned response.
+ */
+async function tryUrl(
+  url: string,
+  init: RequestInit & { timeoutMs?: number },
+): Promise<ApiProbeResult | null> {
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(init.timeoutMs ?? 3000),
+    });
+    // Accept anything under 500 as "responded"; caller filters further.
+    if (response.status < 500) {
+      return { url, response };
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+function buildHeaders(
+  baseHeaders: Record<string, string> | undefined,
+  authEnvVar: string | undefined,
+  ctx: AssertionContext,
+): Record<string, string> {
+  const headers = { ...(baseHeaders ?? {}) };
+  if (authEnvVar) {
+    const auth = ctx.env(authEnvVar);
+    if (auth && !headers.Authorization && !headers.authorization) {
+      headers.Authorization = auth;
+    }
+  }
+  return headers;
+}
+
+async function probeApi(
+  ctx: AssertionContext,
+  envVar: string,
+  authEnvVar: string,
+  fallbackUrls: string[],
+  options: ApiProbeOptions,
+): Promise<ApiProbeResult | null> {
+  const headers = buildHeaders(options.headers, authEnvVar, ctx);
+  const init: RequestInit & { timeoutMs?: number } = {
+    method: options.method ?? "GET",
+    body: options.body ?? null,
+    headers,
+    timeoutMs: options.timeoutMs,
+  };
+
+  // Env-var override takes priority. No port-scan if env is set — the
+  // harness is telling us exactly where the endpoint lives.
+  const explicit = ctx.env(envVar);
+  if (explicit) {
+    return tryUrl(explicit, init);
+  }
+
+  // Fallback: legacy port × path scan. Preserves base-rt / olap-for-swe
+  // behavior where agents typically pick :3000.
+  for (const url of fallbackUrls) {
+    const result = await tryUrl(url, init);
+    if (result) return result;
+  }
+  return null;
+}
+
+/**
+ * Probe an egress (read) API endpoint. Env-first, then port-scan fallback.
+ *
+ * Env vars:
+ *   EGRESS_URL_<NAME_UPPER_SNAKE>   e.g. `top-products` → `EGRESS_URL_TOP_PRODUCTS`
+ *   EGRESS_AUTH_HEADER              optional, sent as `Authorization: <value>`
+ *
+ * Fallback (when env var is unset): scans `http://localhost:<port><path>` for
+ * each combination of `options.ports ?? [3000, 4000, 8080]` and
+ * `options.paths ?? ['/api/<name>']`.
+ */
+export async function probeEgress(
+  ctx: AssertionContext,
+  name: string,
+  options?: ApiProbeOptions,
+): Promise<ApiProbeResult | null> {
+  const envVar = `EGRESS_URL_${name.toUpperCase().replace(/-/g, "_")}`;
+  const paths = options?.paths ?? [`/api/${name}`];
+  const ports = options?.ports ?? [3000, 4000, 8080];
+  const fallbacks = ports.flatMap((p) =>
+    paths.map((pa) => `http://localhost:${p}${pa.startsWith("/") ? pa : `/${pa}`}`),
+  );
+  return probeApi(ctx, envVar, "EGRESS_AUTH_HEADER", fallbacks, options ?? {});
+}
+
+/**
+ * Probe an ingest (write) API endpoint. Env-first, then port-scan fallback.
+ *
+ * Env vars:
+ *   INGEST_URL          full URL including any query params
+ *   INGEST_AUTH_HEADER  optional
+ *
+ * Default method is POST with `Content-Type: application/json`.
+ */
+export async function probeIngest(
+  ctx: AssertionContext,
+  options?: ApiProbeOptions,
+): Promise<ApiProbeResult | null> {
+  const paths = options?.paths ?? ["/ingest/events", "/ingest", "/events"];
+  const ports = options?.ports ?? [3000, 4000, 8080];
+  const fallbacks = ports.flatMap((p) =>
+    paths.map((pa) => `http://localhost:${p}${pa.startsWith("/") ? pa : `/${pa}`}`),
+  );
+  const opts: ApiProbeOptions = {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  };
+  return probeApi(ctx, "INGEST_URL", "INGEST_AUTH_HEADER", fallbacks, opts);
+}
+
+/**
+ * Convenience: probe an egress endpoint and parse a JSON body. Returns
+ * `{ url, data }` on HTTP 2xx with valid JSON; otherwise null.
+ *
+ * Automatically unwraps Tinybird-style pipe responses. Tinybird pipes
+ * return `{"meta": [...], "data": [...], "rows": N, "statistics": {...}}`
+ * — assertions that expect a bare array (as Moose/base-rt agents return)
+ * would fail on `Array.isArray(body)` unless we unwrap. Any response
+ * object with both `meta` and array-typed `data` is treated as a
+ * Tinybird envelope and its `data` field returned instead.
+ */
+export async function fetchEgressJson<T = unknown>(
+  ctx: AssertionContext,
+  name: string,
+  options?: ApiProbeOptions,
+): Promise<{ url: string; data: T } | null> {
+  const result = await probeEgress(ctx, name, options);
+  if (!result || !result.response.ok) return null;
+  try {
+    const raw = await result.response.json();
+    const data = unwrapTinybirdEnvelope(raw) as T;
+    return { url: result.url, data };
+  } catch {
+    return null;
+  }
+}
+
+function unwrapTinybirdEnvelope(body: unknown): unknown {
+  if (
+    body &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    "data" in body &&
+    "meta" in body &&
+    Array.isArray((body as { data: unknown }).data)
+  ) {
+    return (body as { data: unknown }).data;
+  }
+  return body;
 }
 
 function collectWorkspaceTextFiles(): WorkspaceTextFile[] {

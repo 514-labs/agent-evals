@@ -1502,15 +1502,36 @@ function isIdempotencyFailureLine(line: string): boolean {
     return false;
   }
 
-  return (
+  // Strong markers — self-describing failure signatures that only appear in
+  // real DB error output or explicit failure claims. Trigger unconditionally.
+  if (
+    normalized.includes("violates unique constraint") ||
+    normalized.includes("primary key constraint") ||
+    normalized.includes("non-idempotent")
+  ) {
+    return true;
+  }
+
+  // Weak markers — phrases that commonly appear in benign prose (e.g. agent
+  // README text like "ClickHouse merges duplicate keys by summing"). Require
+  // a same-line error-shaped context token so we don't flag thoughtful design
+  // explanations as failures.
+  const hasWeakMarker =
     normalized.includes("duplicate key") ||
     normalized.includes("duplicate row") ||
-    normalized.includes("duplicate rows") ||
-    normalized.includes("violates unique constraint") ||
-    normalized.includes("non-idempotent") ||
-    normalized.includes("already exists") ||
-    normalized.includes("primary key constraint")
-  );
+    normalized.includes("already exists");
+
+  if (!hasWeakMarker) {
+    return false;
+  }
+
+  // Error-context tokens from real DB output:
+  //   Postgres:   "ERROR:  duplicate key value ..."
+  //   ClickHouse: "Code: 253. DB::Exception: Table foo already exists ..."
+  //   MySQL:      "ERROR 1062 (23000): ..."
+  //   Generic:    traceback/panic/fatal
+  // Word boundaries on "error" prevent matches on words like "mirror".
+  return /\b(error|exception|fatal|panic|traceback)\b|\bcode:\s*\d/.test(normalized);
 }
 
 function isIdempotencySignalLine(line: string): boolean {
