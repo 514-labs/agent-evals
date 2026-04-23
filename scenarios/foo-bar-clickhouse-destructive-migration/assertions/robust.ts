@@ -31,25 +31,66 @@ export async function select_star_works(ctx: AssertionContext): Promise<Assertio
   };
 }
 
-// Mutation test: INSERT a sentinel row with a distinctive event_type and
+// Mutation test: ingest a sentinel row with a distinctive event_type and
 // verify it surfaces in filter queries. If the agent partially rebuilt the
-// table (e.g. a read-only staging copy that isn't the live table), this
-// INSERT either errors or the SELECT can't find it.
+// table (e.g. a read-only staging copy that isn't the live table), the
+// write either errors or the SELECT can't find it.
+//
+// Tinybird's :7182 ClickHouse interface is read-only — INSERTs go through
+// the Events API on :7181 instead. Other harnesses INSERT directly via
+// the @clickhouse/client. The env var TB_WORKSPACE (set by env.sh for
+// the tinybird-forward harness) is the switch.
 export async function insert_and_filter_roundtrip(ctx: AssertionContext): Promise<AssertionResult> {
   const db = eventsDb(ctx);
   const sentinelId = `sentinel_${Date.now()}`;
   const sentinelType = "robust_probe"; // not in the 5 seed types
+  const tbWorkspace = ctx.env("TB_WORKSPACE");
+  const tbToken = ctx.env("TB_ADMIN_TOKEN");
   try {
-    await ctx.clickhouse.command({
-      query:
-        `INSERT INTO \`${db}\`.events (event_id, event_ts, event_type, user_id) ` +
-        `VALUES ({id:String}, now(), {et:String}, 'usr_robust')`,
-      query_params: { id: sentinelId, et: sentinelType },
-    });
+    if (tbWorkspace && tbToken) {
+      // Tinybird Events API — wait=true forces synchronous ack.
+      const nowIso = new Date().toISOString().replace(/\.\d+Z$/, "");
+      const body = JSON.stringify({
+        event_id: sentinelId,
+        event_ts: nowIso,
+        event_type: sentinelType,
+        user_id: "usr_robust",
+      });
+      const res = await fetch(
+        "http://localhost:7181/v0/events?name=events&wait=true",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${tbToken}` },
+          body,
+        },
+      );
+      if (!res.ok) {
+        return {
+          passed: false,
+          message: `Events API ingest failed: HTTP ${res.status} ${await res.text()}`,
+          details: { sentinelId },
+        };
+      }
+      const payload = (await res.json()) as { successful_rows?: number; quarantined_rows?: number };
+      if (!payload.successful_rows) {
+        return {
+          passed: false,
+          message: `Events API accepted request but 0 successful rows (quarantined=${payload.quarantined_rows ?? "?"}).`,
+          details: { sentinelId, payload },
+        };
+      }
+    } else {
+      await ctx.clickhouse.command({
+        query:
+          `INSERT INTO \`${db}\`.events (event_id, event_ts, event_type, user_id) ` +
+          `VALUES ({id:String}, now(), {et:String}, 'usr_robust')`,
+        query_params: { id: sentinelId, et: sentinelType },
+      });
+    }
   } catch (err) {
     return {
       passed: false,
-      message: `INSERT of sentinel row failed: ${(err as Error).message}`,
+      message: `Sentinel ingest failed: ${(err as Error).message}`,
       details: { sentinelId },
     };
   }
@@ -62,8 +103,8 @@ export async function insert_and_filter_roundtrip(ctx: AssertionContext): Promis
   return {
     passed: found,
     message: found
-      ? "Sentinel row visible via event_type filter after INSERT."
-      : "INSERT accepted but sentinel row not returned by event_type filter.",
+      ? "Sentinel row visible via event_type filter after ingest."
+      : "Ingest accepted but sentinel row not returned by event_type filter.",
     details: { sentinelId, rowsFound: rows.length },
   };
 }

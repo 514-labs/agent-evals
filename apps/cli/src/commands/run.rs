@@ -428,6 +428,41 @@ async fn run_single(
         }
     }
 
+    // Bind mounts for authenticated CLIs whose session state lives on the
+    // host. Each entry is gated on file/dir existence so runs that don't
+    // need a given CLI don't break if the host hasn't logged in yet.
+    //
+    //  - ~/.atlas/         → /root/.atlas     (atlas; ClickHouse driver
+    //                                          is Pro-gated, login required)
+    //  - ~/.tinybirdrc     → /root/.tinybirdrc (tb CLI login state)
+    //  - /var/run/docker.sock → /var/run/docker.sock (for harnesses that
+    //                                          need to spawn sibling
+    //                                          containers — e.g. tb local
+    //                                          which wraps a Docker image.
+    //                                          Agents can reach the host
+    //                                          Docker daemon via this
+    //                                          socket; acceptable for local
+    //                                          dev only)
+    //
+    // All :ro except docker.sock which must be rw for any meaningful use.
+    let mut binds: Vec<String> = Vec::new();
+    if let Ok(home) = std::env::var("HOME") {
+        let atlas_dir = format!("{home}/.atlas");
+        if std::path::Path::new(&atlas_dir).is_dir() {
+            binds.push(format!("{atlas_dir}:/root/.atlas:ro"));
+        }
+        // Forward-CLI stashes session state in ~/.tinybird/ (directory,
+        // not the ~/.tinybirdrc file Classic used). The path reflects the
+        // Tinybird Cloud region + org, e.g. aws/us-west-2/<org>/sessions.txt.
+        let tinybird_dir = format!("{home}/.tinybird");
+        if std::path::Path::new(&tinybird_dir).is_dir() {
+            binds.push(format!("{tinybird_dir}:/root/.tinybird:ro"));
+        }
+    }
+    if std::path::Path::new("/var/run/docker.sock").exists() {
+        binds.push("/var/run/docker.sock:/var/run/docker.sock".to_string());
+    }
+
     docker
         .create_container(
             Some(CreateContainerOptions {
@@ -439,7 +474,10 @@ async fn run_single(
                 env: Some(env),
                 attach_stdout: Some(true),
                 attach_stderr: Some(true),
-                host_config: Some(HostConfig::default()),
+                host_config: Some(HostConfig {
+                    binds: if binds.is_empty() { None } else { Some(binds) },
+                    ..HostConfig::default()
+                }),
                 ..Default::default()
             },
         )
