@@ -22,3 +22,12 @@ cp "$SRC" /usr/local/bin/514
 chmod +x /usr/local/bin/514
 
 echo "[override:514] replaced $dest and /usr/local/bin/514"
+
+# Re-run `514 agent init` now that the binary actually works. The install
+# step may have tried this with a glibc-incompatible release binary and
+# silently fallen back to a minimal MCP stub, leaving no skills installed.
+if 514 agent init --agent claude-code --yes </dev/null; then
+  echo "[override:514] ran 'agent init' to seed default skills"
+else
+  echo "[override:514] 'agent init' still failed — skills may be missing" >&2
+fi
