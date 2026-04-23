@@ -95,7 +95,7 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
               className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
                 mode === "cost"
                   ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--sidebar)] bg-[color:var(--card)]"
               }`}
             >
               Cost
@@ -106,7 +106,7 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
               className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border border-l-0 px-3 py-1 transition-colors ${
                 mode === "time"
                   ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--sidebar)] bg-[color:var(--card)]"
               }`}
             >
               Time
@@ -126,7 +126,7 @@ export function CostScoreChart({ allData, agents }: CostScoreChartProps) {
                 className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
                   tier === opt.key
                     ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                    : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                    : "text-[color:var(--chart-4)] border-[color:var(--sidebar)] bg-[color:var(--card)]"
                 }`}
               >
                 {opt.label}

@@ -55,7 +55,7 @@ function LiftPanel({
 }) {
   if (data.length === 0) {
     return (
-      <div className="border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[200px]">
+      <div className="border border-[color:var(--border)] bg-[color:var(--sidebar)] p-6 flex items-center justify-center min-h-[200px]">
         <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
           Insufficient data
         </p>

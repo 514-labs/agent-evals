@@ -257,7 +257,7 @@ export function LiftChart({ dataByTier }: LiftChartProps) {
               className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
                 mode === "cost"
                   ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--sidebar)] bg-[color:var(--card)]"
               }`}
             >
               Cost
@@ -268,7 +268,7 @@ export function LiftChart({ dataByTier }: LiftChartProps) {
               className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border border-l-0 px-3 py-1 transition-colors ${
                 mode === "time"
                   ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                  : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                  : "text-[color:var(--chart-4)] border-[color:var(--sidebar)] bg-[color:var(--card)]"
               }`}
             >
               Time
@@ -288,7 +288,7 @@ export function LiftChart({ dataByTier }: LiftChartProps) {
                 className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] border px-3 py-1 transition-colors ${
                   tier === opt.key
                     ? "bg-[color:var(--foreground)] text-[color:var(--card)] border-[color:var(--foreground)]"
-                    : "text-[color:var(--chart-4)] border-[color:var(--secondary)] bg-[color:var(--card)]"
+                    : "text-[color:var(--chart-4)] border-[color:var(--sidebar)] bg-[color:var(--card)]"
                 }`}
               >
                 {opt.label}
@@ -299,7 +299,7 @@ export function LiftChart({ dataByTier }: LiftChartProps) {
       </div>
 
       {!hasData ? (
-        <div className="border border-[color:var(--border)] bg-[color:var(--secondary)] p-6 flex items-center justify-center min-h-[280px]">
+        <div className="border border-[color:var(--border)] bg-[color:var(--sidebar)] p-6 flex items-center justify-center min-h-[280px]">
           <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)]">
             No runs with both harnesses at this difficulty tier
           </p>

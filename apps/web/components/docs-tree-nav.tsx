@@ -39,7 +39,7 @@ const linkInactive =
   "text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] border-transparent"
 
 const linkActive =
-  "text-[color:var(--accent)] font-semibold border-[color:var(--accent)] bg-[color:var(--secondary)]"
+  "text-[color:var(--accent)] border-[color:var(--accent)] bg-[color:var(--secondary)]"
 
 function GroupLabel({ children }: { children: ReactNode }) {
   return (
