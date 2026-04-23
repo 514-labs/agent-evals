@@ -22,26 +22,35 @@ function previewValue(value: unknown, maxLen = 280): string {
   }
 }
 
+// Kind tags use muted neutral badges so the timeline reads as a calm document
+// rather than a flashing log console; the accent colour is reserved for the
+// agent's own utterances (assistant_text / assistant_final) which are the
+// most valuable signal on the page.
 const KIND_COLORS: Record<string, string> = {
-  system_message: "bg-zinc-700 text-white",
-  tool_use: "bg-blue-600 text-white",
-  tool_result: "bg-blue-900 text-blue-200",
-  thinking: "bg-amber-500 text-black",
-  assistant_text: "bg-[#B91C1C] text-black",
-  assistant_final: "bg-[#B91C1C] text-black",
-  message: "bg-black/70 text-white",
-  event: "bg-black/50 text-white",
+  system_message:
+    "bg-[color:var(--secondary)] text-[color:var(--muted-foreground)] border border-[color:var(--border)]",
+  tool_use: "bg-blue-100 text-blue-900 border border-blue-200",
+  tool_result: "bg-blue-50 text-blue-800 border border-blue-200",
+  thinking: "bg-amber-100 text-amber-900 border border-amber-200",
+  assistant_text:
+    "bg-[color:var(--accent)]/10 text-[color:var(--accent)] border border-[color:var(--accent)]/30",
+  assistant_final:
+    "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] border border-[color:var(--accent)]",
+  message:
+    "bg-[color:var(--secondary)] text-[color:var(--muted-foreground)] border border-[color:var(--border)]",
+  event:
+    "bg-[color:var(--secondary)] text-[color:var(--chart-4)] border border-[color:var(--border)]",
 };
 
 const FILTER_ACCENT: Record<string, string> = {
-  system_message: "border-b-zinc-700",
+  system_message: "border-b-[color:var(--muted-foreground)]",
   tool_use: "border-b-blue-600",
-  tool_result: "border-b-blue-900",
+  tool_result: "border-b-blue-400",
   thinking: "border-b-amber-500",
-  assistant_text: "border-b-[#B91C1C]",
-  assistant_final: "border-b-[#B91C1C]",
-  message: "border-b-black/70",
-  event: "border-b-black/50",
+  assistant_text: "border-b-[color:var(--accent)]",
+  assistant_final: "border-b-[color:var(--accent)]",
+  message: "border-b-[color:var(--muted-foreground)]",
+  event: "border-b-[color:var(--chart-4)]",
 };
 
 const KIND_DISPLAY_ORDER = [
@@ -56,14 +65,22 @@ const KIND_DISPLAY_ORDER = [
 ];
 
 const KIND_DESCRIPTIONS: Record<string, string> = {
-  system_message: "System prompt or control instructions injected by the harness/agent runtime. Click to filter.",
-  tool_use: "Requests from the agent to invoke an external tool (e.g. file read, shell command, browser action). Click to filter.",
-  tool_result: "Responses returned to the agent after a tool executed. Contains the output or error from the tool invocation. Click to filter.",
-  thinking: "Internal reasoning blocks where the agent planned its next action before responding. Not visible to the user during the run. Click to filter.",
-  assistant_text: "Visible text output from the agent shown to the user. Includes explanations, questions, and status updates. Click to filter.",
-  assistant_final: "The agent's final response at the end of a step or the entire run. Typically a summary of what was accomplished. Click to filter.",
-  message: "User or system messages sent to the agent as part of the conversation. Includes the original prompt and any follow-ups. Click to filter.",
-  event: "System-level events such as session start/end, context injection, or harness lifecycle hooks. Click to filter.",
+  system_message:
+    "System prompt or control instructions injected by the harness/agent runtime. Click to filter.",
+  tool_use:
+    "Requests from the agent to invoke an external tool (e.g. file read, shell command, browser action). Click to filter.",
+  tool_result:
+    "Responses returned to the agent after a tool executed. Contains the output or error from the tool invocation. Click to filter.",
+  thinking:
+    "Internal reasoning blocks where the agent planned its next action before responding. Not visible to the user during the run. Click to filter.",
+  assistant_text:
+    "Visible text output from the agent shown to the user. Includes explanations, questions, and status updates. Click to filter.",
+  assistant_final:
+    "The agent's final response at the end of a step or the entire run. Typically a summary of what was accomplished. Click to filter.",
+  message:
+    "User or system messages sent to the agent as part of the conversation. Includes the original prompt and any follow-ups. Click to filter.",
+  event:
+    "System-level events such as session start/end, context injection, or harness lifecycle hooks. Click to filter.",
 };
 
 interface KindCount {
@@ -106,12 +123,12 @@ export function AuditTracePanel({
     : events;
 
   return (
-    <section className="border-[3px] border-black">
-      <div className="bg-black px-4 py-2 flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
-          Agent Interaction
+    <section className="border border-[color:var(--border)] bg-[color:var(--card)]">
+      <div className="bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)] px-4 py-2 flex items-center justify-between">
+        <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
+          Normalized Trace
         </span>
-        <span className="text-xs uppercase tracking-[0.12em] text-white/70">
+        <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[color:var(--chart-4)]">
           {events.length > 0 ? `${events.length} events` : "No events"}
         </span>
       </div>
@@ -120,7 +137,7 @@ export function AuditTracePanel({
       {kindCounts.length > 0 && (
         <TooltipProvider delayDuration={400}>
           <div
-            className="grid gap-0 border-b border-black/10"
+            className="grid border-b border-[color:var(--border)]"
             style={{ gridTemplateColumns: `repeat(${kindCounts.length}, 1fr)` }}
           >
             {kindCounts.map((item) => {
@@ -136,22 +153,24 @@ export function AuditTracePanel({
                         )
                       }
                       className={[
-                        "px-3 py-2 border-r border-black/10 last:border-r-0 text-left transition-colors cursor-pointer hover:bg-black/4",
-                        isActive && `bg-black/5 border-b-2 ${FILTER_ACCENT[item.kind] ?? "border-b-black/30"}`,
+                        "px-3 py-2 border-r border-[color:var(--border)] last:border-r-0 text-left transition-colors cursor-pointer hover:bg-[color:var(--secondary)]/60",
+                        isActive &&
+                          `bg-[color:var(--secondary)] border-b-2 ${FILTER_ACCENT[item.kind] ?? "border-b-[color:var(--muted-foreground)]"}`,
                       ]
                         .filter(Boolean)
                         .join(" ")}
                     >
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-black/35 truncate">
+                      <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--chart-4)] truncate">
                         {item.label}
                       </p>
-                      <p className="font-[family-name:var(--font-display)] text-base leading-none mt-0.5">
+                      <p className="font-[family-name:var(--font-display)] text-base leading-none mt-0.5 text-[color:var(--foreground)]">
                         {item.count.toLocaleString()}
                       </p>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    {KIND_DESCRIPTIONS[item.kind] ?? `${item.label} events in this trace. Click to filter.`}
+                    {KIND_DESCRIPTIONS[item.kind] ??
+                      `${item.label} events in this trace. Click to filter.`}
                   </TooltipContent>
                 </Tooltip>
               );
@@ -161,65 +180,69 @@ export function AuditTracePanel({
       )}
 
       {events.length === 0 ? (
-        <div className="px-4 py-4 text-xs text-black/40">
+        <div className="px-4 py-4 text-xs text-[color:var(--chart-4)]">
           No structured trace events captured. View raw agent output below.
         </div>
       ) : (
         <>
           {activeKindFilter && (
-            <div className="px-4 py-1.5 flex items-center gap-2 bg-black/3 border-b border-black/10">
-              <span className="text-xs text-black/50">
+            <div className="px-4 py-1.5 flex items-center gap-2 bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)]">
+              <span className="text-xs text-[color:var(--muted-foreground)]">
                 Showing {filteredEvents.length} of {events.length} events
               </span>
               <button
                 type="button"
                 onClick={() => setActiveKindFilter(null)}
-                className="text-xs font-bold uppercase tracking-widest text-black/40 hover:text-black transition-colors cursor-pointer"
+                className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-widest text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] transition-colors cursor-pointer"
               >
                 Clear filter
               </button>
             </div>
           )}
-          <div className="divide-y divide-black/8 max-h-72 overflow-auto">
+          <div className="divide-y divide-[color:var(--border)] max-h-[28rem] overflow-auto">
             {filteredEvents.map((event, i) => (
-              <div key={event.id} className="px-4 py-2 hover:bg-black/2 transition-colors">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs text-black/25 font-mono w-5 shrink-0 text-right">
+              <div
+                key={event.id}
+                className="px-4 py-2.5 hover:bg-[color:var(--secondary)]/40 transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono text-[10px] text-[color:var(--chart-4)] w-6 shrink-0 text-right">
                     {i + 1}
                   </span>
                   <span
-                    className={`text-xs font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 ${
-                      KIND_COLORS[event.kind] ?? "bg-black/30 text-white"
+                    className={`font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] px-1.5 py-0.5 ${
+                      KIND_COLORS[event.kind] ??
+                      "bg-[color:var(--secondary)] text-[color:var(--muted-foreground)] border border-[color:var(--border)]"
                     }`}
                   >
                     {event.kind.replace(/_/g, " ")}
                   </span>
                   {typeof event.name === "string" && (
-                    <span className="text-xs font-bold text-black/60 font-mono">
+                    <span className="text-xs font-bold text-[color:var(--foreground)] font-mono">
                       {event.name}
                     </span>
                   )}
                   {typeof event.role === "string" && event.role !== "assistant" && (
-                    <span className="text-xs text-black/30 uppercase tracking-[0.12em]">
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] text-[color:var(--chart-4)] uppercase tracking-[0.12em]">
                       {event.role}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-black/60 leading-normal whitespace-pre-wrap break-words pl-7">
+                <pre className="m-0 font-[family-name:var(--font-mono)] text-[11px] leading-[1.55] text-[color:var(--muted-foreground)] whitespace-pre-wrap break-words pl-8">
                   {previewValue(event.content ?? event.input ?? "")}
-                </p>
+                </pre>
               </div>
             ))}
           </div>
         </>
       )}
 
-      <details className="border-t border-black/15">
-        <summary className="cursor-pointer list-none px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-black/40 hover:text-black transition-colors">
+      <details className="border-t border-[color:var(--border)]">
+        <summary className="cursor-pointer list-none px-4 py-2 font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] transition-colors">
           Raw trace JSON
         </summary>
-        <pre className="m-0 max-h-80 overflow-auto p-4 bg-[#0d0d0d]">
-          <code className="text-xs leading-relaxed text-white/70 whitespace-pre-wrap break-words">
+        <pre className="m-0 max-h-80 overflow-auto p-4 bg-[color:var(--secondary)]/40 border-t border-[color:var(--border)]">
+          <code className="font-[family-name:var(--font-mono)] text-[11px] leading-relaxed text-[color:var(--foreground)] whitespace-pre-wrap break-words">
             {trace ? JSON.stringify(trace, null, 2) : "No trace payload."}
           </code>
         </pre>

@@ -28,20 +28,35 @@ function formatBytes(value: number): string {
   return `${value}B`;
 }
 
+// Display-only overrides. The manifest's `label` stays untouched so backend
+// and file names keep their canonical naming; this is pure UI labeling.
+const LOG_LABEL_OVERRIDES: Record<string, string> = {
+  trace: "Raw Agent Trace",
+  agent_raw: "Raw Agent Output",
+};
+
+function displayLabel(log: LogRef): string {
+  return LOG_LABEL_OVERRIDES[log.id] ?? log.label;
+}
+
 const KIND_STYLES: Record<string, string> = {
-  stdout: "bg-[#B91C1C] text-black",
-  trace: "bg-blue-600 text-white",
-  stderr: "bg-red-600 text-white",
-  service: "bg-black/70 text-white",
-  system: "bg-black/50 text-white",
+  stdout:
+    "bg-[color:var(--accent)] text-[color:var(--accent-foreground)] border border-[color:var(--accent)]",
+  trace: "bg-blue-100 text-blue-900 border border-blue-200",
+  stderr: "bg-red-100 text-red-900 border border-red-200",
+  service:
+    "bg-[color:var(--secondary)] text-[color:var(--muted-foreground)] border border-[color:var(--border)]",
+  system:
+    "bg-[color:var(--secondary)] text-[color:var(--chart-4)] border border-[color:var(--border)]",
 };
 
 function KindBadge({ kind }: { kind: string }) {
   return (
     <span
       className={cn(
-        "text-xs font-bold uppercase tracking-[0.16em] px-1 py-0.5",
-        KIND_STYLES[kind] ?? "bg-black/30 text-white",
+        "font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] px-1 py-0.5",
+        KIND_STYLES[kind] ??
+          "bg-[color:var(--secondary)] text-[color:var(--muted-foreground)] border border-[color:var(--border)]",
       )}
     >
       {kind}
@@ -131,8 +146,8 @@ export function AuditLogViewer({
 
   if (logs.length === 0) {
     return (
-      <div className="border-[3px] border-black bg-black p-6">
-        <p className="text-xs uppercase tracking-[0.14em] text-white/70">
+      <div className="border border-[color:var(--border)] bg-[color:var(--card)] p-6">
+        <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--chart-4)]">
           No logs attached for this run.
         </p>
       </div>
@@ -143,55 +158,73 @@ export function AuditLogViewer({
   const lineNumWidth = String((chunk?.endLine ?? 0) + 1).length;
 
   return (
-    <details className="border-[3px] border-black overflow-hidden group/debug">
-      <summary className="bg-black px-4 py-2 flex items-center justify-between gap-3 cursor-pointer list-none select-none hover:bg-black/90 transition-colors">
+    <details
+      open
+      className="border border-[color:var(--border)] bg-[color:var(--card)] overflow-hidden group/debug"
+    >
+      <summary className="bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)] px-4 py-2 flex items-center justify-between gap-3 cursor-pointer list-none select-none hover:bg-[color:var(--secondary)] transition-colors">
         <div className="flex items-center gap-3">
-          <div className="flex gap-1">
-            <div className="w-2 h-2 bg-white/30" />
-            <div className="w-2 h-2 bg-white/15" />
-            <div className="w-2 h-2 bg-white/8" />
-          </div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white">
+          <p className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-[color:var(--muted-foreground)]">
             Debugging Output
           </p>
-          <span className="text-xs uppercase tracking-[0.14em] text-white/50">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[color:var(--chart-4)]">
             {logs.length} {logs.length === 1 ? "file" : "files"} · {formatBytes(totalBytes)}
           </span>
         </div>
-        <span className="text-xl leading-none font-bold text-white/50 group-open/debug:rotate-45 transition-transform">
+        <span className="text-xl leading-none font-bold text-[color:var(--chart-4)] group-open/debug:rotate-45 transition-transform">
           +
         </span>
       </summary>
 
       {/* Tab bar */}
-      <div className="bg-[#111] px-3 py-1.5 flex items-center gap-1.5 border-b border-white/10 overflow-x-auto">
-        {logs.map((log) => (
-          <button
-            key={log.id}
-            type="button"
-            onClick={() => setActiveLogId(log.id)}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1 text-xs uppercase tracking-[0.12em] transition-colors whitespace-nowrap",
-              log.id === activeLog?.id
-                ? "bg-white/10 text-white"
-                : "text-white/35 hover:text-white/65",
-            )}
-          >
-            <KindBadge kind={log.kind} />
-            <span>{log.label}</span>
-            <span className="text-white/20">{formatBytes(log.bytes)}</span>
-          </button>
-        ))}
+      <div
+        role="tablist"
+        aria-label="Log file"
+        className="bg-[color:var(--secondary)]/40 border-b border-[color:var(--border)] px-3 py-2 flex flex-wrap items-center gap-1.5"
+      >
+        {logs.map((log) => {
+          const isActive = log.id === activeLog?.id;
+          return (
+            <button
+              key={log.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveLogId(log.id)}
+              className={cn(
+                "px-2.5 py-1 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.1em] transition-colors whitespace-nowrap border",
+                isActive
+                  ? "bg-[color:var(--card)] border-[color:var(--accent)] text-[color:var(--foreground)] font-bold"
+                  : "bg-[color:var(--card)] border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)] hover:border-[color:var(--foreground)]",
+              )}
+            >
+              {displayLabel(log)}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Pagination */}
-      <div className="bg-[#0a0a0a] px-4 py-1 flex items-center justify-between border-b border-white/5">
-        <span className="text-xs uppercase tracking-[0.14em] text-white/25">
-          {chunk
-            ? `${(chunk.startLine + 1).toLocaleString()}–${(chunk.endLine + 1).toLocaleString()} of ${chunk.totalLines.toLocaleString()}`
-            : "—"}
-        </span>
-        <div className="flex items-center gap-0.5">
+      {/* Pagination / metadata */}
+      <div className="bg-[color:var(--secondary)]/30 border-b border-[color:var(--border)] px-4 py-1 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[color:var(--chart-4)] tabular-nums shrink-0">
+            {chunk
+              ? `${(chunk.startLine + 1).toLocaleString()}–${(chunk.endLine + 1).toLocaleString()} of ${chunk.totalLines.toLocaleString()}`
+              : "—"}
+          </span>
+          {activeLog && (
+            <>
+              <span className="text-[color:var(--border)]" aria-hidden>
+                ·
+              </span>
+              <KindBadge kind={activeLog.kind} />
+              <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[color:var(--chart-4)] tabular-nums shrink-0">
+                {formatBytes(activeLog.bytes)}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
           {[
             { label: "Top", disabled: !chunk?.hasMoreBefore, action: () => setStartLine(0) },
             { label: "↑", disabled: !chunk?.hasMoreBefore, action: () => setStartLine(Math.max(0, startLine - PAGE_SIZE)) },
@@ -207,7 +240,7 @@ export function AuditLogViewer({
               type="button"
               disabled={btn.disabled}
               onClick={btn.action}
-              className="px-1.5 py-0.5 text-xs uppercase tracking-[0.12em] text-white/35 hover:text-white disabled:opacity-15 disabled:cursor-default"
+              className="px-1.5 py-0.5 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.12em] text-[color:var(--chart-4)] hover:text-[color:var(--foreground)] disabled:opacity-30 disabled:cursor-default"
             >
               {btn.label}
             </button>
@@ -216,36 +249,35 @@ export function AuditLogViewer({
       </div>
 
       {/* Content — fixed height to prevent layout bounce on open/close */}
-      <div className="relative bg-[#0d0d0d] h-96">
+      <div className="relative bg-[color:var(--card)] h-96">
         {loading && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#B91C1C]">
+          <div className="absolute inset-0 bg-[color:var(--card)]/80 flex items-center justify-center z-10 backdrop-blur-[1px]">
+            <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--accent)]">
               Loading...
             </span>
           </div>
         )}
         {error ? (
-          <div className="p-6 text-xs text-red-400">{error}</div>
+          <div className="p-6 font-[family-name:var(--font-mono)] text-xs text-red-700">
+            {error}
+          </div>
         ) : (
-          <pre
-            ref={scrollRef}
-            className="m-0 h-full overflow-auto p-0"
-          >
-            <code className="text-xs leading-[1.6] block">
+          <pre ref={scrollRef} className="m-0 h-full overflow-auto p-0">
+            <code className="font-[family-name:var(--font-mono)] text-[11px] leading-[1.6] block">
               {lines.map((line, i) => {
                 const lineNum = (chunk?.startLine ?? 0) + i + 1;
                 return (
                   <div
                     key={`${startLine}-${i}`}
-                    className="flex hover:bg-white/3 group"
+                    className="flex hover:bg-[color:var(--secondary)]/40 group"
                   >
                     <span
-                      className="select-none text-white/12 text-right pr-3 pl-3 group-hover:text-white/20 shrink-0 border-r border-white/5"
+                      className="select-none text-[color:var(--chart-4)]/70 text-right pr-3 pl-3 group-hover:text-[color:var(--chart-4)] shrink-0 border-r border-[color:var(--border)] tabular-nums"
                       style={{ width: `${Math.max(lineNumWidth, 4) + 2}ch` }}
                     >
                       {lineNum}
                     </span>
-                    <span className="text-white/70 pl-3 pr-3 whitespace-pre-wrap break-all min-w-0 flex-1">
+                    <span className="text-[color:var(--foreground)] pl-3 pr-3 whitespace-pre-wrap break-all min-w-0 flex-1">
                       {line || "\u00A0"}
                     </span>
                   </div>
