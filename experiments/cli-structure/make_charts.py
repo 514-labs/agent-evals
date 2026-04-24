@@ -210,7 +210,7 @@ def break_even_chart():
 
     ax.set_xlabel("Tasks per session (N)")
     ax.set_ylabel("Projected cumulative cost per session (USD)")
-    ax.set_title("Past ~4 CLI calls per agent session, structured CLIs beat flat ones")
+    ax.set_title("Cumulative session cost by tasks per session")
     ax.legend(frameon=False, loc="upper left")
     ax.grid(axis="both", linestyle=":", alpha=0.4)
     ax.set_xticks(ns)
