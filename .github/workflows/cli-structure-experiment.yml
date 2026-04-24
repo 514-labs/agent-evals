@@ -11,6 +11,12 @@ on:
         description: "Parallel runs"
         required: false
         default: "15"
+  push:
+    branches:
+      - claude/vibrant-mcnulty-2dac4a
+    paths:
+      - "experiments/cli-structure/**"
+      - ".github/workflows/cli-structure-experiment.yml"
 
 jobs:
   run:
@@ -22,8 +28,8 @@ jobs:
         working-directory: experiments/cli-structure
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      REPS: ${{ inputs.reps }}
-      CONCURRENCY: ${{ inputs.concurrency }}
+      REPS: ${{ inputs.reps || '10' }}
+      CONCURRENCY: ${{ inputs.concurrency || '15' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,7 +55,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cli-structure-runs-reps${{ inputs.reps }}
+          name: cli-structure-runs-reps${{ inputs.reps || '10' }}
           path: |
             experiments/cli-structure/runs/
             experiments/cli-structure/results.json
