@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""Simulated Moose CLI wrapper - POSITIONAL variant.
+
+Flat top-level verbs. Where real Moose uses subcommands, a positional arg is used.
+All help is dumped on `moose --help` - no per-subtree drill-down.
+
+This does NOT invoke real Moose.
+"""
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+VARIANT = "positional"
+
+# (verb, optional positional-category) -> (capability, success output)
+# For verbs with a required positional category, positional-category is set.
+# For simple verbs, positional-category is None.
+COMMANDS = [
+    # (verb, positional_category, capability, success_output, signature)
+    ("init", None, "init", "Project created at ./{name}\nNext: cd {name} && moose dev",
+     "moose init <NAME> [TEMPLATE] [--location <PATH>] [--from-remote [<CONN>]] [--custom-dockerfile] [--no-fail-already-exists]"),
+    ("build", None, "build", "Build complete.",
+     "moose build [--docker] [--amd64] [--arm64]"),
+    ("check", None, "check", "No errors found.",
+     "moose check [--write-infra-map]"),
+    ("plan", None, "plan", "Plan: 0 additions, 0 changes, 0 destroys.",
+     "moose plan [--url <URL>] [--token <T>] [--clickhouse-url <URL>] [--json]"),
+    ("migrate", None, "migrate", "Migration executed against remote ClickHouse.",
+     "moose migrate [--clickhouse-url <URL>] [--redis-url <URL>] [--validate]"),
+    ("peek", None, "peek", "Showing first 5 rows...",
+     "moose peek <NAME> [-l N] [-f PATH] [-t|--table] [-s|--stream]"),
+    ("dev", None, "dev", "Moose dev server running on http://localhost:4000",
+     "moose dev [--no-infra] [--mcp] [--timestamps] [--timing] [--log-payloads] [--yes-all] [--yes-destructive] [--yes-rename] [--dockerless]"),
+    ("prod", None, "prod", "Moose production server started.",
+     "moose prod [--start-include-dependencies]"),
+    ("clean", None, "clean", "Cleaned temporary data and stopped infra.",
+     "moose clean"),
+    ("logs", None, "logs", "[moose-runtime] 2026-04-23T12:00:00Z INFO  server started on :4000",
+     "moose logs [-t|--tail] [-f|--filter <STRING>]"),
+    ("ps", None, "ps", "PID     SERVICE       STATUS\n1234    moose-dev     running\n1235    clickhouse    running\n1236    redpanda      running",
+     "moose ps"),
+    ("ls", None, "ls", "TYPE       NAME            STATUS\nTable      events          healthy\nTable      aggregates      healthy\nStream     events_stream   healthy",
+     "moose ls [--type <TYPE>] [--name <NAME>] [--json]"),
+    ("metrics", None, "metrics", "Opening live metrics console...",
+     "moose metrics"),
+    ("refresh", None, "refresh", "Refreshed tables from remote Moose instance.",
+     "moose refresh [--url <URL>] [--token <T>]"),
+    ("truncate", None, "truncate", "Tables truncated.",
+     "moose truncate [TABLES...] [--all] [--rows <N>]"),
+    ("mcp", None, "mcp", "MCP proxy listening on http://127.0.0.1:4123",
+     "moose mcp [--host <HOST>] [--port <PORT>]"),
+    ("feedback", None, "feedback", "Thanks for the feedback!",
+     "moose feedback [MESSAGE] [--bug] [--community] [--email <ADDR>]"),
+    ("query", None, "query", "Query OK. 0 rows returned.",
+     "moose query [QUERY] [-f PATH] [-l N] [-c LANG] [-p]"),
+    # Positional-category commands
+    ("workflow", "run", "workflow:run", "Workflow started (run-id: wf-abc123).",
+     "moose workflow run <NAME> [-i JSON]"),
+    ("workflow", "resume", "workflow:resume", "Workflow resumed from task.",
+     "moose workflow resume <NAME> --from <TASK>"),
+    ("workflow", "list", "workflow:list", "Workflows:\n  - daily-ingest\n  - hourly-rollup",
+     "moose workflow list [--json]"),
+    ("workflow", "history", "workflow:history", "RUN_ID       NAME            STATUS    STARTED\nwf-abc123    daily-ingest    completed 2026-04-23T06:00:00Z",
+     "moose workflow history [-s STATUS] [-l N] [--json]"),
+    ("workflow", "cancel", "workflow:cancel", "Workflow cancelled.",
+     "moose workflow cancel <NAME>"),
+    ("workflow", "pause", "workflow:pause", "Workflow paused.",
+     "moose workflow pause <NAME>"),
+    ("workflow", "unpause", "workflow:unpause", "Workflow unpaused.",
+     "moose workflow unpause <NAME>"),
+    ("workflow", "status", "workflow:status", "Status: running",
+     "moose workflow status <NAME> [--id <ID>] [--verbose] [--json]"),
+    ("template", "list", "template:list", "Available templates:\n  - typescript\n  - python\n  - python-ckh\n  - typescript-empty",
+     "moose template list [--json]"),
+    ("harness", "init", "harness:init", "Project + harness initialized.",
+     "moose harness init [NAME] [TEMPLATE] [--name <N>] [--template <T>] [--location <P>] [--agent <A>]..."),
+    ("component", "list", "component:list", "Available components:\n  - mcp-server\n  - chat\n  - benchmark",
+     "moose component list"),
+    ("db", "pull", "db:pull", "External table definitions updated.",
+     "moose db pull [--clickhouse-url <URL>] [--file-path <PATH>]"),
+    ("seed", "clickhouse", "seed:clickhouse", "Seeded ClickHouse from remote connection.",
+     "moose seed clickhouse [--clickhouse-url <URL>] [--limit <N>|--all] [--order-by <EXPR>] [--table <T>] [--report]"),
+    ("kafka", "pull", "kafka:pull", "Kafka schemas pulled.",
+     "moose kafka pull <BOOTSTRAP> [--path <P>] [--include <GLOB>] [--exclude <GLOB>] [--schema-registry <URL>]"),
+    ("add", "mcp-server", "add:mcp-server", "Added mcp-server component.",
+     "moose add mcp-server [-d <DIR>] [--overwrite] [-y]"),
+    ("add", "chat", "add:chat", "Added chat component.",
+     "moose add chat [-d <DIR>] [--overwrite] [-y]"),
+    ("add", "benchmark", "add:benchmark", "Added benchmark component.",
+     "moose add benchmark [-d <DIR>] [--overwrite] [-y]"),
+    ("generate", "dockerfile", "generate:dockerfile", "Generated Dockerfile.",
+     "moose generate dockerfile"),
+    ("generate", "hash-token", "generate:hash-token", "Generated key hash and bearer token.",
+     "moose generate hash-token [--json]"),
+    ("generate", "migration", "generate:migration", "Migration files generated.",
+     "moose generate migration [--url <URL>] [--token <T>] [--clickhouse-url <URL>] [--redis-url <URL>] [--save] [--yes-all] [--yes-destructive] [--yes-rename] [--no-auto-backfill-sql]"),
+    ("docs", "browse", "docs:browse", "Launching interactive docs browser...",
+     "moose docs browse [--web]"),
+    ("docs", "search", "docs:search", "Search results: 0 matches.",
+     "moose docs search <QUERY> [--expand]"),
+    # docs root (no positional category) - docs [SLUG]
+    ("docs", None, "docs", "Documentation index (collapsed).",
+     "moose docs [SLUG] [-l ts|py] [--raw] [--expand] [--web]"),
+]
+
+# Build lookup: (verb, subpos) -> row ; also verbs set and subpos-per-verb.
+VERBS = {}
+for row in COMMANDS:
+    v = row[0]
+    VERBS.setdefault(v, []).append(row)
+
+
+def log(argv, result, exit_code):
+    path = os.environ.get("MOOSE_LOG_PATH", "/tmp/cli-structure-test/moose.log")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    entry = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "variant": VARIANT,
+        "argv": argv,
+        "result": result,
+        "exit_code": exit_code,
+    }
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def top_help():
+    out = ["Moose CLI (simulated POSITIONAL variant) - flat verbs, category-as-positional",
+           "",
+           "Usage: moose <COMMAND> [POSITIONALS] [OPTIONS]",
+           "",
+           "All commands (positional categories shown inline):",
+           ""]
+    # Group by verb for readability
+    for verb, rows in VERBS.items():
+        for row in rows:
+            v, sub, cap, _out, sig = row
+            out.append(f"  {sig}")
+    out.append("")
+    out.append("Note: There is no per-subtree --help drill-down in this variant.")
+    return "\n".join(out) + "\n"
+
+
+def suggest(tokens, candidates_sigs):
+    """Suggest a whole command line given tokens and candidate signatures (raw strings)."""
+    best, best_score = None, 0
+    for sig in candidates_sigs:
+        sig_l = sig.lower()
+        score = 0
+        for t in tokens:
+            t_l = t.lower()
+            if t_l in sig_l:
+                score += 3
+            else:
+                # fuzzy: substring-or-prefix against any word in sig
+                for word in sig_l.split():
+                    if t_l[: max(3, len(t_l) - 1)] == word[: max(3, len(t_l) - 1)]:
+                        score += 1
+                        break
+                    if len(set(t_l) & set(word)) >= max(3, len(t_l) - 2):
+                        score += 1
+                        break
+        if score > best_score:
+            best, best_score = sig, score
+    return best if best_score >= 1 else None
+
+
+def main(argv):
+    if len(argv) == 0 or argv[0] in ("-h", "--help", "help"):
+        sys.stdout.write(top_help())
+        log(argv, "help:top", 0)
+        return 0
+
+    verb = argv[0]
+    if verb not in VERBS:
+        # suggest full invocation
+        sigs = [row[4] for row in COMMANDS]
+        s = suggest([verb] + argv[1:2], sigs)
+        hint = f"\n\nDid you mean `{s}`?" if s else ""
+        sys.stderr.write(f"error: unknown command '{verb}'{hint}\n")
+        sys.stderr.write("Run `moose --help` to see all commands.\n")
+        log(argv, "error:unknown", 2)
+        return 2
+
+    rows = VERBS[verb]
+    # Determine if verb requires a positional category
+    has_subcat = any(r[1] is not None for r in rows)
+    has_plain = any(r[1] is None for r in rows)
+
+    rest = argv[1:]
+
+    if has_subcat:
+        # first positional picks the sub
+        if not rest:
+            if has_plain:
+                # verb can stand alone (docs)
+                plain = next(r for r in rows if r[1] is None)
+                cap, out_tmpl = plain[2], plain[3]
+                sys.stdout.write(out_tmpl + "\n")
+                log(argv, f"matched:{cap}", 0)
+                return 0
+            sigs = [r[4] for r in rows]
+            sys.stderr.write(f"error: `moose {verb}` requires a positional subcommand.\n")
+            sys.stderr.write("Known forms:\n" + "\n".join(f"  {s}" for s in sigs) + "\n")
+            log(argv, "error:incomplete", 2)
+            return 2
+
+        sub = rest[0]
+        match = next((r for r in rows if r[1] == sub), None)
+        if not match:
+            if has_plain and not sub.startswith("-"):
+                # interpret as positional arg for plain form (e.g., docs <SLUG>)
+                plain = next(r for r in rows if r[1] is None)
+                cap, out_tmpl = plain[2], plain[3]
+                sys.stdout.write(f"{out_tmpl} (slug: {sub})\n")
+                log(argv, f"matched:{cap}", 0)
+                return 0
+            known_subs = [r[1] for r in rows if r[1] is not None]
+            # prefix-strip heuristic: handle "runs" -> "run", "lists" -> "list"
+            s = None
+            for k in known_subs:
+                if sub.lower().startswith(k.lower()) or k.lower().startswith(sub.lower()):
+                    s = f"moose {verb} {k}"
+                    break
+            if not s:
+                s = suggest([sub], [f"moose {verb} {k}" for k in known_subs])
+            hint = f"\n\nDid you mean `{s}`?" if s else ""
+            sys.stderr.write(f"error: unknown invocation 'moose {verb} {sub}'{hint}\n")
+            log(argv, "error:unknown", 2)
+            return 2
+
+        cap, out_tmpl = match[2], match[3]
+        if cap == "harness:init" and len(rest) >= 2 and not rest[1].startswith("-"):
+            name = rest[1]
+            os.makedirs(name, exist_ok=True)
+            with open(os.path.join(name, "moose.config.toml"), "w") as f:
+                f.write(f'name = "{name}"\n')
+        sys.stdout.write(out_tmpl + "\n")
+        log(argv, f"matched:{cap}", 0)
+        return 0
+
+    # Plain verb
+    plain = rows[0]
+    cap, out_tmpl = plain[2], plain[3]
+    if cap == "init" and rest and not rest[0].startswith("-"):
+        name = rest[0]
+        os.makedirs(name, exist_ok=True)
+        with open(os.path.join(name, "moose.config.toml"), "w") as f:
+            f.write(f'name = "{name}"\n')
+        sys.stdout.write(out_tmpl.format(name=name) + "\n")
+    else:
+        sys.stdout.write(out_tmpl + "\n")
+    log(argv, f"matched:{cap}", 0)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

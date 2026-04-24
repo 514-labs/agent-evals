@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""Simulated Moose CLI wrapper - ATOMIC variant.
+
+Every capability is its own top-level kebab-case verb.
+
+This does NOT invoke real Moose.
+"""
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+VARIANT = "atomic"
+
+# verb -> (capability, description, success_output, signature)
+COMMANDS = {
+    "init-project": ("init", "Initialize a new project",
+                     "Project created at ./{name}\nNext: cd {name} && moose start-dev",
+                     "init-project <NAME> [TEMPLATE] [--location <P>] [--from-remote [<CONN>]] [--custom-dockerfile] [--no-fail-already-exists]"),
+    "build-project": ("build", "Build your moose project", "Build complete.",
+                      "build-project [--docker] [--amd64] [--arm64]"),
+    "check-project": ("check", "Check the project for non-runtime errors", "No errors found.",
+                      "check-project [--write-infra-map]"),
+    "plan-infra": ("plan", "Preview infrastructure changes for next deployment",
+                   "Plan: 0 additions, 0 changes, 0 destroys.",
+                   "plan-infra [--url <URL>] [--token <T>] [--clickhouse-url <URL>] [--json]"),
+    "migrate-clickhouse": ("migrate", "Execute a migration plan against a remote ClickHouse database",
+                           "Migration executed against remote ClickHouse.",
+                           "migrate-clickhouse [--clickhouse-url <URL>] [--redis-url <URL>] [--validate]"),
+    "peek-table": ("peek", "View some data from a table or stream",
+                   "Showing first 5 rows...",
+                   "peek-table <NAME> [-l N] [-f PATH] [-t|--table] [-s|--stream]"),
+    "start-dev": ("dev", "Start a local development environment",
+                  "Moose dev server running on http://localhost:4000",
+                  "start-dev [--no-infra] [--mcp] [--timestamps] [--timing] [--log-payloads] [--yes-all] [--yes-destructive] [--yes-rename] [--dockerless]"),
+    "start-prod": ("prod", "Start a production environment",
+                   "Moose production server started.",
+                   "start-prod [--start-include-dependencies]"),
+    "generate-dockerfile": ("generate:dockerfile", "Generate the Dockerfile without building the image",
+                            "Generated Dockerfile.", "generate-dockerfile"),
+    "generate-hash-token": ("generate:hash-token", "Generate an API key hash and bearer token pair",
+                            "Generated key hash and bearer token.",
+                            "generate-hash-token [--json]"),
+    "generate-migration": ("generate:migration", "Generate migration files",
+                           "Migration files generated.",
+                           "generate-migration [--url <URL>] [--token <T>] [--clickhouse-url <URL>] [--redis-url <URL>] [--save] [--yes-all] [--yes-destructive] [--yes-rename] [--no-auto-backfill-sql]"),
+    "clean-project": ("clean", "Clear temporary data and stop development infrastructure",
+                      "Cleaned temporary data and stopped infra.",
+                      "clean-project"),
+    "search-logs": ("logs", "View Moose logs (positional query sets --filter)",
+                    "[moose-runtime] 2026-04-23T12:00:00Z INFO  server started on :4000",
+                    "search-logs [QUERY] [-t|--tail] [-f|--filter <STRING>]"),
+    "list-processes": ("ps", "View Moose processes",
+                       "PID     SERVICE       STATUS\n1234    moose-dev     running\n1235    clickhouse    running\n1236    redpanda      running",
+                       "list-processes"),
+    "list-infra": ("ls", "View Moose primitives & infrastructure (filter with --type)",
+                   "TYPE       NAME            STATUS\nTable      events          healthy\nTable      aggregates      healthy\nStream     events_stream   healthy",
+                   "list-infra [--type <TYPE>] [--name <NAME>] [--json]"),
+    "open-metrics": ("metrics", "Open the live metrics console",
+                     "Opening live metrics console...", "open-metrics"),
+    "run-workflow": ("workflow:run", "Run a workflow",
+                     "Workflow started (run-id: wf-abc123).",
+                     "run-workflow <NAME> [-i JSON]"),
+    "resume-workflow": ("workflow:resume", "Resume a workflow from a specific task",
+                        "Workflow resumed from task.",
+                        "resume-workflow <NAME> --from <TASK>"),
+    "list-workflows": ("workflow:list", "List registered workflows",
+                       "Workflows:\n  - daily-ingest\n  - hourly-rollup",
+                       "list-workflows [--json]"),
+    "workflow-history": ("workflow:history", "Show workflow history",
+                         "RUN_ID       NAME            STATUS    STARTED\nwf-abc123    daily-ingest    completed 2026-04-23T06:00:00Z",
+                         "workflow-history [-s STATUS] [-l N] [--json]"),
+    "cancel-workflow": ("workflow:cancel", "Cancel a workflow & allow cleanup",
+                        "Workflow cancelled.", "cancel-workflow <NAME>"),
+    "pause-workflow": ("workflow:pause", "Pause a workflow",
+                       "Workflow paused.", "pause-workflow <NAME>"),
+    "unpause-workflow": ("workflow:unpause", "Unpause a workflow",
+                         "Workflow unpaused.", "unpause-workflow <NAME>"),
+    "workflow-status": ("workflow:status", "Get the status of a workflow",
+                        "Status: running",
+                        "workflow-status <NAME> [--id <ID>] [--verbose] [--json]"),
+    "list-templates": ("template:list", "List available templates",
+                       "Available templates:\n  - typescript\n  - python\n  - python-ckh\n  - typescript-empty",
+                       "list-templates [--json]"),
+    "init-harness": ("harness:init", "Initialize a Moose project plus the developer harness",
+                     "Project + harness initialized.",
+                     "init-harness [NAME] [TEMPLATE] [--name <N>] [--template <T>] [--location <P>] [--agent <A>]..."),
+    "list-components": ("component:list", "[EXPERIMENTAL] List available components",
+                        "Available components:\n  - mcp-server\n  - chat\n  - benchmark",
+                        "list-components"),
+    "pull-db-schema": ("db:pull", "Update DB schema for EXTERNALLY_MANAGED tables",
+                       "External table definitions updated.",
+                       "pull-db-schema [--clickhouse-url <URL>] [--file-path <PATH>]"),
+    "refresh-from-remote": ("refresh", "Integrate tables from a remote Moose instance",
+                            "Refreshed tables from remote Moose instance.",
+                            "refresh-from-remote [--url <URL>] [--token <T>]"),
+    "seed-clickhouse": ("seed:clickhouse", "Seed ClickHouse tables with data",
+                        "Seeded ClickHouse from remote connection.",
+                        "seed-clickhouse [--clickhouse-url <URL>] [--limit <N>|--all] [--order-by <EXPR>] [--table <T>] [--report]"),
+    "truncate-tables": ("truncate", "Truncate tables or delete the last N rows",
+                        "Tables truncated.",
+                        "truncate-tables [TABLES...] [--all] [--rows <N>]"),
+    "start-mcp-proxy": ("mcp", "Run MCP proxy server for AI agents",
+                        "MCP proxy listening on http://127.0.0.1:4123",
+                        "start-mcp-proxy [--host <HOST>] [--port <PORT>]"),
+    "pull-kafka-schemas": ("kafka:pull", "Discover topics and generate external stream declarations",
+                           "Kafka schemas pulled.",
+                           "pull-kafka-schemas <BOOTSTRAP> [--path <P>] [--include <GLOB>] [--exclude <GLOB>] [--schema-registry <URL>]"),
+    "send-feedback": ("feedback", "Submit feedback or report issues",
+                      "Thanks for the feedback!",
+                      "send-feedback [MESSAGE] [--bug] [--community] [--email <ADDR>]"),
+    "run-query": ("query", "Execute SQL queries against ClickHouse",
+                  "Query OK. 0 rows returned.",
+                  "run-query [QUERY] [-f PATH] [-l N] [-c LANG] [-p]"),
+    "view-docs": ("docs", "View a documentation page",
+                  "Documentation page.",
+                  "view-docs [SLUG] [-l ts|py] [--raw] [--expand] [--web]"),
+    "browse-docs": ("docs:browse", "Interactively browse and select a documentation page",
+                    "Launching interactive docs browser...",
+                    "browse-docs [--web]"),
+    "search-docs": ("docs:search", "Search documentation by title or description",
+                    "Search results: 0 matches.",
+                    "search-docs <QUERY> [--expand]"),
+    "add-mcp-server": ("add:mcp-server", "[EXPERIMENTAL] Add an MCP server component",
+                       "Added mcp-server component.",
+                       "add-mcp-server [-d <DIR>] [--overwrite] [-y]"),
+    "add-chat": ("add:chat", "[EXPERIMENTAL] Add an AI chat panel for Next.js",
+                 "Added chat component.",
+                 "add-chat [-d <DIR>] [--overwrite] [-y]"),
+    "add-benchmark": ("add:benchmark", "[EXPERIMENTAL] Add a query benchmark package",
+                      "Added benchmark component.",
+                      "add-benchmark [-d <DIR>] [--overwrite] [-y]"),
+}
+
+
+def log(argv, result, exit_code):
+    path = os.environ.get("MOOSE_LOG_PATH", "/tmp/cli-structure-test/moose.log")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    entry = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "variant": VARIANT,
+        "argv": argv,
+        "result": result,
+        "exit_code": exit_code,
+    }
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def top_help():
+    out = ["Moose CLI (simulated ATOMIC variant) - every capability is a top-level kebab-case verb",
+           "",
+           "Usage: moose <VERB> [ARGS] [OPTIONS]",
+           "",
+           "Commands (alphabetical):"]
+    for verb in sorted(COMMANDS.keys()):
+        cap, desc, _out, _sig = COMMANDS[verb]
+        out.append(f"  moose {verb:<22} {desc}")
+    out += ["",
+            "No subtree help. Each verb stands alone."]
+    return "\n".join(out) + "\n"
+
+
+def suggest(token, candidates):
+    token_l = token.lower()
+    for c in candidates:
+        if token_l == c.lower() or token_l in c.lower() or c.lower() in token_l:
+            return c
+    best, best_score = None, 0
+    for c in candidates:
+        score = len(set(token_l) & set(c.lower()))
+        if score > best_score:
+            best, best_score = c, score
+    return best if best_score >= max(2, len(token) // 2) else None
+
+
+def main(argv):
+    if len(argv) == 0 or argv[0] in ("-h", "--help", "help"):
+        sys.stdout.write(top_help())
+        log(argv, "help:top", 0)
+        return 0
+
+    verb = argv[0]
+    if verb not in COMMANDS:
+        s = suggest(verb, list(COMMANDS.keys()))
+        hint = f"\n\nDid you mean `moose {s}`?" if s else ""
+        sys.stderr.write(f"error: unknown command '{verb}'{hint}\n")
+        sys.stderr.write("Run `moose --help` to see all verbs.\n")
+        log(argv, "error:unknown", 2)
+        return 2
+
+    rest = argv[1:]
+    if rest and rest[0] in ("-h", "--help"):
+        cap, desc, _out, sig = COMMANDS[verb]
+        sys.stdout.write(f"Usage: moose {sig}\n\n{desc}\n")
+        log(argv, f"help:verb:{verb}", 0)
+        return 0
+
+    cap, _desc, out_tmpl, _sig = COMMANDS[verb]
+    if cap == "init" and rest and not rest[0].startswith("-"):
+        name = rest[0]
+        os.makedirs(name, exist_ok=True)
+        with open(os.path.join(name, "moose.config.toml"), "w") as f:
+            f.write(f'name = "{name}"\n')
+        sys.stdout.write(out_tmpl.format(name=name) + "\n")
+    elif cap == "harness:init" and rest and not rest[0].startswith("-"):
+        name = rest[0]
+        os.makedirs(name, exist_ok=True)
+        with open(os.path.join(name, "moose.config.toml"), "w") as f:
+            f.write(f'name = "{name}"\n')
+        sys.stdout.write(out_tmpl + "\n")
+    else:
+        sys.stdout.write(out_tmpl + "\n")
+    log(argv, f"matched:{cap}", 0)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

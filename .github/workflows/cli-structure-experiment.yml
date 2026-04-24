@@ -1,0 +1,58 @@
+name: CLI Structure Experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      reps:
+        description: "Repetitions per (variant, task) cell"
+        required: false
+        default: "10"
+      concurrency:
+        description: "Parallel runs"
+        required: false
+        default: "15"
+
+jobs:
+  run:
+    name: Run ${{ inputs.reps }}x per cell
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: experiments/cli-structure
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      REPS: ${{ inputs.reps }}
+      CONCURRENCY: ${{ inputs.concurrency }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t cli-structure-test:latest .
+
+      - name: Run experiment
+        run: |
+          mkdir -p runs
+          docker run --rm \
+            -v "$PWD/runs:/app/runs" \
+            -e ANTHROPIC_API_KEY \
+            -e REPS \
+            -e CONCURRENCY \
+            cli-structure-test:latest \
+            2>&1 | tee launch.log
+
+      - name: Parse results
+        run: |
+          python3 parse.py "$PWD" 2>&1 | tee report.txt
+
+      - name: Upload runs + report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-structure-runs-reps${{ inputs.reps }}
+          path: |
+            experiments/cli-structure/runs/
+            experiments/cli-structure/results.json
+            experiments/cli-structure/report.txt
+            experiments/cli-structure/launch.log
+          retention-days: 30
