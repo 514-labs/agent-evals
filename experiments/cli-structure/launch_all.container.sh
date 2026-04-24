@@ -3,7 +3,15 @@
 set -uo pipefail
 
 BASE=/app
-VARIANTS=(deep signposted surfaced shallow positional flag atomic)
+# VARIANTS env var (space-separated) overrides the default list. Useful when
+# adding new variants to the experiment without re-running the settled ones.
+DEFAULT_VARIANTS=(deep signposted surfaced shallow positional flag atomic)
+if [[ -n "${VARIANTS:-}" ]]; then
+  # shellcheck disable=SC2206
+  VARIANTS=($VARIANTS)
+else
+  VARIANTS=("${DEFAULT_VARIANTS[@]}")
+fi
 TASKS=(a b c d e combined)
 CONCURRENCY=${CONCURRENCY:-6}
 REPS=${REPS:-1}
