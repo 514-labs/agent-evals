@@ -3,7 +3,7 @@
 set -uo pipefail
 
 BASE=/app
-VARIANTS=(deep shallow positional flag atomic)
+VARIANTS=(deep signposted surfaced shallow positional flag atomic)
 TASKS=(a b c d e combined)
 CONCURRENCY=${CONCURRENCY:-6}
 REPS=${REPS:-1}

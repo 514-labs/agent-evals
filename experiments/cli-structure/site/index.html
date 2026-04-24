@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CLI structure and agent efficiency — an empirical study</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root {
+    --bg: #F5F1E8;
+    --ink: #2B2825;
+    --muted: #6b655c;
+    --accent: #B13E1F;
+    --accent-2: #D47148;
+    --good: #1B7A2B;
+    --rule: rgba(43, 40, 37, 0.12);
+    --card: #EFEADD;
+    --code-bg: #2B2825;
+    --code-ink: #F5F1E8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Palatino", serif;
+    line-height: 1.65;
+    font-size: 18px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 64px 28px 120px;
+  }
+  .meta-top {
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 22px;
+  }
+  h1 {
+    font-size: 42px;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+  .subtitle {
+    font-size: 22px;
+    color: var(--muted);
+    font-style: italic;
+    font-weight: 400;
+    margin: 0 0 10px;
+  }
+  .authorship {
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 40px;
+  }
+  .abstract {
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+    padding: 22px 26px;
+    margin: 28px 0 56px;
+    font-size: 17px;
+  }
+  .abstract h2 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  .abstract p { margin: 0 0 12px; }
+  .abstract p:last-child { margin-bottom: 0; }
+  .abstract .hero-figure {
+    margin: 18px 0 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+  }
+  .abstract .hero-figure img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+  }
+  .abstract .hero-figure figcaption {
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+    text-align: center;
+  }
+  .abstract .hero-figure figcaption b { color: var(--ink); font-weight: 700; }
+  h2.section {
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    margin: 72px 0 -6px;
+  }
+  h3.section-title {
+    font-size: 28px;
+    margin: 6px 0 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  h4 {
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    margin: 32px 0 10px;
+  }
+  p { margin: 0 0 18px; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  code {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 14px;
+    background: rgba(43,40,37,0.07);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 18px 20px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 12px 0;
+  }
+  pre .ts { color: #D47148; }
+  pre .ok { color: #7db87d; }
+  pre .err { color: #e07b6a; }
+  pre .help { color: #8eb8d8; }
+  pre .cmt { color: #998d73; font-style: italic; }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 28px 0;
+    padding: 2px 0 2px 22px;
+    font-size: 20px;
+    color: var(--ink);
+  }
+  figure { margin: 32px 0; }
+  figure img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 6px;
+    box-shadow: 0 1px 8px rgba(43,40,37,0.08);
+  }
+  figcaption {
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 10px;
+    text-align: center;
+  }
+  figcaption b { color: var(--ink); font-weight: 700; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 14px;
+  }
+  th, td {
+    padding: 9px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--rule);
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  tr.winner { background: rgba(27, 122, 43, 0.07); }
+  tr.winner td:first-child { color: var(--good); font-weight: 700; }
+  tr.loser td:first-child { color: var(--accent); font-weight: 700; }
+  .num-td { font-family: "SF Mono", "Menlo", monospace; font-size: 13px; }
+  .receipt {
+    background: var(--card);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin: 24px 0;
+  }
+  .receipt h4 {
+    margin-top: 0;
+    font-family: Georgia, serif;
+    font-weight: 700;
+    font-size: 20px;
+  }
+  .receipt .src {
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .receipt .src a { color: var(--muted); }
+  .receipt p { font-size: 16px; }
+  .receipt ol {
+    padding-left: 22px;
+    font-size: 16px;
+    margin: 12px 0;
+  }
+  .receipt ol li { margin-bottom: 6px; }
+  .footer-refs {
+    margin-top: 80px;
+    padding-top: 28px;
+    border-top: 1px solid var(--rule);
+    font-family: "SF Pro Text", -apple-system, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .footer-refs p { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="meta-top">dec-bench / cli-structure · 2026-04-24</div>
+  <h1>CLI structure and agent efficiency</h1>
+  <p class="subtitle">How command-tree shape changes what an LLM-driven coding agent costs, errors, and achieves</p>
+  <p class="authorship">300 runs &middot; Claude Sonnet 4.6 &middot; 5 CLI variants × 6 tasks × 10 reps &middot; <a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure">source</a> · <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">run</a></p>
+
+  <div class="abstract">
+    <h2>Abstract</h2>
+    <p>Does the shape of a CLI change how well an AI coding agent can use it? We ran 300 agent sessions across five CLIs with identical capabilities but different command structures, from deeply nested to fully flat.</p>
+    <p>The answer flips with workload. For one-off tasks, flat CLIs win — about 2× more efficient than deeply nested ones. For multi-step sessions, structured CLIs win — about 1.5× more efficient, because the agent learns the namespace once and reuses it. The crossover is around four related tasks per session.</p>
+    <p>The variant that "agents want flat enumeration" intuition would pick — every capability as its own top-level verb — was worst or near-worst on errors. Flat enumeration doesn't stop the agent from guessing verbs that don't exist.</p>
+    <p><strong>Takeaway:</strong> match CLI structure to expected session length, not to whether a human or agent is driving.</p>
+    <figure class="hero-figure">
+      <img src="../charts/break_even.png" alt="Cumulative session cost by number of related tasks, with five variant curves crossing around N=4" />
+      <figcaption>Projected cumulative cost per agent session by number of related tasks. Flat variants start cheap and grow linearly; Deep starts expensive but barely grows. The crossover at <b>N ≈ 4</b> is the paper in one figure.</figcaption>
+    </figure>
+  </div>
+
+  <h2 class="section">1 · Background</h2>
+  <h3 class="section-title">Flat CLIs are intuitively agent-friendly. Are they?</h3>
+  <p>
+    A common design heuristic holds that LLM coding agents prefer flat, fully-enumerable command-line surfaces to nested ones. The argument: agents have no persistent mental model of the tool, so they need every capability visible in a single <code>--help</code> response. Nested hierarchies force multiple help traversals and provide no benefit the agent can exploit.
+  </p>
+  <p>
+    This paper tests that heuristic. If flat is uniformly better for agents, then an all-flat variant (every capability exposed as a top-level kebab-case verb) should dominate every metric against any nested alternative. We find that it does not. The effect of structure on efficiency depends on whether the agent is executing a single command or a session of related ones, and the direction of the effect reverses.
+  </p>
+
+  <h2 class="section">2 · Methods</h2>
+
+  <h4>2.1 CLI variants</h4>
+  <p>
+    Five independent Python wrapper scripts expose the same 40-capability surface area (mirroring the real <a href="https://github.com/514-labs/moose">Moose</a> CLI, derived from its <a href="https://github.com/514-labs/moose/blob/main/apps/framework-cli/src/cli/commands.rs"><code>commands.rs</code></a>) under five different command structures:
+  </p>
+  <table>
+    <thead><tr><th>Variant</th><th>Shape</th><th>Example: search logs for "error"</th></tr></thead>
+    <tbody>
+      <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/deep/bin/moose">Deep</a></td><td>3-level namespace (<em>project / infra / data / runtime / integration / meta</em>)</td><td><code>moose infra logs --filter error</code></td></tr>
+      <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/shallow/bin/moose">Shallow</a></td><td>top-level verbs with scattered subcommands (mirrors real Moose)</td><td><code>moose logs --filter error</code></td></tr>
+      <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/positional/bin/moose">Positional</a></td><td>flat verbs, domain as positional argument</td><td><code>moose logs error</code></td></tr>
+      <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/flag/bin/moose">Flag</a></td><td>flat verbs, domain and subtype as flags</td><td><code>moose logs --filter error</code></td></tr>
+      <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/atomic/bin/moose">Atomic</a></td><td>every capability is its own top-level kebab verb</td><td><code>moose search-logs error</code></td></tr>
+    </tbody>
+  </table>
+  <p>
+    Each wrapper emits variant-appropriate help text on <code>--help</code>, accepts realistic invocations and returns canned success output (with side-effect <code>mkdir</code> on <code>init</code> to preserve <code>cd</code> affordance), and on unrecognized input prints a "<em>did you mean…?</em>"-style error. Every invocation is logged as a JSON line to <code>$MOOSE_LOG_PATH</code> with its argv, match result, and exit code.
+  </p>
+
+  <h4>2.2 Tasks</h4>
+  <p>
+    Six task prompts covering typical framework operations:
+  </p>
+  <ul style="font-size: 16px;">
+    <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/tasks/a.md"><code>a</code></a> — init a new project named <code>events</code> with template <code>python-ckh</code></li>
+    <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/tasks/b.md"><code>b</code></a> — search logs for "error"</li>
+    <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/tasks/c.md"><code>c</code></a> — list tables</li>
+    <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/tasks/d.md"><code>d</code></a> — seed ClickHouse from a remote URL</li>
+    <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/tasks/e.md"><code>e</code></a> — check running processes</li>
+    <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/tasks/combined.md"><code>combined</code></a> — all five, in order (a → d → e → c → b), within one agent session</li>
+  </ul>
+
+  <h4>2.3 Harness and isolation</h4>
+  <p>
+    Each run was executed inside a fresh minimal Ubuntu 24.04 Docker container with no pre-existing <code>~/.claude/</code> configuration (<a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/Dockerfile">Dockerfile</a>). The agent was invoked via <code>claude -p --bare --model claude-sonnet-4-6</code>. The <code>--bare</code> flag disables hooks, plugins, auto-memory, keychain OAuth, and <code>CLAUDE.md</code> auto-discovery, so the model's input is restricted to the task prompt plus whatever priors exist in its pretraining. Authentication was via <code>ANTHROPIC_API_KEY</code> only. Tool access was limited to <code>Bash</code>. Runner code: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/runner.container.sh"><code>runner.container.sh</code></a>.
+  </p>
+
+  <h4>2.4 Measurement</h4>
+  <p>
+    The full <code>claude -p --output-format stream-json</code> stream was captured per run. Derived metrics per (variant, task, rep):
+  </p>
+  <ul style="font-size: 16px;">
+    <li><em>tool_calls</em> — count of <code>Bash</code> tool invocations</li>
+    <li><em>help_invocations</em> — count of <code>moose …--help</code> calls (from <code>moose.log</code>)</li>
+    <li><em>errors</em> — count of unknown-command exits (from <code>moose.log</code>)</li>
+    <li><em>total_cost_usd</em> — reported by the Claude API result event</li>
+    <li><em>wall_seconds</em>, tokens (input/output/cache)</li>
+  </ul>
+  <p>
+    Cell-level statistics are mean ± standard error over n=10 reps. Analysis code: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/parse.py"><code>parse.py</code></a>. Raw per-run rows: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/results.n10.json"><code>results.n10.json</code></a>.
+  </p>
+
+  <h4>2.5 Execution</h4>
+  <p>
+    The full 300-run matrix ran as a GitHub Actions workflow (<a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/.github/workflows/cli-structure-experiment.yml">workflow definition</a>) at concurrency 15, completing in 4 min 33 s wall time. Total API spend: $9.01.
+  </p>
+
+  <h2 class="section">3 · Results</h2>
+
+  <h3 class="section-title">3.1 Single-task efficiency: flat variants win</h3>
+  <figure>
+    <img src="../charts/single_task_tools.png" alt="Single-task tool calls by variant" />
+    <figcaption>Mean tool calls per single-task invocation. <b>Positional 1.52 ± 0.27 vs Deep 3.44 ± 0.23</b>, a 2.3× gap. Error bars are standard error across 50 runs per variant (5 tasks × 10 reps).</figcaption>
+  </figure>
+  <p>
+    On single, isolated tasks, the flat Positional variant required the fewest tool calls, fewest help reads, and produced zero errors on average. The Deep variant required roughly 2× Positional on every metric and produced errors on ~1 task in 1 (mean 1.10 errors/task). This matches the conventional heuristic.
+  </p>
+  <table>
+    <thead><tr><th>Variant</th><th>Tools/task</th><th>Help/task</th><th>Errors/task</th><th>Cost/task</th></tr></thead>
+    <tbody>
+      <tr class="winner"><td>Positional</td><td class="num-td">1.52 ± 0.27</td><td class="num-td">0.22 ± 0.20</td><td class="num-td">0.00</td><td class="num-td">$0.019</td></tr>
+      <tr><td>Shallow</td><td class="num-td">1.82 ± 0.38</td><td class="num-td">0.70 ± 0.37</td><td class="num-td">0.00</td><td class="num-td">$0.020</td></tr>
+      <tr><td>Flag</td><td class="num-td">2.36 ± 0.43</td><td class="num-td">0.86 ± 0.33</td><td class="num-td">0.00</td><td class="num-td">$0.023</td></tr>
+      <tr><td>Atomic</td><td class="num-td">2.64 ± 0.19</td><td class="num-td">0.96 ± 0.32</td><td class="num-td">1.12 ± 0.36</td><td class="num-td">$0.027</td></tr>
+      <tr class="loser"><td>Deep</td><td class="num-td">3.44 ± 0.23</td><td class="num-td">1.74 ± 0.19</td><td class="num-td">1.10 ± 0.33</td><td class="num-td">$0.031</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="section-title">3.2 Multi-task session efficiency: structured variants win</h3>
+  <figure>
+    <img src="../charts/combined_task_tools.png" alt="Combined-task tool calls by variant" />
+    <figcaption>Mean tool calls per 5-task session. <b>Deep 8.00 ± 0.70 vs Atomic 11.60 ± 0.50</b>, a 1.45× gap. Positional — the single-task winner — falls to second-worst on tool count.</figcaption>
+  </figure>
+  <p>
+    When the same tasks are bundled into one agent session, the ranking reverses. Deep, the single-task loser, minimizes tool calls per session. Atomic, the maximally flat variant, maximizes both tool calls and errors (3.00 errors/session vs 0.90 for Flag).
+  </p>
+  <table>
+    <thead><tr><th>Variant</th><th>Tools/session</th><th>Help/session</th><th>Errors/session</th><th>Cost/session</th></tr></thead>
+    <tbody>
+      <tr class="winner"><td>Deep</td><td class="num-td">8.00 ± 0.70</td><td class="num-td">1.60 ± 0.40</td><td class="num-td">1.00</td><td class="num-td">$0.051</td></tr>
+      <tr><td>Flag</td><td class="num-td">8.70 ± 1.03</td><td class="num-td">0.80 ± 0.20</td><td class="num-td">0.90 ± 0.10</td><td class="num-td">$0.058</td></tr>
+      <tr><td>Shallow</td><td class="num-td">9.80 ± 0.57</td><td class="num-td">1.00</td><td class="num-td">1.00</td><td class="num-td">$0.061</td></tr>
+      <tr><td>Positional</td><td class="num-td">10.40 ± 0.31</td><td class="num-td">1.00</td><td class="num-td">2.00</td><td class="num-td">$0.066</td></tr>
+      <tr class="loser"><td>Atomic</td><td class="num-td">11.60 ± 0.50</td><td class="num-td">1.50 ± 0.17</td><td class="num-td">3.00</td><td class="num-td">$0.066</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="section-title">3.3 Cost amortization</h3>
+  <figure>
+    <img src="../charts/amortization.png" alt="Cost amortization ratio" />
+    <figcaption>Cost per run (USD) on single-task vs 5-task sessions. The multiplier over each bar is the combined/single ratio — a proxy for how much of the single-task cost is "paid again" when additional related tasks are added.</figcaption>
+  </figure>
+  <p>
+    The sharpest signal is the ratio of combined-task cost to single-task cost. In Deep, a 5-task session costs only 1.6× a single task — the agent pays the namespace-exploration cost once and amortizes it. In Positional, a 5-task session costs 3.5× a single task — every task is priced independently because there's no structural knowledge to carry forward.
+  </p>
+  <blockquote>
+    <strong>Deep's combined/single ratio: 1.6×. Positional's: 3.5×.</strong>
+  </blockquote>
+  <p>
+    Under a simple linear model — single-task cost paid once, then a marginal cost per additional task derived from <code>(combined − single) / 4</code> — the cumulative-cost curves cross at approximately four tasks per session.
+  </p>
+  <figure>
+    <img src="../charts/break_even.png" alt="Projected cumulative cost vs tasks per session" />
+    <figcaption>Projected cumulative cost per session by number of related tasks, assuming linear amortization. Crossover near <b>N ≈ 4</b>. By N = 10, Deep is ~40% cheaper than Positional.</figcaption>
+  </figure>
+
+  <h3 class="section-title">3.4 Error analysis</h3>
+  <figure>
+    <img src="../charts/errors.png" alt="Errors per combined-task session by variant" />
+    <figcaption>Mean unknown-command errors per 5-task session. Atomic triples the error rate of Flag.</figcaption>
+  </figure>
+  <p>
+    Errors in this harness are command-level failures (unknown verb, wrong subcommand) surfaced by the wrappers' <em>did you mean…?</em> exit-2 responses. The wrapper then has no other way to disambiguate — the agent must try again or read help. See §5.1 for trace-level examples of each variant's characteristic failure mode.
+  </p>
+
+  <h2 class="section">4 · Discussion</h2>
+  <h3 class="section-title">Structure is a mental-model scaffold, not a human concession</h3>
+  <p>
+    The canonical framing — "structure helps humans, flat helps agents" — does not fit these results. Both regimes of observed agent behavior benefit from the <em>right</em> structure for the workload. The distinguishing property is not whether the executor is human or model, but whether the executor is asked to perform a single, isolated task or a session of related tasks.
+  </p>
+  <p>
+    For single tasks, an agent's structural exploration cost exceeds its benefit — there's nothing to reuse a namespace for. Flat layouts minimize this overhead; Positional wins because a single positional argument is a trivial disambiguation signal that does not require traversing a help tree.
+  </p>
+  <p>
+    For multi-task sessions, the inverse holds. A namespaced CLI gives the agent a compact, once-paid mental model: after learning that logs live under <code>infra/</code>, data operations under <code>data/</code>, and project lifecycle under <code>project/</code>, the agent can route further tasks without re-consulting help. Trace inspection (§5.1) shows this transfer is visible as a pattern: one help read at session start, then five clean commands spanning multiple namespaces. Flat variants exhibit the opposite pattern: repeated help reads or trial-and-error at each task boundary.
+  </p>
+
+  <h3 class="section-title">Atomic is a cautionary design</h3>
+  <p>
+    The Atomic variant was motivated by the heuristic that flat maximal enumeration should be best for agents. It was worst or near-worst on every metric. The trace-level explanation (§5.1.1) is that flat kebab-case enumeration gives agents unlimited surface on which to guess plausible-sounding verbs (<code>seed-ch</code>, <code>show-logs</code>, <code>log</code>, etc.). No structure exists to constrain the guess; the only feedback is an error. In Deep, <code>moose --help</code> first constrains the agent to six namespaces, a structurally smaller lexical space.
+  </p>
+
+  <h3 class="section-title">Break-even as a CLI design guideline</h3>
+  <p>
+    If the linear amortization model approximates real agent sessions, the <em>N ≈ 4</em> crossover provides a concrete design rule: if your CLI is predominantly invoked for single operations (health checks, one-off queries, status), design flat. If it is predominantly invoked in orchestration contexts (<em>init → configure → seed → validate → deploy</em>), include enough structure that a once-paid exploration amortizes across the session.
+  </p>
+
+  <h2 class="section">5 · Trace evidence</h2>
+  <h3 class="section-title">5.1 Characteristic failure modes per variant</h3>
+  <p>
+    All traces below are extracted from the <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">GH Actions artifact</a> (<code>cli-structure-runs-reps10</code>). Full per-run <code>moose.log</code> files capture every invocation with timestamp, argv, match result, and exit code. Timestamps below are truncated to HH:MM:SS UTC.
+  </p>
+
+  <div class="receipt">
+    <h4>5.1.1 Atomic — verb hallucination</h4>
+    <div class="src">atomic/b/rep5 · task: search logs for "error" · <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">artifact</a>: <code>runs/atomic/b/rep5/moose.log</code></div>
+    <p>The wrapper's help surfaces only <code>search-logs</code>, yet the agent first reaches for four different invented-or-partial verbs before consulting help:</p>
+<pre><span class="cmt"># agent-issued Bash command, single line with || chain</span>
+moose logs --filter error 2>/dev/null \
+  || moose logs | grep -i error 2>/dev/null \
+  || moose log --filter error 2>/dev/null
+<span class="err">→ error: unknown command 'logs'. Did you mean `moose search-logs`?</span>
+
+<span class="cmt"># agent concedes and reads help</span>
+moose search-logs --help
+<span class="help">→ Usage: moose search-logs [QUERY] [-t|--tail] [-f|--filter &lt;STRING&gt;]</span>
+
+<span class="cmt"># now correct</span>
+moose search-logs error
+<span class="ok">→ [moose-runtime] 2026-04-23T12:00:00Z INFO server started on :4000</span></pre>
+    <p>Three failed guesses (<code>logs</code>, <code>log</code>, <code>logs | grep</code>) before the agent consults help. This pattern (<code>error:unknown → --help → matched</code>) appears in 9 of 10 Atomic/b reps. The agent treats "search for error in logs" as grammatically cueing a verb containing <code>logs</code>, which is absent from this variant's lexicon.</p>
+  </div>
+
+  <div class="receipt">
+    <h4>5.1.2 Deep — namespace transfer (the winning pattern)</h4>
+    <div class="src">deep/combined/rep1 · task: 5 operations in one session · <code>runs/deep/combined/rep1/moose.log</code></div>
+    <p>Agent initially guesses as if the CLI were flat. One help read later, it correctly navigates three different top-level namespaces without re-consulting help:</p>
+<pre><span class="ts">20:37:04</span>  init events --template python-ckh                <span class="err">→ error:unknown</span>
+<span class="ts">20:37:05</span>  --help                                           <span class="help">→ help:top</span>  <span class="cmt"># shows project/infra/data/runtime/integration/meta</span>
+<span class="ts">20:37:08</span>  project init events --template python-ckh        <span class="ok">→ matched:init</span>
+<span class="ts">20:37:10</span>  data seed --source ...                           <span class="ok">→ matched:seed:clickhouse</span>
+<span class="ts">20:37:12</span>  infra ps                                         <span class="ok">→ matched:ps</span>
+<span class="ts">20:37:14</span>  data ls                                          <span class="ok">→ matched:ls</span>
+<span class="ts">20:37:17</span>  infra logs --filter error                        <span class="ok">→ matched:logs</span></pre>
+    <p>One help read, one error, five successful commands across three namespaces. The agent has learned the namespace partition and applies it to subsequent tasks without further exploration. This is the amortization effect visible at the command level.</p>
+  </div>
+
+  <div class="receipt">
+    <h4>5.1.3 Shallow — subcommand hallucination (<code>seed remote</code>)</h4>
+    <div class="src">shallow/combined/rep1 · <code>runs/shallow/combined/rep1/moose.log</code></div>
+    <p>Agent reaches the seed step, guesses a non-existent subcommand inferred from the task phrasing ("from a remote ClickHouse"), then reads per-verb help to recover:</p>
+<pre><span class="ts">20:37:43</span>  init events --template python-ckh                <span class="ok">→ matched:init</span>
+<span class="ts">20:37:46</span>  seed remote --source-connection-string ...       <span class="err">→ error:unknown</span>
+<span class="ts">20:37:48</span>  seed --help                                      <span class="help">→ help:verb:seed</span>  <span class="cmt"># shows only `clickhouse` subcommand</span>
+<span class="ts">20:37:53</span>  seed clickhouse --clickhouse-url ...             <span class="ok">→ matched:seed:clickhouse</span>
+<span class="ts">20:37:55</span>  ps                                               <span class="ok">→ matched:ps</span>
+<span class="ts">20:37:57</span>  ls --tables                                      <span class="ok">→ matched:ls</span>
+<span class="ts">20:37:59</span>  logs --filter error                              <span class="ok">→ matched:logs</span></pre>
+    <p>"<em>Seed from a remote database</em>" cues the agent to try <code>seed remote</code>, a grammatically natural but non-existent subcommand. The shallow two-level hierarchy allows a targeted per-verb help read (<code>seed --help</code>) which rapidly surfaces the actual subcommand. This failure is cheaper to recover from than in Atomic, where there's no per-verb help to drill into.</p>
+  </div>
+
+  <div class="receipt">
+    <h4>5.1.4 Positional — same hallucination, worse recovery</h4>
+    <div class="src">positional/combined/rep1 · <code>runs/positional/combined/rep1/moose.log</code> (pattern identical in 10/10 reps)</div>
+    <p>Positional inherits Shallow's <code>seed remote</code> hallucination but lacks per-verb help as an efficient recovery, so the agent falls back to top-level help:</p>
+<pre><span class="ts">20:38:26</span>  init events --template python-ckh                <span class="ok">→ matched:init</span>
+<span class="ts">20:38:29</span>  seed remote --url ...                            <span class="err">→ error:unknown</span>
+<span class="ts">20:38:30</span>  seed --help                                      <span class="err">→ error:unknown</span>  <span class="cmt"># no subcommand tree exists</span>
+<span class="ts">20:38:32</span>  --help                                           <span class="help">→ help:top</span>
+<span class="ts">20:38:37</span>  seed clickhouse --clickhouse-url ...             <span class="ok">→ matched:seed:clickhouse</span>
+<span class="ts">20:38:38</span>  ps                                               <span class="ok">→ matched:ps</span>
+<span class="ts">20:38:40</span>  ls --type table                                  <span class="ok">→ matched:ls</span>
+<span class="ts">20:38:43</span>  logs --filter error                              <span class="ok">→ matched:logs</span></pre>
+    <p>Two errors instead of one. The <code>seed --help</code> attempt fails because Positional has no per-verb help tree — help is a single top-level dump only. The agent's implicit model of "I'll drill into help for this verb" is wrong for this variant. The pattern was identical in 10/10 reps: same argv sequence, same two errors.</p>
+  </div>
+
+  <div class="receipt">
+    <h4>5.1.5 Flag — fast recovery via incremental flag expansion</h4>
+    <div class="src">flag/combined/rep1 · <code>runs/flag/combined/rep1/moose.log</code></div>
+    <p>Flag's explicit-flag convention makes errors self-describing and recovery cheap:</p>
+<pre><span class="ts">20:39:14</span>  init events --template python-ckh                <span class="ok">→ matched:init</span>
+<span class="ts">20:39:16</span>  seed remote --url ...                            <span class="err">→ error:incomplete</span>  <span class="cmt"># needs --source</span>
+<span class="ts">20:39:18</span>  seed remote --source clickhouse --url ...        <span class="ok">→ matched:seed:clickhouse</span>
+<span class="ts">20:39:20</span>  ps                                               <span class="ok">→ matched:ps</span>
+<span class="ts">20:39:22</span>  ls --tables                                      <span class="ok">→ matched:ls</span>
+<span class="ts">20:39:24</span>  logs --filter error                              <span class="ok">→ matched:logs</span></pre>
+    <p>The <em>incomplete</em> error tells the agent which flag is missing; one incremental flag addition fixes it. No help read required. This is the only variant where the most common recovery path involves no help traversal at all.</p>
+  </div>
+
+  <h3 class="section-title">5.2 Help-invocation behaviour is revealing</h3>
+  <p>
+    Across all variants except Positional, the agent initiated a <code>--help</code> call in at least 70% of single-task runs without being prompted to. Even in Shallow, where the model has training-data priors on real Moose, 7/10 single-task runs read help first. The interpretation: absent strong priors, agents prefer to ground themselves against help before issuing an operational command. This preference exists regardless of CLI shape; shape determines only how much help traversal is required to reach a usable command.
+  </p>
+
+  <h2 class="section">6 · Limitations</h2>
+  <ul style="font-size: 16px;">
+    <li><strong>Single model.</strong> All measurements are Sonnet-4.6-specific. A Codex / GPT-5 rerun on the same harness is queued. Effect sizes are expected to shift; directional findings may not.</li>
+    <li><strong>Simulated tool.</strong> Wrappers produce canned output and do not actually reflect real Moose state. This isolates CLI structure as the variable but removes real-world state-dependence (e.g., a failed <code>seed</code> recovering by checking actual DB state).</li>
+    <li><strong>Shallow priors.</strong> The Shallow variant matches real Moose, which the model plausibly encountered in training. Shallow numbers are biased toward the optimistic end. Even with that bias, Shallow did not win any metric — Positional beat it on single-task efficiency, Deep beat it on compound-task efficiency. The core findings survive removing Shallow entirely.</li>
+    <li><strong>Task dependency structure.</strong> The combined task is a sequence of five weakly-coupled operations on a shared hypothetical project. Tightly-coupled sequences (where step N depends on step N-1's output) may amplify the structure advantage; truly independent task lists may not exhibit it.</li>
+    <li><strong>Linear amortization assumption.</strong> The break-even projection (§3.3) assumes per-task marginal cost is constant after the first task. With n=10 and a 5-task combined session, we cannot rule out nonlinearity at larger N.</li>
+    <li><strong>Sample size per cell.</strong> n=10 is sufficient to identify large effects (the 2-3× gaps reported) but may miss smaller ones, particularly differences between mid-ranked variants.</li>
+  </ul>
+
+  <h2 class="section">7 · Reproduction</h2>
+  <p>
+    Full source, harness, wrappers, tasks, parser, chart generator, and this report are in <a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure"><code>experiments/cli-structure/</code></a>. Commit <a href="https://github.com/514-labs/agent-evals/commit/0663a56"><code>0663a56</code></a>.
+  </p>
+  <p>On GitHub Actions (requires <code>ANTHROPIC_API_KEY</code> secret):</p>
+<pre>gh workflow run cli-structure-experiment.yml \
+  --repo 514-labs/agent-evals \
+  --ref claude/vibrant-mcnulty-2dac4a \
+  -f reps=10 -f concurrency=15</pre>
+  <p>Locally:</p>
+<pre>cd experiments/cli-structure
+docker build -t cli-structure-test:latest .
+docker run --rm -v "$PWD/runs:/app/runs" \
+  -e ANTHROPIC_API_KEY=sk-... -e REPS=10 -e CONCURRENCY=15 \
+  cli-structure-test:latest
+python3 parse.py "$PWD"
+python3 make_charts.py "$PWD"</pre>
+
+  <h2 class="section">8 · Artifacts</h2>
+  <ul style="font-size: 16px;">
+    <li>Per-run JSON (300 rows): <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/results.n10.json"><code>results.n10.json</code></a></li>
+    <li>Tabular report: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/report.n10.txt"><code>report.n10.txt</code></a></li>
+    <li>Full traces + <code>moose.log</code> per run: <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">GH Actions artifact <code>cli-structure-runs-reps10</code></a> (30-day retention)</li>
+    <li>Plot-generation code: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/make_charts.py"><code>make_charts.py</code></a></li>
+    <li>Long-form markdown version of this report: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/REPORT.md"><code>REPORT.md</code></a></li>
+  </ul>
+
+  <div class="footer-refs">
+    <p>Report generated 2026-04-24 against commit <a href="https://github.com/514-labs/agent-evals/commit/0663a56"><code>0663a56</code></a> on branch <code>claude/vibrant-mcnulty-2dac4a</code>.</p>
+    <p>Agent-evals is an open-source benchmark for evaluating AI agent competency on real-world data engineering tasks: <a href="https://github.com/514-labs/agent-evals">github.com/514-labs/agent-evals</a></p>
+  </div>
+</div>
+</body>
+</html>

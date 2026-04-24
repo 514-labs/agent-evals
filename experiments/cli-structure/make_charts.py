@@ -42,19 +42,23 @@ plt.rcParams.update({
     "figure.dpi": 150,
 })
 
-VARIANTS = ["deep", "shallow", "positional", "flag", "atomic"]
+VARIANTS = ["deep", "signposted", "surfaced", "shallow", "positional", "flag", "atomic"]
 VARIANT_LABELS = {
     "deep": "Deep",
+    "signposted": "Signposted",
+    "surfaced": "Surfaced",
     "shallow": "Shallow",
     "positional": "Positional",
     "flag": "Flag",
     "atomic": "Atomic",
 }
-# Color by structural family: structured = red, shallow = purple, flat = blue
+# Color by structural family: structured red, hybrid green, shallow purple, flat blue
 COLOR = {
-    "deep": "#B13E1F",        # deep red
+    "deep": "#B13E1F",         # deep red
+    "signposted": "#8A3220",   # darker red (Deep + help hint)
+    "surfaced": "#1B7A2B",     # green (hybrid, highlighted as the candidate "best of both")
+    "shallow": "#7851A9",      # purple (mixed real-Moose)
     "flag": "#D47148",         # burnt orange
-    "shallow": "#7851A9",      # purple (mixed)
     "positional": "#2E6FA7",   # blue
     "atomic": "#5095C6",       # light blue
 }
