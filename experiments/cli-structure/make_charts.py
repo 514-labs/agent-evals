@@ -192,6 +192,8 @@ def break_even_chart():
                  if r["variant"] == v and r["task"] != "combined"]
         cvals = [r.get("total_cost_usd", 0) for r in rows
                  if r["variant"] == v and r["task"] == "combined"]
+        if not svals or not cvals:
+            continue  # variant absent from this dataset; skip
         s = sum(svals) / len(svals)
         c = sum(cvals) / len(cvals)
         m = (c - s) / 4
@@ -199,6 +201,8 @@ def break_even_chart():
 
     ns = list(range(1, 11))
     for v in VARIANTS:
+        if v not in single_cost:
+            continue
         s, m = single_cost[v]
         ys = [s + m * (n - 1) for n in ns]
         ax.plot(ns, ys, label=VARIANT_LABELS[v], color=COLOR[v], linewidth=2.5,
@@ -206,7 +210,7 @@ def break_even_chart():
 
     ax.set_xlabel("Tasks per session (N)")
     ax.set_ylabel("Projected cumulative cost per session (USD)")
-    ax.set_title("Break-even: when structured CLIs beat flat")
+    ax.set_title("Past ~4 CLI calls per agent session, structured CLIs beat flat ones")
     ax.legend(frameon=False, loc="upper left")
     ax.grid(axis="both", linestyle=":", alpha=0.4)
     ax.set_xticks(ns)

@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Shape the Tool — a report on CLI design for AI agents</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400;9..144,500;9..144,700;9..144,900&family=DM+Sans:ital,wght@0,300..700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F7EFDC;
+    --paper-2: #EFE6CE;
+    --ink: #1a1715;
+    --muted: #7a6f5e;
+    --accent: #B13E1F;
+    --accent-dark: #7A2B14;
+    --rule: rgba(26,23,21,0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 28px 80px;
+  }
+
+  /* ======== Masthead ======== */
+  header.masthead {
+    padding: 28px 0 16px;
+    border-bottom: 1px solid var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 56px;
+  }
+  .masthead .pub {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 500, "SOFT" 50;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .masthead .pub em { color: var(--accent); font-style: italic; }
+  .masthead .meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* ======== Hero ======== */
+  .hero {
+    padding: 8px 0 64px;
+    border-bottom: 1px solid var(--ink);
+    margin-bottom: 80px;
+  }
+  .kicker {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-variation-settings: "opsz" 18, "wght" 400, "SOFT" 100;
+    font-size: 15px;
+    color: var(--accent-dark);
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 600, "SOFT" 30, "WONK" 1;
+    font-size: clamp(54px, 9vw, 104px);
+    line-height: 0.96;
+    letter-spacing: -0.02em;
+    margin: 0 0 28px;
+    max-width: 14ch;
+    color: var(--ink);
+  }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero .dek {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "wght" 400;
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--muted);
+    max-width: 44ch;
+    margin: 0 0 32px;
+  }
+  .hero .by {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .hero .by a { color: var(--muted); }
+
+  /* ======== Full-bleed pull quote as first content ======== */
+  .pullquote {
+    margin: 0 -28px 88px;
+    padding: 72px 28px 68px;
+    background: var(--paper-2);
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    text-align: center;
+  }
+  .pullquote .attribution-top {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+  .pullquote q {
+    display: block;
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 500, "SOFT" 50, "WONK" 1;
+    font-style: italic;
+    font-size: clamp(32px, 5.5vw, 64px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    max-width: 18ch;
+    margin: 0 auto 28px;
+    quotes: none;
+  }
+  .pullquote q::before, .pullquote q::after { content: none; }
+  .pullquote .attribution-bottom {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .pullquote .attribution-bottom .src { color: var(--accent-dark); }
+
+  /* ======== Act opener ======== */
+  .act {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 40px;
+    align-items: start;
+    margin: 0 0 40px;
+  }
+  @media (max-width: 720px) {
+    .act { grid-template-columns: 1fr; gap: 8px; }
+    .act .folio { font-size: 96px !important; line-height: 1 !important; }
+  }
+  .act .folio {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 500, "SOFT" 0;
+    font-size: 180px;
+    line-height: 0.85;
+    color: var(--accent);
+    letter-spacing: -0.04em;
+    margin: 0;
+  }
+  .act .intro .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .act .intro h2 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 72, "wght" 500, "SOFT" 30;
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin: 0 0 16px;
+    max-width: 20ch;
+  }
+  .act .intro p {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 400;
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink);
+    max-width: 48ch;
+    margin: 0;
+  }
+
+  /* ======== Body copy blocks ======== */
+  section.body {
+    max-width: 620px;
+    margin: 0 auto 88px;
+  }
+  section.body p {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 400;
+    font-size: 19px;
+    line-height: 1.7;
+    margin: 0 0 20px;
+    color: var(--ink);
+  }
+  section.body p.lead {
+    font-variation-settings: "opsz" 36, "wght" 400;
+    font-size: 23px;
+    line-height: 1.45;
+  }
+  section.body p.lead::first-letter {
+    font-variation-settings: "opsz" 144, "wght" 600, "SOFT" 50;
+    font-size: 86px;
+    line-height: 0.8;
+    padding: 8px 12px 0 0;
+    float: left;
+    color: var(--accent);
+  }
+  section.body a { color: var(--accent-dark); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  section.body code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 15px;
+    background: var(--paper-2);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  /* ======== Oversized stat block ======== */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    margin: 0 0 96px;
+    padding: 56px 0;
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+  }
+  @media (max-width: 720px) { .stat-grid { grid-template-columns: 1fr; gap: 36px; padding: 40px 0; } }
+  .stat .num {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 600, "SOFT" 0, "WONK" 1;
+    font-size: clamp(80px, 10vw, 120px);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .stat .num em { color: var(--accent); font-style: italic; }
+  .stat .num .suffix { font-size: 0.5em; color: var(--muted); margin-left: 4px; vertical-align: 0.3em; font-style: italic; font-variation-settings: "opsz" 72, "wght" 400; }
+  .stat .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .stat .gloss {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 400;
+    font-size: 15.5px;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 24ch;
+  }
+
+  /* ======== Transcript (trace-as-interview) ======== */
+  .transcript {
+    margin: 0 0 88px;
+    border-top: 1px solid var(--ink);
+    padding-top: 48px;
+  }
+  .transcript .tbhead {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .transcript .tbhead .title {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "wght" 500;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: var(--ink);
+    font-weight: normal;
+    line-height: 1.15;
+    max-width: 32ch;
+  }
+  .transcript .setup {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 400;
+    font-style: italic;
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 54ch;
+    margin: 0 0 24px;
+  }
+  .transcript table.dialog {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .transcript table.dialog td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .transcript table.dialog td.speaker {
+    width: 160px;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .transcript table.dialog td.speaker.ai { color: var(--ink); }
+  .transcript table.dialog td.tc {
+    width: 64px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .transcript table.dialog td.utt { color: var(--ink); }
+  .transcript table.dialog td.utt.err { color: var(--accent); }
+  .transcript table.dialog td.utt.ok { color: #2a6b2f; }
+  .transcript table.dialog td.utt .note { color: var(--muted); font-style: italic; padding-left: 8px; }
+  .transcript .kicker-note {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 400;
+    font-style: italic;
+    font-size: 16.5px;
+    color: var(--ink);
+    max-width: 56ch;
+    margin: 18px 0 0;
+  }
+
+  /* ======== Verdict block ======== */
+  .verdict {
+    margin: 0 0 88px;
+    padding: 64px 0;
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    text-align: center;
+  }
+  .verdict .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .verdict h2 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 500, "SOFT" 30, "WONK" 1;
+    font-size: clamp(32px, 5vw, 56px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0 auto 24px;
+    max-width: 18ch;
+  }
+  .verdict h2 em { color: var(--accent); font-style: italic; }
+  .verdict .sub {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-variation-settings: "opsz" 24, "wght" 400;
+    font-size: 18px;
+    color: var(--muted);
+    max-width: 48ch;
+    margin: 0 auto;
+  }
+
+  /* ======== Colophon ======== */
+  .colophon {
+    margin: 0;
+    padding: 48px 0 32px;
+    border-top: 1px solid var(--ink);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  @media (max-width: 640px) { .colophon { grid-template-columns: 1fr; gap: 20px; } }
+  .colophon h4 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 500;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 0 0 10px;
+  }
+  .colophon a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--rule); }
+  .colophon a:hover { color: var(--ink); text-decoration-color: currentColor; }
+  .colophon ul { list-style: none; padding: 0; margin: 0; }
+  .colophon li { margin-bottom: 3px; }
+
+  .editions-strip {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .editions-strip a {
+    padding: 2px 10px;
+    border-radius: 3px;
+    background: var(--paper-2);
+    text-decoration: none;
+    font-size: 11px;
+  }
+  .editions-strip a.self { background: var(--ink); color: var(--paper); }
+
+  /* ======== Section rule ornaments ======== */
+  .rule-ornament {
+    text-align: center;
+    color: var(--accent);
+    letter-spacing: 0.6em;
+    font-size: 13px;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    margin: 0 0 56px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="pub">dec&middot;bench <em>report</em></div>
+    <div class="meta">No. 01 &middot; April 2026 &middot; cli-structure &middot; n=300</div>
+  </header>
+
+  <!-- ============================ HERO ============================ -->
+  <section class="hero">
+    <div class="kicker">A report on designing tools for AI agents</div>
+    <h1>Shape the Tool<em>.</em></h1>
+    <p class="dek">
+      Three hundred agent sessions, five command-line shapes, one surprise:
+      the CLI your agent wants depends on how long it stays.
+    </p>
+    <div class="by">
+      514 Labs &middot; Claude Sonnet 4.6 &middot;
+      <a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure">source</a> &middot;
+      <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">data</a>
+    </div>
+  </section>
+
+  <!-- ============================ HERO PULL QUOTE ============================ -->
+  <section class="pullquote">
+    <div class="attribution-top">What the agent tried first</div>
+    <q>moose logs &middot; moose log &middot; moose log &mdash;filter error</q>
+    <div class="attribution-bottom">
+      Claude Sonnet 4.6, <span class="src">atomic/b/rep5</span> &middot; all three verbs do not exist in the CLI
+    </div>
+  </section>
+
+  <!-- ============================ ACT I ============================ -->
+  <section class="act">
+    <div class="folio">I</div>
+    <div class="intro">
+      <div class="label">The hunch</div>
+      <h2>Everyone said agents want flat CLIs.</h2>
+      <p>
+        The argument was simple. Agents have no mental model, so they
+        can't navigate hierarchy. Show them every command in one place.
+        Dump the whole surface flat. That's what a machine wants.
+      </p>
+    </div>
+  </section>
+
+  <section class="body">
+    <p class="lead">
+      We believed it. We also doubted it. So we built five
+      versions of the same command-line tool &mdash; from deeply
+      nested to fully flat &mdash; and paid 300 Claude sessions
+      to try them.
+    </p>
+    <p>
+      The five shapes shared one surface of forty commands. Only the
+      arrangement changed. <strong>Deep</strong> hid everything under
+      three-level namespaces. <strong>Atomic</strong> exposed every
+      capability as its own top-level verb. Three in-between.
+    </p>
+    <p>
+      Six tasks. Ten repetitions each. Fresh containers, no configuration
+      leakage. We measured tool calls, help reads, errors, cost, and
+      preserved every trace.
+    </p>
+  </section>
+
+  <div class="rule-ornament">&mdash;&nbsp;&mdash;&nbsp;&mdash;</div>
+
+  <!-- ============================ ACT II ============================ -->
+  <section class="act">
+    <div class="folio">II</div>
+    <div class="intro">
+      <div class="label">What we saw</div>
+      <h2>The ranking flipped.</h2>
+      <p>
+        On single tasks the flat shapes won, exactly as predicted. On
+        sessions of five related tasks, the ranking reversed. The deeply
+        nested CLI became the cheapest; the flat ones became the most
+        expensive.
+      </p>
+    </div>
+  </section>
+
+  <!-- Oversized stats -->
+  <section class="stat-grid">
+    <div class="stat">
+      <div class="label">Single-task winner</div>
+      <div class="num"><em>1.52</em><span class="suffix">tools</span></div>
+      <div class="gloss">Positional (flat) required fewest tool calls on one-off tasks.</div>
+    </div>
+    <div class="stat">
+      <div class="label">Session-task winner</div>
+      <div class="num"><em>8.0</em><span class="suffix">tools</span></div>
+      <div class="gloss">Deep (nested) required fewest tool calls on five related tasks.</div>
+    </div>
+    <div class="stat">
+      <div class="label">Crossover</div>
+      <div class="num">N ≈ <em>4</em></div>
+      <div class="gloss">Where the flat lines cross the nested line in cumulative cost.</div>
+    </div>
+  </section>
+
+  <!-- Transcript -->
+  <section class="transcript">
+    <div class="tbhead">
+      <div class="title">The agent teaches itself a CLI in six steps.</div>
+      <div>deep/combined/rep1</div>
+    </div>
+    <p class="setup">
+      Five tasks in sequence. The agent guesses the first command wrong
+      because it expects the flat form it has seen elsewhere. It reads
+      help once. Then, without consulting help again, it correctly
+      routes four more tasks across three different namespaces.
+    </p>
+    <table class="dialog">
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">20:37:04</td>
+        <td class="utt err">moose init events --template python-ckh
+          <span class="note">/* wrong; the verb is nested */</span>
+        </td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">20:37:05</td>
+        <td class="utt">moose --help</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">20:37:08</td>
+        <td class="utt ok">moose project init events python-ckh</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">20:37:10</td>
+        <td class="utt ok">moose data seed --source clickhouse://…</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">20:37:12</td>
+        <td class="utt ok">moose infra ps</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">20:37:14</td>
+        <td class="utt ok">moose data ls</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">20:37:17</td>
+        <td class="utt ok">moose infra logs --filter error</td>
+      </tr>
+    </table>
+    <p class="kicker-note">
+      One help read amortized across five tasks. This is what the data
+      means when we say agents like nested CLIs for sessions &mdash; not
+      that they like nesting, but that nesting gives them something
+      reusable.
+    </p>
+  </section>
+
+  <div class="rule-ornament">&mdash;&nbsp;&mdash;&nbsp;&mdash;</div>
+
+  <!-- Counter-transcript: Atomic -->
+  <section class="transcript">
+    <div class="tbhead">
+      <div class="title">Or it invents three verbs that don't exist.</div>
+      <div>atomic/b/rep5</div>
+    </div>
+    <p class="setup">
+      The same task on the fully-flat CLI. The agent, given no hierarchy
+      to constrain its guess, reaches for what sounds plausible. None of
+      it works. This pattern replicated in 9 of 10 runs.
+    </p>
+    <table class="dialog">
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">—</td>
+        <td class="utt err">moose logs --filter error</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">—</td>
+        <td class="utt err">moose logs | grep -i error</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">—</td>
+        <td class="utt err">moose log --filter error</td>
+      </tr>
+      <tr>
+        <td class="speaker">CLI</td><td class="tc">—</td>
+        <td class="utt">error: unknown command 'logs'.<br/>Did you mean <code>moose search-logs</code>?</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">—</td>
+        <td class="utt">moose search-logs --help</td>
+      </tr>
+      <tr>
+        <td class="speaker ai">Claude</td><td class="tc">—</td>
+        <td class="utt ok">moose search-logs error</td>
+      </tr>
+    </table>
+    <p class="kicker-note">
+      Flat enumeration doesn't stop the agent from guessing verbs that
+      don't exist. The English phrasing "search the logs" cues a verb
+      with the word <em>logs</em> in it, and nothing in the surface
+      rejects the cue until the error fires.
+    </p>
+  </section>
+
+  <!-- ============================ ACT III ============================ -->
+  <section class="act">
+    <div class="folio">III</div>
+    <div class="intro">
+      <div class="label">What to build</div>
+      <h2>Match the shape to the session.</h2>
+      <p>
+        Not humans vs. agents. Not flat vs. nested. The real variable
+        is how long the executor &mdash; any executor &mdash; sits in
+        your tool before leaving.
+      </p>
+    </div>
+  </section>
+
+  <section class="body">
+    <p>
+      If your tool is used in short bursts &mdash; health checks,
+      one-off queries, status &mdash; flat is cheaper. The agent doesn't
+      stay long enough to amortize any structural lesson. Positional
+      layouts (<code>moose logs error</code>) are particularly efficient
+      because a positional argument is a one-step disambiguation signal.
+    </p>
+    <p>
+      If your tool is used for orchestration &mdash; init, configure,
+      seed, validate, deploy &mdash; nest it. The agent will pay the
+      exploration cost once and reuse the namespace for every subsequent
+      step. Deep's one help read bought the correct routing of five
+      tasks.
+    </p>
+    <p>
+      And if you're tempted by the maximalist flat design where every
+      capability is its own kebab-case verb at the top level &mdash;
+      don't. It triples the error rate because it gives the agent
+      unlimited lexical surface on which to guess.
+    </p>
+    <p>
+      The best of both worlds, though we are still validating, may be
+      the shape <code>git</code> accidentally arrived at thirty years
+      ago: nested underneath, with the five or seven most-common verbs
+      surfaced as top-level aliases. We're testing it now.
+    </p>
+  </section>
+
+  <!-- ============================ VERDICT ============================ -->
+  <section class="verdict">
+    <div class="label">Design recommendation</div>
+    <h2>Nest the surface. <em>Surface the shortcuts.</em></h2>
+    <div class="sub">
+      Below four related tasks per session, go flat. At or above four, go nested
+      &mdash; and surface the five most-common verbs at the top level. Never
+      ship one-flat-verb-per-capability. The agent will invent verbs you
+      haven't written.
+    </div>
+  </section>
+
+  <!-- ============================ COLOPHON ============================ -->
+  <section class="colophon">
+    <div>
+      <h4>The study</h4>
+      <ul>
+        <li>300 runs &middot; 5 CLI variants &middot; 6 tasks &middot; n=10 reps</li>
+        <li>Claude Sonnet 4.6 &middot; isolated Docker container</li>
+        <li>GH Actions &middot; 4.5 min wall &middot; $9.01 total</li>
+        <li>100% task completion across all cells</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Go deeper</h4>
+      <ul>
+        <li><a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure">Source &amp; wrappers</a></li>
+        <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/results.n10.json">Per-run data</a></li>
+        <li><a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">Full traces</a></li>
+      </ul>
+      <div class="editions-strip">
+        <a href="index.html">original</a>
+        <a href="index-scientific.html">scientific</a>
+        <a href="index-engineering.html">engineering</a>
+        <a href="index-design.html" class="self">design</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
