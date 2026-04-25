@@ -9,17 +9,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #F4F2EA;
-    --sub: #E9E6DB;
-    --card: #EFEDE3;
-    --ink: #0E0F12;
-    --mute: #606169;
+    --bg: #FBFBFA;          /* near-white, cool bias — distinct from cream/red */
+    --sub: #F0F0EE;
+    --card: #F5F5F3;
+    --ink: #0A0B0D;
+    --mute: #595A60;
     --dim: #8A8A8D;
-    --accent: #E85D17;
+    --accent: #E85D17;       /* signal orange — datasheet feel */
     --blueprint: #1E4F7A;
     --warn: #BA1A1A;
-    --rule: rgba(14,15,18,0.12);
-    --rule-strong: rgba(14,15,18,0.25);
+    --rule: rgba(10,11,13,0.12);
+    --rule-strong: rgba(10,11,13,0.28);
     --mono: "Geist Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, monospace;
     --sans: "Geist", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
   }
@@ -132,6 +132,46 @@
     color: var(--ink);
   }
   .hero .chip.acc { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  /* ============= hero ToC ============= */
+  nav.toc {
+    margin-top: 36px;
+    padding: 18px 20px 16px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+  }
+  nav.toc .toc-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  nav.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    columns: 3;
+    column-gap: 20px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.85;
+  }
+  @media (max-width: 820px) { nav.toc ol { columns: 2; } }
+  @media (max-width: 540px) { nav.toc ol { columns: 1; } }
+  nav.toc li { break-inside: avoid; }
+  nav.toc a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  nav.toc a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  nav.toc .n {
+    color: var(--accent);
+    margin-right: 10px;
+    font-weight: 600;
+  }
 
   /* ============= hero chart panel ============= */
   .hero-chart {
@@ -606,9 +646,9 @@
   <!-- ================= HERO ================= -->
   <section class="hero">
     <div class="spec-id">&lt;spec&#8209;id/&gt; CLI.SHAPE.v1.1 &middot; REVISED 2026&#8209;04&#8209;24</div>
-    <h1>Build the <span class="acc">git-style hybrid.</span> Verify with a trace.</h1>
+    <h1>CLI shape vs. <span class="acc">agent tool-call cost.</span></h1>
     <p class="lede">
-      Four hundred and twenty Claude sessions across seven CLI shapes, same capability surface. The <code>git</code>-style hybrid (<strong>Surfaced</strong>: nested underneath, with seven common verbs surfaced as top-level aliases) wins both single tasks and multi-task sessions outright — beating the previous best by 24% on the combined session, with zero errors and zero help reads. This page is the working engineer's summary — numbers, prompts to audit your own CLI, and trace receipts for every claim.
+      Seven CLI shapes, identical capability surface, 420 Claude Sonnet 4.6 sessions in an isolated container. Measured: tool calls, help reads, errors, cost. <strong>The <code>git</code>-style hybrid (Surfaced) minimised every metric simultaneously on the multi-task session and tied the flat winner on single tasks.</strong> Numbers, decision matrix, and trace receipts below.
     </p>
     <div class="chip-row">
       <span class="chip acc">n = 420 runs</span>
@@ -618,6 +658,21 @@
       <span class="chip">100% success</span>
       <span class="chip">Sonnet 4.6 · --bare</span>
     </div>
+
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-label">// CONTENTS</div>
+      <ol>
+        <li><a href="#sec-01"><span class="n">§01</span>Shapes</a></li>
+        <li><a href="#sec-02"><span class="n">§02</span>Single-task scorecard</a></li>
+        <li><a href="#sec-03"><span class="n">§03</span>Session scorecard</a></li>
+        <li><a href="#sec-04"><span class="n">§04</span>Amortization</a></li>
+        <li><a href="#sec-05"><span class="n">§05</span>Decision matrix</a></li>
+        <li><a href="#sec-06"><span class="n">§06</span>Limitations</a></li>
+        <li><a href="#sec-07"><span class="n">§07</span>Learning from traces</a></li>
+        <li><a href="#sec-08"><span class="n">§08</span>Reproduction</a></li>
+        <li><a href="#sec-09"><span class="n">§09</span>Data &amp; code</a></li>
+      </ol>
+    </nav>
   </section>
 
   <!-- ================= HERO CHART ================= -->
@@ -631,27 +686,28 @@
   </section>
 
   <!-- ================= SHAPES ================= -->
-  <section>
+  <section id="sec-01">
     <div class="sec-head">
       <div class="sec-num">§01 &middot; SHAPES</div>
       <h2 class="sec-title">Seven shapes, identical capability surface.</h2>
     </div>
+    <p class="sec-sub" style="margin-bottom: 6px;">Ordered by overall winningness (combined-task tool calls, ties broken by single-task tool calls).</p>
     <table class="shape-table">
-      <thead><tr><th>variant</th><th>shape</th><th>example</th></tr></thead>
+      <thead><tr><th style="width: 36px;">#</th><th>variant</th><th>shape</th><th>example</th><th>real-world reference</th></tr></thead>
       <tbody>
-        <tr><td><strong>Deep</strong></td><td>3-level namespace</td><td><code>moose infra logs --filter error</code></td></tr>
-        <tr><td><strong>Signposted</strong></td><td>Deep + canonical examples in <code>--help</code></td><td><code>moose infra logs --filter error</code></td></tr>
-        <tr><td><strong>Surfaced</strong></td><td>Deep + 7 top-level verb aliases (<code>git</code>-style)</td><td><code>moose logs --filter error</code></td></tr>
-        <tr><td><strong>Shallow</strong></td><td>mixed · mirrors real Moose</td><td><code>moose logs --filter error</code></td></tr>
-        <tr><td><strong>Positional</strong></td><td>flat verbs + positional arg</td><td><code>moose logs error</code></td></tr>
-        <tr><td><strong>Flag</strong></td><td>flat verbs + flags</td><td><code>moose logs --filter error</code></td></tr>
-        <tr><td><strong>Atomic</strong></td><td>one flat verb per capability</td><td><code>moose search-logs error</code></td></tr>
+        <tr><td style="font-family: var(--mono); color: var(--accent); font-weight: 600;">1</td><td><strong>Surfaced</strong></td><td>Deep + 7 top-level verb aliases (<code>git</code>-style)</td><td><code>moose logs --filter error</code></td><td><code>git</code> · <code>npm</code> · <code>cargo</code> · <code>docker</code></td></tr>
+        <tr><td style="font-family: var(--mono); color: var(--mute); font-weight: 600;">2</td><td><strong>Signposted</strong></td><td>Deep + canonical examples in <code>--help</code></td><td><code>moose infra logs --filter error</code></td><td><code>git --help</code> (cheat-sheet style top-level)</td></tr>
+        <tr><td style="font-family: var(--mono); color: var(--mute); font-weight: 600;">3</td><td><strong>Deep</strong></td><td>3-level namespace</td><td><code>moose infra logs --filter error</code></td><td><code>aws ec2 describe-instances</code> · <code>kubectl config view</code></td></tr>
+        <tr><td style="font-family: var(--mono); color: var(--mute); font-weight: 600;">4</td><td><strong>Flag</strong></td><td>flat verbs + flags</td><td><code>moose logs --filter error</code></td><td><code>gh issue create --title …</code> · <code>gcloud compute …</code></td></tr>
+        <tr><td style="font-family: var(--mono); color: var(--mute); font-weight: 600;">5</td><td><strong>Shallow</strong></td><td>mixed · mirrors real Moose</td><td><code>moose logs --filter error</code></td><td><code>moose</code> · <code>vercel</code> · <code>fly</code></td></tr>
+        <tr><td style="font-family: var(--mono); color: var(--mute); font-weight: 600;">6</td><td><strong>Positional</strong></td><td>flat verbs + positional arg</td><td><code>moose logs error</code></td><td><code>brew install $pkg</code> · <code>apt install $pkg</code></td></tr>
+        <tr><td style="font-family: var(--mono); color: var(--warn); font-weight: 600;">7</td><td><strong>Atomic</strong></td><td>one flat verb per capability</td><td><code>moose search-logs error</code></td><td><code>railway</code> · <code>heroku</code> · <code>doctl</code></td></tr>
       </tbody>
     </table>
   </section>
 
   <!-- ================= SCORECARD · SINGLE ================= -->
-  <section>
+  <section id="sec-02">
     <div class="sec-head">
       <div class="sec-num">§02 &middot; SCORECARD</div>
       <h2 class="sec-title">Single task &middot; <span class="acc">Positional wins</span>, Surfaced ties.</h2>
@@ -669,7 +725,7 @@
   </section>
 
   <!-- ================= SCORECARD · SESSION ================= -->
-  <section>
+  <section id="sec-03">
     <div class="sec-head">
       <div class="sec-num">§03 &middot; SCORECARD</div>
       <h2 class="sec-title">5-task session &middot; <span class="acc">Surfaced wins outright</span>, by 24%.</h2>
@@ -687,7 +743,7 @@
   </section>
 
   <!-- ================= AMORTIZATION ================= -->
-  <section>
+  <section id="sec-04">
     <div class="sec-head">
       <div class="sec-num">§04 &middot; AMORTIZATION</div>
       <h2 class="sec-title">Ratio of 5-task cost ÷ single-task cost.</h2>
@@ -705,7 +761,7 @@
   </section>
 
   <!-- ================= DECISION MATRIX ================= -->
-  <section>
+  <section id="sec-05">
     <div class="sec-head">
       <div class="sec-num">§05 &middot; DECISION MATRIX</div>
       <h2 class="sec-title">Pick a shape for your workload.</h2>
@@ -735,61 +791,33 @@
     </div>
   </section>
 
-  <!-- ================= AGENT AUDIT PROMPTS ================= -->
-  <section>
+  <!-- ================= LIMITATIONS ================= -->
+  <section id="sec-06">
     <div class="sec-head">
-      <div class="sec-num">§06 &middot; AGENT AUDIT</div>
-      <h2 class="sec-title">Six prompts to audit <span class="acc">your</span> CLI.</h2>
+      <div class="sec-num">§06 &middot; LIMITATIONS</div>
+      <h2 class="sec-title">Read these numbers with caveats.</h2>
     </div>
-    <p class="sec-sub">Paste into Claude Code (or your agent of choice) in a clone of your CLI's repo. Each targets one failure mode surfaced in the traces below.</p>
-    <div class="prompts">
-
-      <div class="prompt">
-        <header><span class="idx">AUDIT 01</span><span class="t">Verb hallucination</span><button class="btn" data-target="p1">COPY</button></header>
-        <div class="body" id="p1">You have the ACME CLI on PATH. Without reading any docs or source, describe ten tasks you'd plausibly want to do with it and the command you would try first for each. Then run each and count how many failed with "unknown command" on the first attempt. Report the first-try success rate and the verbs you expected but don't exist.</div>
-        <div class="run">claude -p "$(cat audit-01.md)" --allowedTools "Bash"</div>
-      </div>
-
-      <div class="prompt">
-        <header><span class="idx">AUDIT 02</span><span class="t">Help traversal cost</span><button class="btn" data-target="p2">COPY</button></header>
-        <div class="body" id="p2">For the task "list the tables in the running project" with the ACME CLI: measure how many --help calls you made before a non-help command, whether any were unnecessary, and how many total commands you ran. Report the numbers and the path of your first --help call.</div>
-        <div class="run">claude -p "$(cat audit-02.md)" --allowedTools "Bash"</div>
-      </div>
-
-      <div class="prompt">
-        <header><span class="idx">AUDIT 03</span><span class="t">Multi-task amortization</span><button class="btn" data-target="p3">COPY</button></header>
-        <div class="body" id="p3">Complete these five tasks in order with the ACME CLI: [TASK LIST]. Report: total --help calls; any redundant ones (re-read help for something you'd already learned); the tool-call count of task 5 vs task 1.</div>
-        <div class="run">claude -p "$(cat audit-03.md)" --allowedTools "Bash"</div>
-      </div>
-
-      <div class="prompt">
-        <header><span class="idx">AUDIT 04</span><span class="t">Error recovery cost</span><button class="btn" data-target="p4">COPY</button></header>
-        <div class="body" id="p4">Run three commands against the ACME CLI that look plausible but you suspect don't exist. For each: did the error message tell you how to fix it? Did you have to read help to recover? How many extra tool calls did recovery take?</div>
-        <div class="run">claude -p "$(cat audit-04.md)" --allowedTools "Bash"</div>
-      </div>
-
-      <div class="prompt">
-        <header><span class="idx">AUDIT 05</span><span class="t">Top-level help coverage</span><button class="btn" data-target="p5">COPY</button></header>
-        <div class="body" id="p5">Run the ACME CLI's top-level --help. Without running anything else, list: (a) what you believe are the five most common tasks, (b) for each, the command you'd try first, (c) which you could compose from help alone vs. which required guessing.</div>
-        <div class="run">claude -p "$(cat audit-05.md)" --allowedTools "Bash"</div>
-      </div>
-
-      <div class="prompt">
-        <header><span class="idx">AUDIT 06</span><span class="t">Surfaced-alias coverage</span><button class="btn" data-target="p6">COPY</button></header>
-        <div class="body" id="p6">Complete five common tasks against the ACME CLI: [TASK LIST]. For each command you ran, report whether you used a flat top-level form (e.g. <code>acme logs ...</code>) or the canonical namespaced form (e.g. <code>acme infra logs ...</code>). Then list: which of the five most-common verbs in your tool exist as top-level aliases, and which only as namespaced subcommands. (If your tool nests everything, this audit reveals which verbs to surface as <code>git</code>-style top-level aliases.)</div>
-        <div class="run">claude -p "$(cat audit-06.md)" --allowedTools "Bash"</div>
-      </div>
-
-    </div>
+    <ul style="font-size: 14.5px; line-height: 1.55; max-width: 72ch; padding-left: 22px;">
+      <li><strong>Single model.</strong> Sonnet-4.6 only. Codex / GPT-5 rerun is queued. Effect sizes likely shift; directional findings probably hold.</li>
+      <li><strong>Simulated tool.</strong> Wrappers return canned output, not real Moose state. Isolates CLI structure as the variable but removes downstream state-dependence.</li>
+      <li><strong>Shallow priors.</strong> Shallow matches real Moose, which the model plausibly encountered in training. Even biased favourably it did not win any metric.</li>
+      <li><strong>Task coupling.</strong> The combined session is weakly coupled (five operations on a shared project). Tightly coupled sequences may amplify Surfaced's lead; truly independent task lists may flatten it.</li>
+      <li><strong>n=10.</strong> Sufficient for the 2–3× effects reported here; smaller differences between mid-rank variants may not be distinguishable.</li>
+      <li><strong>Surfaced choice of aliases.</strong> The seven aliases (<code>init, dev, build, logs, ps, ls, seed</code>) were chosen by the experimenter. A poorly-chosen alias set could bias results; we have not yet ablated this.</li>
+    </ul>
   </section>
 
   <!-- ================= TRACE EVIDENCE ================= -->
-  <section>
+  <section id="sec-07">
     <div class="sec-head">
-      <div class="sec-num">§07 &middot; TRACE EVIDENCE</div>
-      <h2 class="sec-title">Seven patterns, <span class="acc">one per variant</span>.</h2>
+      <div class="sec-num">§07 &middot; LEARNING FROM TRACES</div>
+      <h2 class="sec-title">What the agents actually <span class="acc">did</span>.</h2>
     </div>
-    <p class="sec-sub">Each claim above traces to a specific run. Expand for the raw <code>moose.log</code> extract.</p>
+    <p class="sec-sub">
+      Every claim above traces to a specific run. Each pattern below expands to the raw <code>moose.log</code> extract; the receipt link points to the per-run directory in the GH Actions artifact (full <code>trace.jsonl</code> + <code>moose.log</code> + <code>timing.json</code>).
+      Browse all runs: <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972"><code>workflow 24910674972</code></a> (5 original variants) ·
+      <a href="https://github.com/514-labs/agent-evals/actions/runs/24923611681"><code>workflow 24923611681</code></a> (Signposted + Surfaced).
+    </p>
 
     <details class="evidence" open>
       <summary>
@@ -901,28 +929,10 @@ moose search-logs error
     </details>
   </section>
 
-  <!-- ================= RULES OF THUMB ================= -->
-  <section>
-    <div class="sec-head">
-      <div class="sec-num">§08 &middot; RULES OF THUMB</div>
-      <h2 class="sec-title">What to do in your CLI.</h2>
-    </div>
-    <div class="rules-block">
-      <ul>
-        <li><strong class="do">// DO · Build the <code>git</code>-style hybrid</strong>Surfaced empirically wins both regimes. Nest the full surface, then surface 5–7 of the most-common verbs as top-level aliases that dispatch to their canonical namespaced form. Beats Deep by 24% on the combined session and ties Positional on single tasks — with zero errors and zero help reads.</li>
-        <li><strong class="do">// DO · Improve <code>--help</code> with canonical examples</strong>Even if you can't restructure the command surface, signposting (Signposted) helps. Showing fully-formed canonical invocations in top-level <code>--help</code> is enough to cut combined-task tool calls from 8.0 to 7.1.</li>
-        <li><strong class="dont">// DON'T · Ship all-flat-kebab</strong>It reliably produces 3 errors per 5-task session. The flat lexical space encourages verb hallucination.</li>
-        <li><strong class="do">// DO · Single-op tools → flat + positional</strong><code>tool resource action</code> disambiguates in one step; no help read needed.</li>
-        <li><strong class="do">// DO · Always provide per-verb help</strong>Positional and Atomic lose their biggest recovery path without <code>tool verb --help</code>.</li>
-        <li><strong class="do">// DO · Make errors self-describing when you can</strong>Flag's <code>error:incomplete</code> pattern lets the agent recover without reading help — one flag fix, done.</li>
-      </ul>
-    </div>
-  </section>
-
   <!-- ================= REPRO ================= -->
-  <section class="repro">
+  <section class="repro" id="sec-08">
     <div class="sec-head">
-      <div class="sec-num">§09 &middot; REPRODUCTION</div>
+      <div class="sec-num">§08 &middot; REPRODUCTION</div>
       <h2 class="sec-title">Re-run the study.</h2>
     </div>
     <p class="sec-sub">420 runs on GH Actions across two workflow runs (5 variants original, 2 variants follow-up). Isolated Docker, same harness, ~6 min total wall, ~$12 API spend, 100% success.</p>
@@ -942,9 +952,9 @@ python3 parse.py "$PWD"</pre>
   </section>
 
   <!-- ================= REFERENCES ================= -->
-  <section class="refs">
+  <section class="refs" id="sec-09">
     <div class="sec-head">
-      <div class="sec-num">§10 &middot; DATA &amp; CODE</div>
+      <div class="sec-num">§09 &middot; DATA &amp; CODE</div>
       <h2 class="sec-title">Receipts.</h2>
     </div>
     <ul>

@@ -96,25 +96,40 @@
     font-feature-settings: "c2sc" 1, "smcp" 1;
   }
 
+  /* H2 = top-level section. Strong, bold, with thin accent rule above. */
   h2 {
-    font-variant-caps: all-small-caps;
-    letter-spacing: 0.1em;
-    font-size: 14px;
-    color: var(--muted);
-    font-weight: 600;
-    margin: 56px 0 -2px;
-    font-feature-settings: "c2sc" 1, "smcp" 1;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 64px 0 6px;
+    padding-top: 18px;
+    border-top: 1px solid var(--ink);
+    color: var(--ink);
   }
-  h3 {
-    font-size: 26px;
+  h2 .num {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.12em;
+    font-size: 0.55em;
+    color: var(--accent);
     font-weight: 600;
-    margin: 4px 0 18px;
+    margin-right: 12px;
+    font-feature-settings: "c2sc" 1, "smcp" 1, "lnum" 1;
+    vertical-align: 0.18em;
+  }
+  /* H3 = subsection. Italicised, slightly smaller than H2. */
+  h3 {
+    font-size: 22px;
+    font-weight: 500;
+    font-style: italic;
+    margin: 22px 0 14px;
     letter-spacing: -0.005em;
+    color: var(--ink);
   }
   h4 {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
-    margin: 26px 0 8px;
+    margin: 22px 0 8px;
   }
 
   /* Paper-style paragraph setting: indent-only, no inter-paragraph space. */
@@ -243,6 +258,75 @@
     margin: 54px 0 40px;
   }
 
+  /* ========================== Table of contents ========================== */
+  .toc {
+    margin: 0 0 28px;
+    padding: 16px 0 18px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .toc .label {
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.14em;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-feature-settings: "c2sc" 1, "smcp" 1;
+  }
+  .toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    columns: 2;
+    column-gap: 28px;
+    font-size: 14.5px;
+    line-height: 1.7;
+  }
+  @media (max-width: 540px) { .toc ol { columns: 1; } }
+  .toc ol li { break-inside: avoid; }
+  .toc ol li::marker { content: ""; }
+  .toc a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    display: inline-block;
+  }
+  .toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+  .toc .num {
+    color: var(--accent);
+    font-style: italic;
+    font-variant-numeric: lining-nums;
+    margin-right: 10px;
+    display: inline-block;
+    min-width: 2.4em;
+  }
+
+  /* ========================== Variant schema appendix entries ========================== */
+  .schema-block {
+    margin: 18px 0 28px;
+    padding: 14px 18px;
+    background: var(--card);
+    border-left: 2px solid var(--accent);
+  }
+  .schema-block h4 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-style: normal;
+  }
+  .schema-block .gloss {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 14.5px;
+    margin: 0 0 10px;
+  }
+  .schema-block pre {
+    border-left: none;
+    padding: 4px 0 0;
+    font-size: 12.5px;
+    background: transparent;
+    margin: 0;
+  }
+
   footer {
     margin-top: 54px;
     padding-top: 22px;
@@ -266,6 +350,22 @@
     <a href="https://github.com/514-labs/agent-evals/actions/runs/24923611681">follow-up</a>
   </p>
 
+  <nav class="toc" aria-label="Table of contents">
+    <div class="label">Contents</div>
+    <ol>
+      <li><a href="#sec-bg"><span class="num">1.</span>Background</a></li>
+      <li><a href="#sec-methods"><span class="num">2.</span>Methods</a></li>
+      <li><a href="#sec-results"><span class="num">3.</span>Results</a></li>
+      <li><a href="#sec-discussion"><span class="num">4.</span>Discussion</a></li>
+      <li><a href="#sec-traces"><span class="num">5.</span>Trace evidence</a></li>
+      <li><a href="#sec-limits"><span class="num">6.</span>Limitations</a></li>
+      <li><a href="#app-repro"><span class="num">A.</span>Reproduction</a></li>
+      <li><a href="#app-artifacts"><span class="num">B.</span>Artifacts</a></li>
+      <li><a href="#app-schemas"><span class="num">C.</span>CLI schemas</a></li>
+      <li><a href="#sec-notes"><span class="num">N.</span>Notes</a></li>
+    </ol>
+  </nav>
+
   <div class="abstract">
     <div class="label">Abstract</div>
     <p>We ask whether the shape of a CLI changes how efficiently an AI coding agent can use it. Seven CLIs with identical capabilities but different command structures were exercised against six tasks, ten repetitions per cell (<em>n</em>&nbsp;=&nbsp;420).</p>
@@ -281,32 +381,33 @@
 
   <div class="ornament">§ · §</div>
 
-  <h2>1. Background</h2>
+  <h2 id="sec-bg"><span class="num">§ 1</span>Background</h2>
   <h3>Is flat actually better for agents?</h3>
   <p class="lead">A common design heuristic holds that LLM coding agents prefer flat, fully-enumerable CLIs to nested ones. The argument: agents have no persistent mental model, so every capability should be visible in a single <code>--help</code> response<sup class="fn"><a href="#n1">1</a></sup>.</p>
   <p>If the heuristic is right, an all-flat variant should dominate every metric against any nested alternative. It does not. With the original five variants the effect of structure reversed with workload. A subsequent follow-up (§2, <a href="#n8">note 8</a>) probed two further designs — a <code>git</code>-style hybrid and a help-text-only intervention — and showed that the hybrid uniformly dominates both regimes.</p>
 
-  <h2>2. Methods</h2>
+  <h2 id="sec-methods"><span class="num">§ 2</span>Methods</h2>
   <h4>Design</h4>
   <p>Seven Python wrapper scripts<sup class="fn"><a href="#n2">2</a></sup> expose the same 40-capability surface — mirroring the real <a href="https://github.com/514-labs/moose">Moose</a> CLI<sup class="fn"><a href="#n3">3</a></sup> — under seven different structures. The original five (Deep, Shallow, Positional, Flag, Atomic) were probed in workflow run 24910674972; two design probes (Signposted, Surfaced) were added on the same harness in run 24923611681<sup class="fn"><a href="#n8">8</a></sup>. Six task prompts were issued: five single tasks and one combined session running the five in sequence. Ten repetitions per cell; <em>n</em>&nbsp;=&nbsp;420.</p>
   <table>
     <thead><tr><th>variant</th><th>shape</th><th>example</th></tr></thead>
     <tbody>
-      <tr><td>Deep</td><td>3-level namespace</td><td><code>moose infra logs --filter error</code></td></tr>
-      <tr><td>Signposted</td><td>Deep + canonical examples in top-level <code>--help</code><sup class="fn"><a href="#n9">9</a></sup></td><td><code>moose infra logs --filter error</code></td></tr>
-      <tr><td>Surfaced</td><td>Deep + 7 top-level verb aliases (<code>git</code>-style)<sup class="fn"><a href="#n9">9</a></sup></td><td><code>moose logs --filter error</code></td></tr>
-      <tr><td>Shallow</td><td>mixed (mirrors real Moose)</td><td><code>moose logs --filter error</code></td></tr>
-      <tr><td>Positional</td><td>flat, domain as positional</td><td><code>moose logs error</code></td></tr>
-      <tr><td>Flag</td><td>flat, domain as flag</td><td><code>moose logs --filter error</code></td></tr>
-      <tr><td>Atomic</td><td>one flat verb per capability</td><td><code>moose search-logs error</code></td></tr>
+      <tr><td><a href="#schema-deep">Deep</a></td><td>3-level namespace</td><td><code>moose infra logs --filter error</code></td></tr>
+      <tr><td><a href="#schema-signposted">Signposted</a></td><td>Deep + canonical examples in top-level <code>--help</code><sup class="fn"><a href="#n9">9</a></sup></td><td><code>moose infra logs --filter error</code></td></tr>
+      <tr><td><a href="#schema-surfaced">Surfaced</a></td><td>Deep + 7 top-level verb aliases (<code>git</code>-style)<sup class="fn"><a href="#n9">9</a></sup></td><td><code>moose logs --filter error</code></td></tr>
+      <tr><td><a href="#schema-shallow">Shallow</a></td><td>mixed (mirrors real Moose)</td><td><code>moose logs --filter error</code></td></tr>
+      <tr><td><a href="#schema-positional">Positional</a></td><td>flat, domain as positional</td><td><code>moose logs error</code></td></tr>
+      <tr><td><a href="#schema-flag">Flag</a></td><td>flat, domain as flag</td><td><code>moose logs --filter error</code></td></tr>
+      <tr><td><a href="#schema-atomic">Atomic</a></td><td>one flat verb per capability</td><td><code>moose search-logs error</code></td></tr>
     </tbody>
+    <tfoot><tr><td colspan="3" style="font-size: 13.5px; color: var(--muted); font-style: italic; padding-top: 8px; border-bottom: none;">Each variant name links to its full <code>--help</code> output in <a href="#app-schemas">Appendix C</a>.</td></tr></tfoot>
   </table>
 
   <h4>Harness</h4>
   <p>Each run executes inside a fresh minimal Ubuntu 24.04 container with no pre-existing <code>~/.claude/</code> state<sup class="fn"><a href="#n4">4</a></sup>. The agent is invoked via <code>claude -p --bare</code>, which disables hooks, plugins, auto-memory, keychain OAuth, and <code>CLAUDE.md</code> auto-discovery. Authentication is via <code>ANTHROPIC_API_KEY</code>. Tool access is limited to <code>Bash</code>.</p>
   <p>The full <code>stream-json</code> stream is captured per run. Per-cell statistics are mean ± standard error over <em>n</em>=10 reps<sup class="fn"><a href="#n5">5</a></sup>.</p>
 
-  <h2>3. Results</h2>
+  <h2 id="sec-results"><span class="num">§ 3</span>Results</h2>
   <h3>Single tasks: flat variants win, Surfaced ties</h3>
   <p>On single tasks, Positional required the fewest tool calls, fewest help reads, and zero errors. Surfaced is statistically indistinguishable from Positional and beats every other variant on tool-call count. Deep required roughly twice as many of each. Signposted, despite its richer top-level help, sits near Deep on this regime.</p>
   <table>
@@ -342,7 +443,7 @@
   <blockquote>Surfaced is cheapest in absolute terms in both regimes. Deep amortises tightest. Positional pays full price every time (3.52×).</blockquote>
   <p>Under a linear model the cumulative-cost projections diverge: Surfaced lies below every other curve at every <em>N</em> (Figure&nbsp;1). The earlier "<em>N</em>&nbsp;≈&nbsp;4 crossover" applied within the original five variants only.</p>
 
-  <h2>4. Discussion</h2>
+  <h2 id="sec-discussion"><span class="num">§ 4</span>Discussion</h2>
   <h3>The hybrid resolves both regimes</h3>
   <p>The conventional framing — structure helps humans, flat helps agents — does not fit the data. Neither does the refined "match shape to session length" framing once a hybrid is included. <em>Surfaced</em>'s design — nested underneath, with the seven most-common verbs (<code>init</code>, <code>dev</code>, <code>build</code>, <code>logs</code>, <code>ps</code>, <code>ls</code>, <code>seed</code>) surfaced as top-level aliases that dispatch to their canonical namespaced form — is <code>git</code>-style. The agent never needs to choose between flat and nested; the surface accepts both.</p>
   <p>In the combined-task trace (§5.1), the agent issued five commands using only the flat alias forms — no help reads, no errors. <em>Signposted</em> (Deep with canonical paths shown in <code>--help</code>) is a useful but smaller win: it does not change the command surface, only the help text, and agents that skip help cannot benefit.</p>
@@ -350,7 +451,7 @@
   <h3>Atomic as a cautionary design</h3>
   <p>Atomic exists because the heuristic under test recommends it. It loses every metric. The trace-level reason: flat kebab enumeration gives agents unlimited lexical surface to guess plausible-sounding verbs. Nothing in the surface rejects the guess. Surfaced inherits the agent-friendly flat shortcut without the unbounded surface — its seven aliases are all the agent ever needs, and the rest of the namespace is still reachable.</p>
 
-  <h2>5. Trace evidence</h2>
+  <h2 id="sec-traces"><span class="num">§ 5</span>Trace evidence</h2>
   <p>Every claim has a trace receipt<sup class="fn"><a href="#n7">7</a></sup>. Seven characteristic patterns follow, one per variant. The first two — Surfaced and Signposted — show the winning patterns from the follow-up run.</p>
 
   <h3>5.1 Surfaced — the winning pattern</h3>
@@ -418,7 +519,7 @@ moose search-logs error
 <span class="ts">20:39:18</span>  seed remote --source clickhouse --url ...   <span class="ok">→ matched:seed</span></pre>
   <p>One flag added; no help read.</p>
 
-  <h2>6. Limitations</h2>
+  <h2 id="sec-limits"><span class="num">§ 6</span>Limitations</h2>
   <ul>
     <li><em>Single model.</em> All measurements are Sonnet-4.6-specific. A Codex / GPT-5 rerun is queued.</li>
     <li><em>Simulated tool.</em> Wrappers produce canned output, isolating CLI structure as the variable but removing state-dependence.</li>
@@ -428,14 +529,14 @@ moose search-logs error
     <li><em>Surfaced and Signposted as design probes.</em> Both were added in a follow-up workflow run (24923611681) on the same harness, container image, runner code, and prompts as the original five variants. The directional finding (Surfaced wins both regimes) is robust; the exact figures carry the same <em>n</em>=10 uncertainty as the rest.</li>
   </ul>
 
-  <h2>Appendix A · Reproduction</h2>
+  <h2 id="app-repro"><span class="num">App. A</span>Reproduction</h2>
   <p>Source, wrappers, tasks, parser, chart generator: <a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure"><code>experiments/cli-structure</code></a>. Commit <a href="https://github.com/514-labs/agent-evals/commit/0663a56"><code>0663a56</code></a>.</p>
 <pre>gh workflow run cli-structure-experiment.yml \
   --repo 514-labs/agent-evals \
   --ref claude/vibrant-mcnulty-2dac4a \
   -f reps=10 -f concurrency=15</pre>
 
-  <h2>Appendix B · Artifacts</h2>
+  <h2 id="app-artifacts"><span class="num">App. B</span>Artifacts</h2>
   <ul>
     <li>Per-run rows (420): <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/results.n10.json"><code>results.n10.json</code></a></li>
     <li>Tabular report: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/report.n10.txt"><code>report.n10.txt</code></a></li>
@@ -444,7 +545,250 @@ moose search-logs error
     <li>Long-form markdown: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/REPORT.md"><code>REPORT.md</code></a></li>
   </ul>
 
-  <h2>Notes</h2>
+  <h2 id="app-schemas"><span class="num">App. C</span>CLI schemas</h2>
+  <p>Top-level <code>--help</code> output for each variant wrapper. The wrappers also accept per-namespace and per-verb help drill-downs (where applicable); only the top level is reproduced here for compactness. Source: <a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants">variants/</a>.</p>
+
+  <div class="schema-block" id="schema-deep">
+    <h4>Deep <span style="color: var(--muted); font-weight: 400;">— 3-level namespace</span></h4>
+    <p class="gloss">Every operation lives under one of six namespaces. Top-level <code>--help</code> only reveals the namespaces; commands and flags require drill-down.</p>
+<pre>Moose CLI (simulated DEEP variant) - 3-level namespacing
+
+Usage: moose &lt;namespace&gt; &lt;command&gt; [ARGS] [OPTIONS]
+
+Namespaces:
+  project       Project lifecycle: init, build, check, plan, migrate, harness, components, templates
+  infra         Infrastructure runtime: dev, prod, clean, logs, ps, metrics
+  data          Data operations: peek, query, ls, seed, truncate, db pull
+  runtime       Workflow runtime: run, resume, list, history, cancel, pause, unpause, status
+  integration   External integrations: kafka, refresh, add components, mcp
+  meta          Codegen and meta: generate, docs, feedback
+
+Run `moose &lt;namespace&gt; --help` to see commands within that namespace.
+Run `moose &lt;namespace&gt; &lt;command&gt; --help` for per-command flags.</pre>
+  </div>
+
+  <div class="schema-block" id="schema-signposted">
+    <h4>Signposted <span style="color: var(--muted); font-weight: 400;">— Deep + canonical examples in <code>--help</code></span></h4>
+    <p class="gloss">Same dispatch rules as Deep. The only change is a "Common operations" section in the top-level help that signposts the canonical invocations for frequent tasks.</p>
+<pre>Moose CLI (simulated SIGNPOSTED variant) - 3-level namespacing
+
+Usage: moose &lt;namespace&gt; &lt;command&gt; [ARGS] [OPTIONS]
+
+Namespaces:
+  project       Project lifecycle: init, build, check, plan, migrate, harness, components, templates
+  infra         Infrastructure runtime: dev, prod, clean, logs, ps, metrics
+  data          Data operations: peek, query, ls, seed, truncate, db pull
+  runtime       Workflow runtime: run, resume, list, history, cancel, pause, unpause, status
+  integration   External integrations: kafka, refresh, add components, mcp
+  meta          Codegen and meta: generate, docs, feedback
+
+Common operations:
+  moose project init &lt;NAME&gt; &lt;TEMPLATE&gt;                          Initialize a new project
+  moose infra dev                                                Start local dev server
+  moose infra ps                                                 List running processes
+  moose data ls --type &lt;TYPE&gt;                                    List primitives (Table, Stream, etc.)
+  moose infra logs --filter &lt;TERM&gt;                               Search Moose logs
+  moose data seed clickhouse --clickhouse-url &lt;URL&gt;              Seed ClickHouse from remote
+
+Run `moose &lt;namespace&gt; --help` to see commands within that namespace.
+Run `moose &lt;namespace&gt; &lt;command&gt; --help` for per-command flags.</pre>
+  </div>
+
+  <div class="schema-block" id="schema-surfaced">
+    <h4>Surfaced <span style="color: var(--muted); font-weight: 400;">— Deep + 7 top-level verb aliases (<code>git</code>-style)</span></h4>
+    <p class="gloss">Both flat alias and namespaced canonical forms are accepted and dispatch to the same capability. The seven aliases are <code>init</code>, <code>dev</code>, <code>build</code>, <code>logs</code>, <code>ps</code>, <code>ls</code>, <code>seed</code>.</p>
+<pre>Moose CLI (simulated SURFACED variant) - nested with common paths surfaced
+
+Usage: moose &lt;COMMAND&gt; [ARGS] [OPTIONS]          (common commands)
+       moose &lt;namespace&gt; &lt;command&gt; [ARGS] ...    (all operations)
+
+Common commands:
+  init       Initialize a new project       (alias for: moose project init)
+  dev        Start local dev server         (alias for: moose infra dev)
+  build      Build the project              (alias for: moose project build)
+  logs       View Moose logs                (alias for: moose infra logs)
+  ps         View running processes         (alias for: moose infra ps)
+  ls         List Moose primitives          (alias for: moose data ls)
+  seed       Seed data                      (alias for: moose data seed)
+
+Namespaces (full operation set):
+  project       Project lifecycle: init, build, check, plan, migrate, harness, components, templates
+  infra         Infrastructure runtime: dev, prod, clean, logs, ps, metrics
+  data          Data operations: peek, query, ls, seed, truncate, db pull
+  runtime       Workflow runtime: run, resume, list, history, cancel, pause, unpause, status
+  integration   External integrations: kafka, refresh, add components, mcp
+  meta          Codegen and meta: generate, docs, feedback
+
+Run `moose &lt;common-cmd&gt; --help` or `moose &lt;namespace&gt; --help` for details.
+Run `moose &lt;namespace&gt; &lt;command&gt; --help` for per-command flags.</pre>
+  </div>
+
+  <div class="schema-block" id="schema-shallow">
+    <h4>Shallow <span style="color: var(--muted); font-weight: 400;">— mixed (mirrors real Moose)</span></h4>
+    <p class="gloss">Most verbs are top-level, with a handful of subcommanded trees (<code>workflow</code>, <code>seed</code>, <code>template</code>, <code>harness</code>, <code>component</code>, <code>db</code>, <code>kafka</code>, <code>add</code>, <code>docs</code>, <code>generate</code>). This is the variant the model has training-data priors for.</p>
+<pre>Moose CLI (simulated SHALLOW variant) - top-level verbs, some subcommand trees
+
+Usage: moose &lt;COMMAND&gt; [ARGS] [OPTIONS]
+
+Commands:
+  init       Initialize a new project
+  build      Build your moose project
+  check      Check the project for non-runtime errors
+  plan       Preview infrastructure changes for next deployment
+  migrate    Execute a migration plan against a remote ClickHouse database
+  peek       View some data from a table or stream
+  dev        Start a local development environment
+  prod       Start a production environment
+  generate   Generate Dockerfiles, tokens, and migrations
+  clean      Clear temporary data and stop development infrastructure
+  logs       View Moose logs
+  ps         View Moose processes
+  ls         View Moose primitives &amp; infrastructure
+  metrics    Open the live metrics console
+  workflow   Manage workflows
+  template   Manage templates
+  harness    Initialize a project with developer harness
+  component  [EXPERIMENTAL] Manage components
+  db         Import external database schemas
+  refresh    Integrate tables from a remote Moose instance
+  seed       Seed data into your project
+  truncate   Truncate tables or delete the last N rows
+  mcp        Run MCP proxy server for AI agents
+  kafka      Manage Kafka-related operations
+  feedback   Submit feedback or report issues
+  query      Execute SQL queries against ClickHouse
+  docs       Browse and search documentation
+  add        [EXPERIMENTAL] Add a component to your project
+
+Subcommanded: workflow, seed, template, harness, component, db, kafka, add, docs, generate
+Run `moose &lt;command&gt; --help` for options.</pre>
+  </div>
+
+  <div class="schema-block" id="schema-positional">
+    <h4>Positional <span style="color: var(--muted); font-weight: 400;">— flat verbs, category-as-positional</span></h4>
+    <p class="gloss">Every verb at the top level. Category and subtype are passed as positional arguments. There is no per-subtree <code>--help</code>; the top-level help is the entire surface.</p>
+<pre>Moose CLI (simulated POSITIONAL variant) - flat verbs, category-as-positional
+
+Usage: moose &lt;COMMAND&gt; [POSITIONALS] [OPTIONS]
+
+All commands (positional categories shown inline):
+
+  moose init &lt;NAME&gt; [TEMPLATE] [--location &lt;PATH&gt;] [--from-remote [&lt;CONN&gt;]] [...]
+  moose build [--docker] [--amd64] [--arm64]
+  moose check [--write-infra-map]
+  moose plan [--url &lt;URL&gt;] [--token &lt;T&gt;] [--clickhouse-url &lt;URL&gt;] [--json]
+  moose migrate [--clickhouse-url &lt;URL&gt;] [--redis-url &lt;URL&gt;] [--validate]
+  moose peek &lt;NAME&gt; [-l N] [-f PATH] [-t|--table] [-s|--stream]
+  moose dev [--no-infra] [--mcp] [--timestamps] [--timing] [...]
+  moose prod [--start-include-dependencies]
+  moose clean
+  moose logs [-t|--tail] [-f|--filter &lt;STRING&gt;]
+  moose ps
+  moose ls [--type &lt;TYPE&gt;] [--name &lt;NAME&gt;] [--json]
+  moose metrics
+  moose seed clickhouse [--clickhouse-url &lt;URL&gt;] [--limit &lt;N&gt;|--all] [--order-by &lt;EXPR&gt;] [...]
+  moose workflow run &lt;NAME&gt; [-i JSON]
+  moose workflow resume &lt;NAME&gt; --from &lt;TASK&gt;
+  moose workflow list [--json]
+  ... (full surface omitted; see variants/positional/bin/moose for the complete listing)
+
+Note: There is no per-subtree --help drill-down in this variant.</pre>
+  </div>
+
+  <div class="schema-block" id="schema-flag">
+    <h4>Flag <span style="color: var(--muted); font-weight: 400;">— flat verbs, category-as-flag</span></h4>
+    <p class="gloss">Every verb at the top level. Subcommands collapse into <code>--action</code>, <code>--source</code>, <code>--artifact</code> flags. Each verb supports <code>--help</code>.</p>
+<pre>Moose CLI (simulated FLAG variant) - flat verbs, category-as-flag
+
+Usage: moose &lt;VERB&gt; [FLAGS]
+
+Verbs:
+  init        Initialize a new project
+  build       Build project
+  check       Check for non-runtime errors
+  plan        Preview infra changes
+  migrate     Execute migration
+  peek        View data from table or stream
+  dev         Start local dev
+  prod        Start prod
+  clean       Clean temp data, stop infra
+  logs        View logs
+  ps          View processes
+  ls          View primitives &amp; infra
+  metrics     Live metrics console
+  refresh     Refresh from remote Moose
+  truncate    Truncate tables
+  mcp         MCP proxy server
+  feedback    Send feedback
+  query       Execute SQL
+  template    Manage templates (--action list)
+  component   [EXPERIMENTAL] Manage components (--action list)
+  db          Import external DB schemas (--action pull)
+  harness     Project + harness (--action init)
+  kafka       Kafka operations (--action pull)
+  seed        Seed data (--source clickhouse)
+  workflow    Workflows (--action run|resume|list|history|cancel|pause|unpause|status)
+  add         [EXPERIMENTAL] Add component (--component mcp-server|chat|benchmark)
+  generate    Codegen (--artifact dockerfile|hash-token|migration)
+  docs        Docs (--action browse|search|view)
+
+Run `moose &lt;verb&gt; --help` for its flags.</pre>
+  </div>
+
+  <div class="schema-block" id="schema-atomic">
+    <h4>Atomic <span style="color: var(--muted); font-weight: 400;">— one flat verb per capability</span></h4>
+    <p class="gloss">Every capability is its own kebab-case verb at the top level. The lexicon is enumerable in a single <code>--help</code> response — the design the "agents want flat" heuristic prescribes.</p>
+<pre>Moose CLI (simulated ATOMIC variant) - every capability is a top-level kebab-case verb
+
+Usage: moose &lt;VERB&gt; [ARGS] [OPTIONS]
+
+Commands (alphabetical):
+  moose add-benchmark          [EXPERIMENTAL] Add a query benchmark package
+  moose add-chat               [EXPERIMENTAL] Add an AI chat panel for Next.js
+  moose add-mcp-server         [EXPERIMENTAL] Add an MCP server component
+  moose browse-docs            Interactively browse and select a documentation page
+  moose build-project          Build your moose project
+  moose cancel-workflow        Cancel a workflow &amp; allow cleanup
+  moose check-project          Check the project for non-runtime errors
+  moose clean-project          Clear temporary data and stop development infrastructure
+  moose generate-dockerfile    Generate the Dockerfile without building the image
+  moose generate-hash-token    Generate an API key hash and bearer token pair
+  moose generate-migration     Generate migration files
+  moose init-harness           Initialize a Moose project plus the developer harness
+  moose init-project           Initialize a new project
+  moose list-components        [EXPERIMENTAL] List available components
+  moose list-infra             View Moose primitives &amp; infrastructure (filter with --type)
+  moose list-processes         View Moose processes
+  moose list-templates         List available templates
+  moose list-workflows         List registered workflows
+  moose migrate-clickhouse     Execute a migration plan against a remote ClickHouse database
+  moose open-metrics           Open the live metrics console
+  moose pause-workflow         Pause a workflow
+  moose peek-table             View some data from a table or stream
+  moose plan-infra             Preview infrastructure changes for next deployment
+  moose pull-db-schema         Update DB schema for EXTERNALLY_MANAGED tables
+  moose pull-kafka-schemas     Discover topics and generate external stream declarations
+  moose refresh-from-remote    Integrate tables from a remote Moose instance
+  moose resume-workflow        Resume a workflow from a specific task
+  moose run-query              Execute SQL queries against ClickHouse
+  moose run-workflow           Run a workflow
+  moose search-docs            Search documentation by title or description
+  moose search-logs            View Moose logs (positional query sets --filter)
+  moose seed-clickhouse        Seed ClickHouse tables with data
+  moose send-feedback          Submit feedback or report issues
+  moose start-dev              Start a local development environment
+  moose start-mcp-proxy        Run MCP proxy server for AI agents
+  moose start-prod             Start a production environment
+  moose truncate-tables        Truncate tables or delete the last N rows
+  moose unpause-workflow       Unpause a workflow
+  moose view-docs              View a documentation page
+  moose workflow-history       Show workflow history
+  moose workflow-status        Get the status of a workflow
+
+No subtree help. Each verb stands alone.</pre>
+  </div>
+
+  <h2 id="sec-notes"><span class="num">Notes</span></h2>
   <div class="notes">
     <ol>
       <li id="n1">The heuristic appears in design discussions, Slack threads, and the implicit shape of several recent agent-oriented CLIs. To our knowledge it has not been empirically tested.</li>

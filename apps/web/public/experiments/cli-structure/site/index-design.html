@@ -80,14 +80,22 @@
   .hero .kicker::before { content: "→ "; color: var(--accent); }
   .hero h1 {
     font-family: var(--black);
-    font-size: clamp(72px, 17vw, 240px);
-    line-height: 0.84;
-    letter-spacing: -0.055em;
+    font-size: clamp(48px, 10vw, 132px);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
     margin: 0 0 12px;
     color: var(--ink);
     text-transform: uppercase;
   }
   .hero h1 .dot { color: var(--accent); display: inline-block; transform: translateY(-0.1em); }
+  .hero h1 .strike {
+    color: var(--mute);
+    text-decoration: line-through;
+    text-decoration-thickness: 0.06em;
+    text-decoration-skip-ink: none;
+    text-decoration-color: var(--mute);
+    margin-right: 0.18em;
+  }
   .hero .dek {
     font-family: var(--sans);
     font-weight: 500;
@@ -132,19 +140,45 @@
     color: var(--ink);
   }
   .invented .cmd { display: block; position: relative; }
-  .invented .cmd::after {
-    content: "";
-    position: absolute;
-    left: 0; right: 24%;
-    top: 50%;
-    height: 2px;
-    background: var(--warn);
-    transform: rotate(-1.2deg);
-    transform-origin: left;
-  }
-  .invented .cmd:nth-child(3)::after { transform: rotate(-0.7deg); right: 18%; }
-  .invented .cmd:nth-child(4)::after { transform: rotate(-1.5deg); right: 8%; }
   .invented .cmd .mute { color: var(--dim); }
+  /* Bad-side cmds: ✗ prefix, dimmed type. */
+  .invented .col.fail .cmd { color: var(--mute); }
+  .invented .col.fail .cmd::before {
+    content: "✗ ";
+    color: var(--warn);
+    margin-right: 6px;
+    font-weight: 700;
+  }
+  /* Win-side cmds: ✓ prefix, bright ink. */
+  .invented .cmd.ok::before {
+    content: "✓ ";
+    color: var(--ok);
+    margin-right: 6px;
+    font-weight: 700;
+  }
+
+  /* Two-column data-art grid: failure left, win right. Collapse below 940px. */
+  .invented .invented-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 56px;
+    max-width: 1400px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 940px) {
+    .invented .invented-grid { grid-template-columns: 1fr; gap: 48px; }
+  }
+  .invented .col { min-width: 0; }
+  .invented .col.win .label { color: var(--ok); }
+  .invented .col.win .label::before { content: "✓ "; color: var(--ok); }
+  /* Tighter type for the grid so both columns breathe. */
+  .invented .invented-grid .stack {
+    font-size: clamp(18px, 2.1vw, 28px);
+    line-height: 1.32;
+  }
+  .invented .col.win .attrib .win-src { color: var(--ok); }
+  .invented .col.win .stack { color: var(--ink); }
   .invented .attrib {
     font-family: var(--mono);
     font-size: 12px;
@@ -527,24 +561,37 @@
   <!-- ============================ HERO ============================ -->
   <section class="hero">
     <div class="kicker">A report on designing tools for AI agents</div>
-    <h1>Shape<br/>the Tool<span class="dot">.</span></h1>
+    <h1>A CLI<br/>for <span class="strike">Humans</span> Agents<span class="dot">.</span></h1>
     <p class="dek">
-      Four hundred and twenty agent sessions, seven CLI shapes, one answer: <em>nest the surface, then surface the shortcuts.</em>
+      Four hundred and twenty agent sessions across seven CLI shapes. The shape the data picked is <em>the one git arrived at three decades ago</em> — nested underneath, with the common verbs surfaced flat at the top.
     </p>
   </section>
 
   <!-- ============================ HERO DATA-ART ============================ -->
   <section class="invented">
-    <div class="label">What the agent tried first</div>
-    <div class="stack">
-      <span class="cmd"><span class="mute">$ </span>moose logs <span class="mute">--filter error</span></span>
-      <span class="cmd"><span class="mute">$ </span>moose logs <span class="mute">| grep -i error</span></span>
-      <span class="cmd"><span class="mute">$ </span>moose log <span class="mute">--filter error</span></span>
+    <div class="invented-grid">
+      <div class="col fail">
+        <div class="label">Bad CLI &nbsp;<span style="color: var(--mute); font-weight: 400; letter-spacing: 0.1em;">— what we ship today</span></div>
+        <div class="stack">
+          <span class="cmd"><span class="mute">$ </span>moose workflow run order-pipeline <span class="mute">--input='{…}'</span></span>
+          <span class="cmd"><span class="mute">$ </span>moose generate hash-token <span class="mute">--json</span></span>
+          <span class="cmd"><span class="mute">$ </span>moose seed clickhouse <span class="mute">--clickhouse-url 'clickhouse://…'</span></span>
+        </div>
+        <p class="attrib">
+          Real <code>moose --help</code> today. The agent has to drill through a subcommand tree (<code>workflow</code>, <code>generate</code>, <code>seed</code>) before it can do anything. Same pattern as <code>aws</code>, <code>kubectl</code>, <code>terraform</code>. <em>Note:</em> moose already surfaces <code>logs</code>, <code>ps</code>, <code>ls</code> at the top level — the bad cases are the ones still buried.
+        </p>
+      </div>
+      <div class="col win">
+        <div class="label win-label">Good CLI &nbsp;<span style="color: var(--mute); font-weight: 400; letter-spacing: 0.1em;">— what nobody ships yet</span></div>
+        <div class="stack stack-win">
+          <span class="cmd ok"><span class="mute">$ </span>moose run order-pipeline</span>
+          <span class="cmd ok"><span class="mute">$ </span>moose seed <span class="mute">'clickhouse://…'</span></span>
+        </div>
+        <p class="attrib">
+          The same operations, surfaced as top-level aliases over the existing nested surface. None of these exist in moose yet. None exist in <code>aws</code>, <code>kubectl</code>, <code>terraform</code> either. The data says shipping them cuts multi-task agent cost by 24%.
+        </p>
+      </div>
     </div>
-    <p class="attrib">
-      Claude Sonnet 4.6 &middot; <span class="src">atomic/b/rep5</span>
-      &middot; all three verbs do not exist in the CLI.
-    </p>
   </section>
 
   <!-- ============================ ACT I ============================ -->
