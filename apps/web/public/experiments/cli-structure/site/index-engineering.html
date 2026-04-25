@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CLI shape for agents — engineering datasheet</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #F4F2EA;
+    --sub: #E9E6DB;
+    --card: #EFEDE3;
+    --ink: #0E0F12;
+    --mute: #606169;
+    --dim: #8A8A8D;
+    --accent: #E85D17;
+    --blueprint: #1E4F7A;
+    --warn: #BA1A1A;
+    --rule: rgba(14,15,18,0.12);
+    --rule-strong: rgba(14,15,18,0.25);
+    --mono: "Geist Mono", "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, monospace;
+    --sans: "Geist", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ============= masthead ============= */
+  .mast {
+    border-bottom: 1px solid var(--ink);
+    padding: 14px 32px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .mast .l .mark {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 2px 8px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    margin-right: 10px;
+  }
+  .mast .r span { color: var(--mute); }
+  .mast .r .live { color: var(--accent); }
+  .mast a { color: var(--ink); }
+  .mast a:hover { color: var(--accent); }
+
+  /* ============= subhead bar ============= */
+  .subhead {
+    padding: 10px 32px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--mute);
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .subhead .nav a { color: var(--mute); margin-right: 18px; text-decoration: none; }
+  .subhead .nav a:hover { color: var(--accent); }
+
+  /* ============= hero ============= */
+  .hero {
+    padding: 72px 32px 48px;
+    border-bottom: 1px solid var(--ink);
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+  .hero .spec-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: clamp(36px, 5.4vw, 68px);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    margin: 0 0 20px;
+    max-width: 22ch;
+    color: var(--ink);
+  }
+  .hero h1 .acc { color: var(--accent); }
+  .hero .lede {
+    font-size: 19px;
+    line-height: 1.5;
+    max-width: 58ch;
+    color: var(--ink);
+    margin: 0 0 32px;
+  }
+  .hero .lede code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: var(--sub);
+    padding: 1px 6px;
+    border-radius: 2px;
+  }
+  .hero .chip-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .hero .chip {
+    padding: 4px 10px;
+    background: var(--sub);
+    border: 1px solid var(--rule);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .hero .chip.acc { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  /* ============= hero chart panel ============= */
+  .hero-chart {
+    padding: 40px 32px 64px;
+    border-bottom: 1px solid var(--ink);
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+  .hero-chart .frame {
+    background: var(--card);
+    border: 1px solid var(--rule-strong);
+    padding: 24px 28px 28px;
+    position: relative;
+  }
+  .hero-chart .frame::before {
+    content: "FIG 01";
+    position: absolute;
+    top: 0; left: 24px;
+    transform: translateY(-50%);
+    background: var(--bg);
+    padding: 0 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .hero-chart .frame::after {
+    content: "BREAK-EVEN";
+    position: absolute;
+    top: 0; right: 24px;
+    transform: translateY(-50%);
+    background: var(--bg);
+    padding: 0 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--mute);
+  }
+  .hero-chart img {
+    width: 100%;
+    display: block;
+    margin: 6px 0 14px;
+  }
+  .hero-chart .cap {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink);
+    border-top: 1px solid var(--rule);
+    padding-top: 14px;
+  }
+  .hero-chart .cap .acc { color: var(--accent); font-weight: 600; }
+  .hero-chart .cap strong { color: var(--ink); font-weight: 600; }
+
+  /* ============= section header ============= */
+  section {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 56px 32px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .sec-head {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 24px;
+    align-items: baseline;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 720px) { .sec-head { grid-template-columns: 1fr; gap: 8px; } }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    font-weight: 600;
+    padding-top: 9px;
+  }
+  .sec-title {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: clamp(20px, 2.4vw, 28px);
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.15;
+  }
+  .sec-title .acc { color: var(--accent); }
+  .sec-sub {
+    font-size: 16px;
+    color: var(--ink);
+    max-width: 68ch;
+    margin: 0 0 0;
+  }
+  .sec-body { max-width: 1120px; }
+  .sec-body p { margin: 0 0 14px; font-size: 15.5px; max-width: 72ch; }
+  .sec-body p code { font-family: var(--mono); font-size: 13.5px; background: var(--sub); padding: 1px 5px; border-radius: 2px; }
+
+  /* ============= variant table ============= */
+  table.shape-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 8px 0 0;
+  }
+  .shape-table th, .shape-table td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .shape-table th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mute);
+    font-weight: 600;
+    border-bottom: 1px solid var(--ink);
+  }
+  .shape-table td code { font-family: var(--mono); font-size: 13px; }
+
+  /* ============= scorecards ============= */
+  .scorecard {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    margin: 8px 0 0;
+    border: 1px solid var(--rule-strong);
+  }
+  @media (max-width: 820px) { .scorecard { grid-template-columns: repeat(2, 1fr); } }
+  .tile {
+    padding: 16px 14px 14px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    background: var(--card);
+    position: relative;
+  }
+  .tile:last-child { border-right: none; }
+  .tile::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--dim);
+  }
+  .tile.do::before { background: var(--accent); }
+  .tile.dont::before { background: var(--warn); }
+  .tile.hmm::before { background: var(--blueprint); }
+  .tile .name {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin-bottom: 6px;
+  }
+  .tile .val {
+    font-family: var(--mono);
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    font-feature-settings: "tnum" 1;
+  }
+  .tile .unit {
+    font-size: 11px;
+    color: var(--mute);
+    margin-left: 6px;
+    letter-spacing: 0.04em;
+    font-weight: 400;
+  }
+  .tile .verdict {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--mute);
+    margin-top: 8px;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .tile.do .verdict { color: var(--accent); }
+  .tile.dont .verdict { color: var(--warn); }
+  .tile.hmm .verdict { color: var(--blueprint); }
+
+  /* ============= decision matrix ============= */
+  .matrix {
+    display: grid;
+    grid-template-columns: 260px 1fr 1fr;
+    border: 1px solid var(--rule-strong);
+    margin: 8px 0 0;
+    font-size: 14px;
+  }
+  @media (max-width: 820px) { .matrix { grid-template-columns: 1fr; } }
+  .matrix .hd {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border-right: 1px solid rgba(255,255,255,0.12);
+  }
+  .matrix .hd:last-child { border-right: none; }
+  @media (max-width: 820px) { .matrix .hd { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.12); } }
+  .matrix .cell {
+    padding: 14px;
+    border-top: 1px solid var(--rule);
+    border-right: 1px solid var(--rule);
+    background: var(--card);
+  }
+  .matrix .cell:nth-child(3n+4) { border-right: 1px solid var(--rule); }
+  .matrix .cell.lbl { font-family: var(--mono); font-size: 13px; font-weight: 600; background: var(--sub); }
+  .matrix .cell.lbl .desc { display: block; font-weight: 400; color: var(--mute); font-size: 12px; margin-top: 4px; line-height: 1.4; }
+  .matrix .cell.do { color: var(--accent); font-weight: 500; }
+  .matrix .cell.do::before { content: "✓ "; }
+  .matrix .cell.dont { color: var(--warn); font-weight: 500; }
+  .matrix .cell.dont::before { content: "✗ "; }
+  .matrix .cell.hmm { color: var(--blueprint); font-weight: 500; }
+  .matrix .cell.hmm::before { content: "→ "; }
+  .matrix .cell.full { grid-column: 2 / -1; }
+
+  /* ============= prompt cards ============= */
+  .prompts { display: grid; gap: 16px; margin-top: 8px; }
+  .prompt {
+    background: var(--ink);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .prompt header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    align-items: center;
+    background: #1C1D22;
+  }
+  .prompt header .idx {
+    color: var(--accent);
+    font-size: 10.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .prompt header .t {
+    color: var(--bg);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    flex: 1;
+    padding: 0 14px;
+  }
+  .prompt header .btn {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: var(--accent);
+    color: var(--ink);
+    border: none;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .prompt header .btn:hover { background: var(--bg); color: var(--accent); }
+  .prompt header .btn.copied { background: var(--bg); color: var(--accent); }
+  .prompt .body {
+    padding: 14px 14px 10px;
+    color: #D4D4D4;
+    white-space: pre-wrap;
+    font-size: 12.5px;
+  }
+  .prompt .run {
+    padding: 8px 14px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    color: #888;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .prompt .run::before { content: "$ "; color: var(--accent); }
+
+  /* ============= evidence panels ============= */
+  .evidence {
+    margin: 8px 0 0;
+    border: 1px solid var(--rule-strong);
+    background: var(--card);
+  }
+  .evidence > summary {
+    cursor: pointer;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+  }
+  .evidence > summary::-webkit-details-marker { display: none; }
+  .evidence > summary::before {
+    content: "[+]";
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    margin-right: 10px;
+  }
+  .evidence[open] > summary::before { content: "[−]"; }
+  .evidence > summary .meta {
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mute);
+    flex: 1;
+    padding-left: 10px;
+  }
+  .evidence > summary .receipt {
+    font-size: 10.5px;
+    color: var(--mute);
+    letter-spacing: 0.04em;
+  }
+  .evidence > summary .receipt .k { color: var(--accent); }
+  .evidence[open] > summary { border-bottom: 1px solid var(--rule); }
+  .evidence .content {
+    padding: 14px 16px 18px;
+  }
+  .evidence pre {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0 0 10px;
+  }
+  .evidence pre .dim { color: #888; }
+  .evidence pre .ok { color: #5EC16F; }
+  .evidence pre .err { color: #FF7B3F; }
+  .evidence pre .help { color: #8FB3E0; }
+  .evidence .prose {
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.55;
+    max-width: 72ch;
+  }
+  .evidence .prose a { color: var(--blueprint); }
+
+  /* ============= rule-of-thumb block ============= */
+  .rules-block {
+    background: var(--sub);
+    border: 1px solid var(--rule-strong);
+    padding: 20px 24px;
+    margin: 8px 0 0;
+  }
+  .rules-block h4 {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  .rules-block ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .rules-block li { padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .rules-block li:last-child { border-bottom: none; }
+  .rules-block li strong { display: block; color: var(--ink); font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 2px; }
+  .rules-block li strong.do { color: var(--accent); }
+  .rules-block li strong.dont { color: var(--warn); }
+  .rules-block li code { font-family: var(--mono); font-size: 13px; background: var(--card); padding: 1px 5px; border-radius: 2px; }
+
+  /* ============= repro block ============= */
+  .repro pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 8px 0 0;
+  }
+  .repro pre .dim { color: #888; }
+  .repro pre .acc { color: var(--accent); }
+  .repro pre .kw { color: #E0C97F; }
+
+  /* ============= references ============= */
+  .refs ul {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .refs a { color: var(--ink); border-bottom: 1px solid var(--rule); }
+  .refs a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .refs li::before {
+    content: "→ ";
+    color: var(--accent);
+    margin-right: 4px;
+  }
+
+  /* ============= footer ============= */
+  footer.footer {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 48px 32px 64px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--mute);
+    border-top: 1px solid var(--ink);
+  }
+  @media (max-width: 640px) { footer.footer { grid-template-columns: 1fr; } }
+  footer .editions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  footer .editions a {
+    padding: 5px 12px;
+    border: 1px solid var(--rule-strong);
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  footer .editions a:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  footer .editions a.self { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  /* ============= spec-id ascii brackets ============= */
+  .ascii-bracket {
+    font-family: var(--mono);
+    color: var(--mute);
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+
+  <div class="mast">
+    <div class="l"><span class="mark">DEC·BENCH</span> datasheet / cli-shape-v1</div>
+    <div class="r">
+      <span class="live">● LIVE</span>&nbsp;
+      <span>rev 0663a56 · 2026·04·24 · n=300 · sonnet-4.6 · $9.01</span>
+    </div>
+  </div>
+  <div class="subhead">
+    <div>engineering edition · one of four</div>
+    <div class="nav">
+      <a href="index.html">original</a>
+      <a href="index-scientific.html">scientific</a>
+      <a href="index-design.html">design</a>
+    </div>
+  </div>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <div class="spec-id">&lt;spec&#8209;id/&gt; CLI.SHAPE.v1 &middot; REVEALED 2026&#8209;04&#8209;24</div>
+    <h1>Pick the CLI shape from the<br/><span class="acc">break-even curve.</span> Verify with a trace.</h1>
+    <p class="lede">
+      Three hundred Claude sessions across five CLI shapes, same capability surface. Flat layouts win single tasks; nested layouts win multi-task sessions. The crossover sits near four related commands per session. This page is the working engineer's summary — numbers, prompts to audit your own CLI, and trace receipts for every claim.
+    </p>
+    <div class="chip-row">
+      <span class="chip acc">n = 300 runs</span>
+      <span class="chip">5 variants</span>
+      <span class="chip">6 tasks</span>
+      <span class="chip">10 reps/cell</span>
+      <span class="chip">100% success</span>
+      <span class="chip">Sonnet 4.6 · --bare</span>
+    </div>
+  </section>
+
+  <!-- ================= HERO CHART ================= -->
+  <section class="hero-chart">
+    <div class="frame">
+      <img src="../charts/break_even.png" alt="Cumulative session cost against number of related tasks per session, for five CLI variants. Flat variants rise steeply; Deep rises slowly; all lines cross near N=4." />
+      <div class="cap">
+        Projected cumulative session cost (USD) vs. <strong>N = tasks per session</strong>. Five flat variants rise steeply; <strong>Deep</strong> rises slowly. <span class="acc">Crossover at N ≈ 4.</span> Below: go flat. Above: go nested and surface the common verbs.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SHAPES ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§01 &middot; SHAPES</div>
+      <h2 class="sec-title">Five shapes, identical capability surface.</h2>
+    </div>
+    <table class="shape-table">
+      <thead><tr><th>variant</th><th>shape</th><th>example</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Deep</strong></td><td>3-level namespace</td><td><code>moose infra logs --filter error</code></td></tr>
+        <tr><td><strong>Shallow</strong></td><td>mixed · mirrors real Moose</td><td><code>moose logs --filter error</code></td></tr>
+        <tr><td><strong>Positional</strong></td><td>flat verbs + positional arg</td><td><code>moose logs error</code></td></tr>
+        <tr><td><strong>Flag</strong></td><td>flat verbs + flags</td><td><code>moose logs --filter error</code></td></tr>
+        <tr><td><strong>Atomic</strong></td><td>one flat verb per capability</td><td><code>moose search-logs error</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ================= SCORECARD · SINGLE ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§02 &middot; SCORECARD</div>
+      <h2 class="sec-title">Single task &middot; <span class="acc">flat wins</span>, 2× gap.</h2>
+    </div>
+    <p class="sec-sub">Mean Bash tool calls per task. n = 50 / variant (5 single tasks × 10 reps).</p>
+    <div class="scorecard">
+      <div class="tile do"><div class="name">Positional</div><div class="val">1.52<span class="unit">calls/task</span></div><div class="verdict">best · 0 errors</div></div>
+      <div class="tile"><div class="name">Shallow</div><div class="val">1.82<span class="unit">calls/task</span></div><div class="verdict">matches real Moose</div></div>
+      <div class="tile"><div class="name">Flag</div><div class="val">2.36<span class="unit">calls/task</span></div><div class="verdict">—</div></div>
+      <div class="tile hmm"><div class="name">Atomic</div><div class="val">2.64<span class="unit">calls/task</span></div><div class="verdict">+ 1.12 err/task</div></div>
+      <div class="tile dont"><div class="name">Deep</div><div class="val">3.44<span class="unit">calls/task</span></div><div class="verdict">worst · 1.74 help reads</div></div>
+    </div>
+  </section>
+
+  <!-- ================= SCORECARD · SESSION ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§03 &middot; SCORECARD</div>
+      <h2 class="sec-title">5-task session &middot; <span class="acc">nested wins</span>, the ranking flips.</h2>
+    </div>
+    <p class="sec-sub">Mean Bash tool calls per 5-task session. n = 10 / variant.</p>
+    <div class="scorecard">
+      <div class="tile do"><div class="name">Deep</div><div class="val">8.00<span class="unit">calls/session</span></div><div class="verdict">best · namespace amortizes</div></div>
+      <div class="tile"><div class="name">Flag</div><div class="val">8.70<span class="unit">calls/session</span></div><div class="verdict">—</div></div>
+      <div class="tile"><div class="name">Shallow</div><div class="val">9.80<span class="unit">calls/session</span></div><div class="verdict">—</div></div>
+      <div class="tile hmm"><div class="name">Positional</div><div class="val">10.40<span class="unit">calls/session</span></div><div class="verdict">best-to-worst swing</div></div>
+      <div class="tile dont"><div class="name">Atomic</div><div class="val">11.60<span class="unit">calls/session</span></div><div class="verdict">worst · 3 errors/session</div></div>
+    </div>
+  </section>
+
+  <!-- ================= AMORTIZATION ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§04 &middot; AMORTIZATION</div>
+      <h2 class="sec-title">Ratio of 5-task cost ÷ single-task cost.</h2>
+    </div>
+    <p class="sec-sub">Near 1× = perfect reuse (pay once, amortize). Near 5× = every task starts from scratch. Deep pays once; Positional pays every time.</p>
+    <div class="scorecard">
+      <div class="tile do"><div class="name">Deep</div><div class="val">1.6×</div><div class="verdict">amortizes</div></div>
+      <div class="tile"><div class="name">Atomic</div><div class="val">2.4×</div><div class="verdict">—</div></div>
+      <div class="tile"><div class="name">Flag</div><div class="val">2.5×</div><div class="verdict">—</div></div>
+      <div class="tile"><div class="name">Shallow</div><div class="val">3.1×</div><div class="verdict">—</div></div>
+      <div class="tile dont"><div class="name">Positional</div><div class="val">3.5×</div><div class="verdict">no reuse</div></div>
+    </div>
+  </section>
+
+  <!-- ================= DECISION MATRIX ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§05 &middot; DECISION MATRIX</div>
+      <h2 class="sec-title">Pick a shape for your workload.</h2>
+    </div>
+    <div class="matrix">
+      <div class="hd">use case</div>
+      <div class="hd">single ops &middot; N &lt; 4</div>
+      <div class="hd">sessions &middot; N ≥ 4</div>
+
+      <div class="cell lbl">Health checks, one-off queries, status commands<span class="desc">Short-burst CLI usage</span></div>
+      <div class="cell do">Positional or Flag</div>
+      <div class="cell hmm">N/A — this column doesn't apply</div>
+
+      <div class="cell lbl">Orchestration workflows<span class="desc">init → configure → seed → validate → deploy</span></div>
+      <div class="cell hmm">Flat works but won't scale</div>
+      <div class="cell do">Deep, with common verbs surfaced</div>
+
+      <div class="cell lbl">Mixed usage<span class="desc">The realistic case</span></div>
+      <div class="cell do full">Nested + top-level aliases for 5–7 most-common verbs &middot; <code>git</code>-style</div>
+
+      <div class="cell lbl">Never</div>
+      <div class="cell dont full">All-flat kebab verbs (<code>moose search-logs</code>, <code>moose list-tables</code>) &middot; 3 err/session, agent hallucinates</div>
+    </div>
+  </section>
+
+  <!-- ================= AGENT AUDIT PROMPTS ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§06 &middot; AGENT AUDIT</div>
+      <h2 class="sec-title">Five prompts to audit <span class="acc">your</span> CLI.</h2>
+    </div>
+    <p class="sec-sub">Paste into Claude Code (or your agent of choice) in a clone of your CLI's repo. Each targets one failure mode surfaced in the traces below.</p>
+    <div class="prompts">
+
+      <div class="prompt">
+        <header><span class="idx">AUDIT 01</span><span class="t">Verb hallucination</span><button class="btn" data-target="p1">COPY</button></header>
+        <div class="body" id="p1">You have the ACME CLI on PATH. Without reading any docs or source, describe ten tasks you'd plausibly want to do with it and the command you would try first for each. Then run each and count how many failed with "unknown command" on the first attempt. Report the first-try success rate and the verbs you expected but don't exist.</div>
+        <div class="run">claude -p "$(cat audit-01.md)" --allowedTools "Bash"</div>
+      </div>
+
+      <div class="prompt">
+        <header><span class="idx">AUDIT 02</span><span class="t">Help traversal cost</span><button class="btn" data-target="p2">COPY</button></header>
+        <div class="body" id="p2">For the task "list the tables in the running project" with the ACME CLI: measure how many --help calls you made before a non-help command, whether any were unnecessary, and how many total commands you ran. Report the numbers and the path of your first --help call.</div>
+        <div class="run">claude -p "$(cat audit-02.md)" --allowedTools "Bash"</div>
+      </div>
+
+      <div class="prompt">
+        <header><span class="idx">AUDIT 03</span><span class="t">Multi-task amortization</span><button class="btn" data-target="p3">COPY</button></header>
+        <div class="body" id="p3">Complete these five tasks in order with the ACME CLI: [TASK LIST]. Report: total --help calls; any redundant ones (re-read help for something you'd already learned); the tool-call count of task 5 vs task 1.</div>
+        <div class="run">claude -p "$(cat audit-03.md)" --allowedTools "Bash"</div>
+      </div>
+
+      <div class="prompt">
+        <header><span class="idx">AUDIT 04</span><span class="t">Error recovery cost</span><button class="btn" data-target="p4">COPY</button></header>
+        <div class="body" id="p4">Run three commands against the ACME CLI that look plausible but you suspect don't exist. For each: did the error message tell you how to fix it? Did you have to read help to recover? How many extra tool calls did recovery take?</div>
+        <div class="run">claude -p "$(cat audit-04.md)" --allowedTools "Bash"</div>
+      </div>
+
+      <div class="prompt">
+        <header><span class="idx">AUDIT 05</span><span class="t">Top-level help coverage</span><button class="btn" data-target="p5">COPY</button></header>
+        <div class="body" id="p5">Run the ACME CLI's top-level --help. Without running anything else, list: (a) what you believe are the five most common tasks, (b) for each, the command you'd try first, (c) which you could compose from help alone vs. which required guessing.</div>
+        <div class="run">claude -p "$(cat audit-05.md)" --allowedTools "Bash"</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= TRACE EVIDENCE ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§07 &middot; TRACE EVIDENCE</div>
+      <h2 class="sec-title">Five failure modes, <span class="acc">one per variant</span>.</h2>
+    </div>
+    <p class="sec-sub">Each claim above traces to a specific run. Expand for the raw <code>moose.log</code> extract.</p>
+
+    <details class="evidence">
+      <summary>
+        <span class="meta">Pattern 01 · Atomic → verb hallucination</span>
+        <span class="receipt"><span class="k">runs/atomic/b/rep5</span> · 3 err + 1 help · 9/10 reps</span>
+      </summary>
+      <div class="content">
+        <pre><span class="dim"># agent attempt</span>
+moose logs --filter error 2&gt;/dev/null \
+  || moose logs | grep -i error 2&gt;/dev/null \
+  || moose log --filter error 2&gt;/dev/null
+<span class="err">→ error: unknown command 'logs'. Did you mean `moose search-logs`?</span>
+
+moose search-logs --help
+<span class="help">→ Usage: moose search-logs [QUERY] [-t|--tail] [-f|--filter &lt;STRING&gt;]</span>
+
+moose search-logs error
+<span class="ok">→ [moose-runtime] server started on :4000</span></pre>
+        <p class="prose">Three invented verbs chained with <code>||</code> before the agent concedes and reads help. Flat kebab enumeration leaves unlimited lexical surface to guess; the English phrase "search the logs" cues a verb containing <em>logs</em>, which doesn't exist here. Nothing rejects the cue until the error fires.</p>
+      </div>
+    </details>
+
+    <details class="evidence">
+      <summary>
+        <span class="meta">Pattern 02 · Deep → namespace transfer (winning)</span>
+        <span class="receipt"><span class="k">runs/deep/combined/rep1</span> · 1 err + 1 help + 5 hits</span>
+      </summary>
+      <div class="content">
+        <pre><span class="dim">20:37:04</span>  init events --template python-ckh          <span class="err">→ error:unknown</span>
+<span class="dim">20:37:05</span>  --help                                     <span class="help">→ help:top</span>
+<span class="dim">20:37:08</span>  project init events --template python-ckh  <span class="ok">→ matched:init</span>
+<span class="dim">20:37:10</span>  data seed --source ...                     <span class="ok">→ matched:seed</span>
+<span class="dim">20:37:12</span>  infra ps                                   <span class="ok">→ matched:ps</span>
+<span class="dim">20:37:14</span>  data ls                                    <span class="ok">→ matched:ls</span>
+<span class="dim">20:37:17</span>  infra logs --filter error                  <span class="ok">→ matched:logs</span></pre>
+        <p class="prose">One help read. Agent learns the namespace partition (<code>project/</code>, <code>data/</code>, <code>infra/</code>) and routes four further tasks without re-consulting help. Amortization visible at the command level.</p>
+      </div>
+    </details>
+
+    <details class="evidence">
+      <summary>
+        <span class="meta">Pattern 03 · Shallow → subcommand hallucination</span>
+        <span class="receipt"><span class="k">runs/shallow/combined/rep1</span></span>
+      </summary>
+      <div class="content">
+        <pre><span class="dim">20:37:46</span>  seed remote --source-connection-string ...  <span class="err">→ error:unknown</span>
+<span class="dim">20:37:48</span>  seed --help                                 <span class="help">→ help:verb:seed</span>
+<span class="dim">20:37:53</span>  seed clickhouse --clickhouse-url ...        <span class="ok">→ matched:seed</span></pre>
+        <p class="prose">Task phrasing ("seed from a remote DB") cues the non-existent <code>seed remote</code>. Per-verb help drill recovers cheaply.</p>
+      </div>
+    </details>
+
+    <details class="evidence">
+      <summary>
+        <span class="meta">Pattern 04 · Positional → same hallucination, worse recovery</span>
+        <span class="receipt"><span class="k">runs/positional/combined/rep1</span> · identical in 10/10 reps</span>
+      </summary>
+      <div class="content">
+        <pre><span class="dim">20:38:29</span>  seed remote --url ...     <span class="err">→ error:unknown</span>
+<span class="dim">20:38:30</span>  seed --help               <span class="err">→ error:unknown</span>
+<span class="dim">20:38:32</span>  --help                    <span class="help">→ help:top</span>
+<span class="dim">20:38:37</span>  seed clickhouse --clickhouse-url ...  <span class="ok">→ matched:seed</span></pre>
+        <p class="prose">Inherits Shallow's miss but has no per-verb help to drill into — <code>seed --help</code> itself errors. Agent falls back to top-level help dump.</p>
+      </div>
+    </details>
+
+    <details class="evidence">
+      <summary>
+        <span class="meta">Pattern 05 · Flag → recovery without help</span>
+        <span class="receipt"><span class="k">runs/flag/combined/rep1</span></span>
+      </summary>
+      <div class="content">
+        <pre><span class="dim">20:39:16</span>  seed remote --url ...                       <span class="err">→ error:incomplete</span>
+<span class="dim">20:39:18</span>  seed remote --source clickhouse --url ...   <span class="ok">→ matched:seed</span></pre>
+        <p class="prose">Self-describing error names the missing flag. One incremental flag fixes it. No help read.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ================= RULES OF THUMB ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">§08 &middot; RULES OF THUMB</div>
+      <h2 class="sec-title">What to do in your CLI.</h2>
+    </div>
+    <div class="rules-block">
+      <ul>
+        <li><strong class="dont">// DON'T · Ship all-flat-kebab</strong>It reliably produces 3 errors per 5-task session. The flat lexical space encourages verb hallucination.</li>
+        <li><strong class="do">// DO · Single-op tools → flat + positional</strong><code>tool resource action</code> disambiguates in one step; no help read needed.</li>
+        <li><strong class="do">// DO · Orchestration tools → nested + surfaced common verbs</strong>Git-style: nest the full surface, then surface the 5–7 most common verbs as top-level aliases.</li>
+        <li><strong class="do">// DO · Always provide per-verb help</strong>Positional and Atomic lose their biggest recovery path without <code>tool verb --help</code>.</li>
+        <li><strong class="do">// DO · Make errors self-describing when you can</strong>Flag's <code>error:incomplete</code> pattern lets the agent recover without reading help — one flag fix, done.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= REPRO ================= -->
+  <section class="repro">
+    <div class="sec-head">
+      <div class="sec-num">§09 &middot; REPRODUCTION</div>
+      <h2 class="sec-title">Re-run the study.</h2>
+    </div>
+    <p class="sec-sub">300 runs on GH Actions, isolated Docker, ~4.5 min wall, ~$9 API spend.</p>
+<pre><span class="dim"># on GH Actions</span>
+<span class="acc">gh</span> workflow run cli-structure-experiment.yml \
+  --repo 514-labs/agent-evals \
+  --ref claude/vibrant-mcnulty-2dac4a \
+  -f <span class="kw">reps</span>=10 -f <span class="kw">concurrency</span>=15
+
+<span class="dim"># locally</span>
+docker build -t cli-structure-test .
+docker run --rm -v "$PWD/runs:/app/runs" \
+  -e <span class="kw">ANTHROPIC_API_KEY</span>=sk-... \
+  -e <span class="kw">REPS</span>=10 -e <span class="kw">CONCURRENCY</span>=15 \
+  cli-structure-test
+python3 parse.py "$PWD"</pre>
+  </section>
+
+  <!-- ================= REFERENCES ================= -->
+  <section class="refs">
+    <div class="sec-head">
+      <div class="sec-num">§10 &middot; DATA &amp; CODE</div>
+      <h2 class="sec-title">Receipts.</h2>
+    </div>
+    <ul>
+      <li><a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure">Experiment source</a> · commit <code>0663a56</code></li>
+      <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/results.n10.json">results.n10.json</a> · all 300 per-run rows</li>
+      <li><a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">GH Actions artifact</a> · full traces · 30-day retention</li>
+      <li><a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants">CLI wrappers</a> · all 5 simulated shapes</li>
+      <li><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/parse.py">parse.py</a> · analysis pipeline</li>
+    </ul>
+  </section>
+
+  <footer class="footer">
+    <div>
+      <span class="ascii-bracket">[ </span>
+      dec·bench <span style="color:var(--accent);">//</span> agent-evals <span style="color:var(--accent);">//</span> report generated 2026·04·24 against
+      <a href="https://github.com/514-labs/agent-evals/commit/0663a56" style="color:var(--ink);border-bottom:1px solid var(--rule);">0663a56</a>
+      <span class="ascii-bracket"> ]</span>
+    </div>
+    <div class="editions">
+      <a href="index.html">original</a>
+      <a href="index-scientific.html">scientific</a>
+      <a href="index-design.html">design</a>
+      <a href="index-engineering.html" class="self">engineering</a>
+    </div>
+  </footer>
+
+<script>
+  document.querySelectorAll('.prompt .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tgt = document.getElementById(btn.dataset.target);
+      if (!tgt) return;
+      navigator.clipboard.writeText(tgt.innerText).then(() => {
+        const prev = btn.textContent;
+        btn.textContent = 'COPIED';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = prev; btn.classList.remove('copied'); }, 1400);
+      });
+    });
+  });
+</script>
+</body>
+</html>
