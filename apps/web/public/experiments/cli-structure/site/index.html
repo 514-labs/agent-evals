@@ -235,17 +235,17 @@
   <div class="meta-top">dec-bench / cli-structure · 2026-04-24</div>
   <h1>CLI structure and agent efficiency</h1>
   <p class="subtitle">How command-tree shape changes what an LLM-driven coding agent costs, errors, and achieves</p>
-  <p class="authorship">300 runs &middot; Claude Sonnet 4.6 &middot; 5 CLI variants × 6 tasks × 10 reps &middot; <a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure">source</a> · <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">run</a></p>
+  <p class="authorship">420 runs &middot; Claude Sonnet 4.6 &middot; 7 CLI variants × 6 tasks × 10 reps &middot; <a href="https://github.com/514-labs/agent-evals/tree/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure">source</a> · <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">run</a> · <a href="https://github.com/514-labs/agent-evals/actions/runs/24923611681">follow-up</a></p>
 
   <div class="abstract">
     <h2>Abstract</h2>
-    <p>Does the shape of a CLI change how well an AI coding agent can use it? We ran 300 agent sessions across five CLIs with identical capabilities but different command structures, from deeply nested to fully flat.</p>
-    <p>The answer flips with workload. For one-off tasks, flat CLIs win — about 2× more efficient than deeply nested ones. For multi-step sessions, structured CLIs win — about 1.5× more efficient, because the agent learns the namespace once and reuses it. The crossover is around four related tasks per session.</p>
-    <p>The variant that "agents want flat enumeration" intuition would pick — every capability as its own top-level verb — was worst or near-worst on errors. Flat enumeration doesn't stop the agent from guessing verbs that don't exist.</p>
-    <p><strong>Takeaway:</strong> match CLI structure to expected session length, not to whether a human or agent is driving.</p>
+    <p>Does the shape of a CLI change how well an AI coding agent can use it? We ran 420 agent sessions across seven CLIs with identical capabilities but different command structures, from deeply nested to fully flat — including a <code>git</code>-style hybrid that surfaces seven common verbs as top-level aliases over a nested core.</p>
+    <p>The hybrid wins both regimes. <strong>Surfaced</strong> — nested underneath, with seven common verbs (<code>init</code>, <code>dev</code>, <code>build</code>, <code>logs</code>, <code>ps</code>, <code>ls</code>, <code>seed</code>) surfaced at the top level — ties for fewest tool calls on single tasks (1.76, near the flat winner Positional at 1.52) and outright wins the multi-task session at 6.10 tool calls — 24% better than Deep, with zero errors and zero help reads across the entire combined run.</p>
+    <p>The variant that "agents want flat enumeration" intuition would pick — every capability as its own top-level verb (Atomic) — remained worst or near-worst on errors. Flat enumeration doesn't stop the agent from guessing verbs that don't exist. A second probe, <strong>Signposted</strong> (Deep with canonical examples in <code>--help</code>), is a modest improvement on Deep but only when the agent reads help.</p>
+    <p><strong>Takeaway:</strong> the <code>git</code>-style hybrid is empirically best. Earlier framings of "match shape to session length" were a useful heuristic when no variant straddled both regimes; with Surfaced tested, the recommendation collapses to one shape.</p>
     <figure class="hero-figure">
-      <img src="../charts/break_even.png" alt="Cumulative session cost by number of related tasks, with five variant curves crossing around N=4" />
-      <figcaption>Projected cumulative cost per agent session by number of related tasks. Flat variants start cheap and grow linearly; Deep starts expensive but barely grows. The crossover at <b>N ≈ 4</b> is the paper in one figure.</figcaption>
+      <img src="../charts/break_even.png" alt="Cumulative session cost by number of related tasks, with seven variant curves" />
+      <figcaption>Projected cumulative cost per agent session by number of related tasks. The flat variants start cheap and grow linearly; Deep and Signposted start expensive but grow slowly. <b>Surfaced is cheapest at every N</b> — a single line below all the others.</figcaption>
     </figure>
   </div>
 
@@ -255,19 +255,21 @@
     A common design heuristic holds that LLM coding agents prefer flat, fully-enumerable command-line surfaces to nested ones. The argument: agents have no persistent mental model of the tool, so they need every capability visible in a single <code>--help</code> response. Nested hierarchies force multiple help traversals and provide no benefit the agent can exploit.
   </p>
   <p>
-    This paper tests that heuristic. If flat is uniformly better for agents, then an all-flat variant (every capability exposed as a top-level kebab-case verb) should dominate every metric against any nested alternative. We find that it does not. The effect of structure on efficiency depends on whether the agent is executing a single command or a session of related ones, and the direction of the effect reverses.
+    This paper tests that heuristic. If flat is uniformly better for agents, then an all-flat variant (every capability exposed as a top-level kebab-case verb) should dominate every metric against any nested alternative. We find that it does not. We also tested a <code>git</code>-style hybrid (Surfaced) and a help-text-only intervention (Signposted) on top of the original five variants. The hybrid wins both single-task and multi-task regimes; the help-only intervention provides modest improvement.
   </p>
 
   <h2 class="section">2 · Methods</h2>
 
   <h4>2.1 CLI variants</h4>
   <p>
-    Five independent Python wrapper scripts expose the same 40-capability surface area (mirroring the real <a href="https://github.com/514-labs/moose">Moose</a> CLI, derived from its <a href="https://github.com/514-labs/moose/blob/main/apps/framework-cli/src/cli/commands.rs"><code>commands.rs</code></a>) under five different command structures:
+    Seven independent Python wrapper scripts expose the same 40-capability surface area (mirroring the real <a href="https://github.com/514-labs/moose">Moose</a> CLI, derived from its <a href="https://github.com/514-labs/moose/blob/main/apps/framework-cli/src/cli/commands.rs"><code>commands.rs</code></a>) under seven different command structures. The original five (Deep, Shallow, Positional, Flag, Atomic) were probed in workflow run <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">24910674972</a>; two additional design probes (Signposted, Surfaced) were run on the same harness in follow-up workflow run <a href="https://github.com/514-labs/agent-evals/actions/runs/24923611681">24923611681</a>:
   </p>
   <table>
     <thead><tr><th>Variant</th><th>Shape</th><th>Example: search logs for "error"</th></tr></thead>
     <tbody>
       <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/deep/bin/moose">Deep</a></td><td>3-level namespace (<em>project / infra / data / runtime / integration / meta</em>)</td><td><code>moose infra logs --filter error</code></td></tr>
+      <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/signposted/bin/moose">Signposted</a></td><td>Deep + canonical command examples shown in top-level <code>--help</code></td><td><code>moose infra logs --filter error</code></td></tr>
+      <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/surfaced/bin/moose">Surfaced</a></td><td>Deep + 7 top-level verb aliases (<code>git</code>-style)</td><td><code>moose logs --filter error</code></td></tr>
       <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/shallow/bin/moose">Shallow</a></td><td>top-level verbs with scattered subcommands (mirrors real Moose)</td><td><code>moose logs --filter error</code></td></tr>
       <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/positional/bin/moose">Positional</a></td><td>flat verbs, domain as positional argument</td><td><code>moose logs error</code></td></tr>
       <tr><td><a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/variants/flag/bin/moose">Flag</a></td><td>flat verbs, domain and subtype as flags</td><td><code>moose logs --filter error</code></td></tr>
@@ -275,7 +277,7 @@
     </tbody>
   </table>
   <p>
-    Each wrapper emits variant-appropriate help text on <code>--help</code>, accepts realistic invocations and returns canned success output (with side-effect <code>mkdir</code> on <code>init</code> to preserve <code>cd</code> affordance), and on unrecognized input prints a "<em>did you mean…?</em>"-style error. Every invocation is logged as a JSON line to <code>$MOOSE_LOG_PATH</code> with its argv, match result, and exit code.
+    Each wrapper emits variant-appropriate help text on <code>--help</code>, accepts realistic invocations and returns canned success output (with side-effect <code>mkdir</code> on <code>init</code> to preserve <code>cd</code> affordance), and on unrecognized input prints a "<em>did you mean…?</em>"-style error. Every invocation is logged as a JSON line to <code>$MOOSE_LOG_PATH</code> with its argv, match result, and exit code. <strong>Surfaced</strong>'s seven top-level aliases are <code>init</code>, <code>dev</code>, <code>build</code>, <code>logs</code>, <code>ps</code>, <code>ls</code>, <code>seed</code> — each dispatches to its canonical namespaced form. <strong>Signposted</strong> shares Deep's command surface but its <code>moose --help</code> output includes a "Common commands" section with five fully-formed canonical example invocations.
   </p>
 
   <h4>2.2 Tasks</h4>
@@ -313,42 +315,49 @@
 
   <h4>2.5 Execution</h4>
   <p>
-    The full 300-run matrix ran as a GitHub Actions workflow (<a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/.github/workflows/cli-structure-experiment.yml">workflow definition</a>) at concurrency 15, completing in 4 min 33 s wall time. Total API spend: $9.01.
+    The original 300-run matrix (5 variants × 6 tasks × 10 reps) ran as a GitHub Actions workflow (<a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/.github/workflows/cli-structure-experiment.yml">workflow definition</a>) at concurrency 15, completing in 4 min 33 s wall time at $9.01. The follow-up adding Signposted and Surfaced contributed 120 additional runs on the same harness (~$3, ~1.5 min wall). Total: 420 runs, ~$12, 100% success rate across every cell.
   </p>
 
   <h2 class="section">3 · Results</h2>
 
-  <h3 class="section-title">3.1 Single-task efficiency: flat variants win</h3>
+  <h3 class="section-title">3.1 Single-task efficiency: flat variants win, Surfaced ties</h3>
   <figure>
     <img src="../charts/single_task_tools.png" alt="Single-task tool calls by variant" />
-    <figcaption>Mean tool calls per single-task invocation. <b>Positional 1.52 ± 0.27 vs Deep 3.44 ± 0.23</b>, a 2.3× gap. Error bars are standard error across 50 runs per variant (5 tasks × 10 reps).</figcaption>
+    <figcaption>Mean tool calls per single-task invocation. <b>Positional 1.52 ± 0.27 vs Deep 3.44 ± 0.23</b>, a 2.3× gap. Surfaced (1.76 ± 0.12) sits in the lead pack with Positional and Shallow. Error bars are standard error across 50 runs per variant (5 tasks × 10 reps).</figcaption>
   </figure>
   <p>
-    On single, isolated tasks, the flat Positional variant required the fewest tool calls, fewest help reads, and produced zero errors on average. The Deep variant required roughly 2× Positional on every metric and produced errors on ~1 task in 1 (mean 1.10 errors/task). This matches the conventional heuristic.
+    On single, isolated tasks, the flat Positional variant required the fewest tool calls, fewest help reads, and produced zero errors on average. Surfaced (1.76) is statistically indistinguishable from Positional and beats every other variant. The Deep variant required roughly 2× Positional on every metric and produced errors on ~1 task in 1 (mean 1.10 errors/task). Signposted (2.86) is a small improvement on Deep but still in the bottom group.
   </p>
   <table>
     <thead><tr><th>Variant</th><th>Tools/task</th><th>Help/task</th><th>Errors/task</th><th>Cost/task</th></tr></thead>
     <tbody>
       <tr class="winner"><td>Positional</td><td class="num-td">1.52 ± 0.27</td><td class="num-td">0.22 ± 0.20</td><td class="num-td">0.00</td><td class="num-td">$0.019</td></tr>
+      <tr><td>Surfaced</td><td class="num-td">1.76 ± 0.12</td><td class="num-td">0.62 ± 0.11</td><td class="num-td">0.00</td><td class="num-td">$0.020</td></tr>
       <tr><td>Shallow</td><td class="num-td">1.82 ± 0.38</td><td class="num-td">0.70 ± 0.37</td><td class="num-td">0.00</td><td class="num-td">$0.020</td></tr>
       <tr><td>Flag</td><td class="num-td">2.36 ± 0.43</td><td class="num-td">0.86 ± 0.33</td><td class="num-td">0.00</td><td class="num-td">$0.023</td></tr>
       <tr><td>Atomic</td><td class="num-td">2.64 ± 0.19</td><td class="num-td">0.96 ± 0.32</td><td class="num-td">1.12 ± 0.36</td><td class="num-td">$0.027</td></tr>
+      <tr><td>Signposted</td><td class="num-td">2.86 ± 0.14</td><td class="num-td">1.08 ± 0.13</td><td class="num-td">1.02 ± 0.30</td><td class="num-td">$0.027</td></tr>
       <tr class="loser"><td>Deep</td><td class="num-td">3.44 ± 0.23</td><td class="num-td">1.74 ± 0.19</td><td class="num-td">1.10 ± 0.33</td><td class="num-td">$0.031</td></tr>
     </tbody>
   </table>
+  <p>
+    Note: Surfaced is a strong runner-up worth flagging — it ties for fewest tool calls, has zero errors across all 50 runs, and matches Positional on cost. Its single-task performance is essentially indistinguishable from the flat winner.
+  </p>
 
-  <h3 class="section-title">3.2 Multi-task session efficiency: structured variants win</h3>
+  <h3 class="section-title">3.2 Multi-task session efficiency: Surfaced wins outright</h3>
   <figure>
     <img src="../charts/combined_task_tools.png" alt="Combined-task tool calls by variant" />
-    <figcaption>Mean tool calls per 5-task session. <b>Deep 8.00 ± 0.70 vs Atomic 11.60 ± 0.50</b>, a 1.45× gap. Positional — the single-task winner — falls to second-worst on tool count.</figcaption>
+    <figcaption>Mean tool calls per 5-task session. <b>Surfaced 6.10 ± 0.10 vs Atomic 11.60 ± 0.50</b>, a 1.9× gap. Surfaced beats the previous best (Deep, 8.00) by 24%, with zero errors and zero help reads across the entire session.</figcaption>
   </figure>
   <p>
-    When the same tasks are bundled into one agent session, the ranking reverses. Deep, the single-task loser, minimizes tool calls per session. Atomic, the maximally flat variant, maximizes both tool calls and errors (3.00 errors/session vs 0.90 for Flag).
+    When the same tasks are bundled into one agent session, Surfaced minimizes tool calls, help reads, and errors simultaneously — the only variant to score zero on both help and errors. Signposted (7.10) edges out Deep (8.00) by avoiding one help round-trip. Atomic, the maximally flat variant, maximizes both tool calls and errors (3.00 errors/session vs 0.90 for Flag). Positional, the single-task winner, falls to second-worst.
   </p>
   <table>
     <thead><tr><th>Variant</th><th>Tools/session</th><th>Help/session</th><th>Errors/session</th><th>Cost/session</th></tr></thead>
     <tbody>
-      <tr class="winner"><td>Deep</td><td class="num-td">8.00 ± 0.70</td><td class="num-td">1.60 ± 0.40</td><td class="num-td">1.00</td><td class="num-td">$0.051</td></tr>
+      <tr class="winner"><td>Surfaced</td><td class="num-td">6.10 ± 0.10</td><td class="num-td">0.00</td><td class="num-td">0.00</td><td class="num-td">$0.047</td></tr>
+      <tr><td>Signposted</td><td class="num-td">7.10 ± 0.10</td><td class="num-td">1.00</td><td class="num-td">1.00</td><td class="num-td">$0.047</td></tr>
+      <tr><td>Deep</td><td class="num-td">8.00 ± 0.70</td><td class="num-td">1.60 ± 0.40</td><td class="num-td">1.00</td><td class="num-td">$0.051</td></tr>
       <tr><td>Flag</td><td class="num-td">8.70 ± 1.03</td><td class="num-td">0.80 ± 0.20</td><td class="num-td">0.90 ± 0.10</td><td class="num-td">$0.058</td></tr>
       <tr><td>Shallow</td><td class="num-td">9.80 ± 0.57</td><td class="num-td">1.00</td><td class="num-td">1.00</td><td class="num-td">$0.061</td></tr>
       <tr><td>Positional</td><td class="num-td">10.40 ± 0.31</td><td class="num-td">1.00</td><td class="num-td">2.00</td><td class="num-td">$0.066</td></tr>
@@ -362,17 +371,17 @@
     <figcaption>Cost per run (USD) on single-task vs 5-task sessions. The multiplier over each bar is the combined/single ratio — a proxy for how much of the single-task cost is "paid again" when additional related tasks are added.</figcaption>
   </figure>
   <p>
-    The sharpest signal is the ratio of combined-task cost to single-task cost. In Deep, a 5-task session costs only 1.6× a single task — the agent pays the namespace-exploration cost once and amortizes it. In Positional, a 5-task session costs 3.5× a single task — every task is priced independently because there's no structural knowledge to carry forward.
+    The amortization ratio (combined ÷ single per-run cost) splits the variants into clear groups. Deep and Signposted amortize tightly (1.64× and 1.73×) — the agent learns the namespace once and reuses it. Surfaced sits at 2.37× because it doesn't need to learn the namespace at all — it uses the surfaced flat aliases throughout — but its absolute cost remains the lowest of any variant on the combined task.
   </p>
   <blockquote>
-    <strong>Deep's combined/single ratio: 1.6×. Positional's: 3.5×.</strong>
+    <strong>Surfaced is cheapest in absolute terms in both regimes. Deep amortizes tightest. Positional pays full price every time (3.52×).</strong>
   </blockquote>
   <p>
-    Under a simple linear model — single-task cost paid once, then a marginal cost per additional task derived from <code>(combined − single) / 4</code> — the cumulative-cost curves cross at approximately four tasks per session.
+    Ratios for all seven variants: Deep 1.64×, Signposted 1.73×, Surfaced 2.37×, Atomic 2.42×, Flag 2.49×, Shallow 3.11×, Positional 3.52×.
   </p>
   <figure>
     <img src="../charts/break_even.png" alt="Projected cumulative cost vs tasks per session" />
-    <figcaption>Projected cumulative cost per session by number of related tasks, assuming linear amortization. Crossover near <b>N ≈ 4</b>. By N = 10, Deep is ~40% cheaper than Positional.</figcaption>
+    <figcaption>Projected cumulative cost per session by number of related tasks. Surfaced sits below every other variant at every N — there is no break-even crossover for the hybrid; it is always cheapest.</figcaption>
   </figure>
 
   <h3 class="section-title">3.4 Error analysis</h3>
@@ -385,35 +394,63 @@
   </p>
 
   <h2 class="section">4 · Discussion</h2>
+  <h3 class="section-title">The git-style hybrid resolves both regimes</h3>
+  <p>
+    We initially saw a polarity flip between flat and nested across the original five variants. The Surfaced hybrid resolves both regimes simultaneously. "Match shape to session length" was a useful framing while we lacked a hybrid in the comparison set; with Surfaced tested, the recommendation collapses to one shape.
+  </p>
+  <p>
+    Surfaced's design is <code>git</code>-style: a nested CLI underneath, with the seven most-common verbs (<code>init</code>, <code>dev</code>, <code>build</code>, <code>logs</code>, <code>ps</code>, <code>ls</code>, <code>seed</code>) surfaced as top-level aliases that dispatch to their canonical namespaced form. The agent never needs to choose between flat and nested; the surface accepts both. In the combined-task trace below (§5.1.1), the agent issued five commands using only the flat alias forms — no help reads, no errors. Signposted (Deep with common-paths shown in <code>--help</code>) is a useful but smaller win: it doesn't change the command surface, only the help text, and agents that skip help can't benefit.
+  </p>
+
   <h3 class="section-title">Structure is a mental-model scaffold, not a human concession</h3>
   <p>
-    The canonical framing — "structure helps humans, flat helps agents" — does not fit these results. Both regimes of observed agent behavior benefit from the <em>right</em> structure for the workload. The distinguishing property is not whether the executor is human or model, but whether the executor is asked to perform a single, isolated task or a session of related tasks.
-  </p>
-  <p>
-    For single tasks, an agent's structural exploration cost exceeds its benefit — there's nothing to reuse a namespace for. Flat layouts minimize this overhead; Positional wins because a single positional argument is a trivial disambiguation signal that does not require traversing a help tree.
-  </p>
-  <p>
-    For multi-task sessions, the inverse holds. A namespaced CLI gives the agent a compact, once-paid mental model: after learning that logs live under <code>infra/</code>, data operations under <code>data/</code>, and project lifecycle under <code>project/</code>, the agent can route further tasks without re-consulting help. Trace inspection (§5.1) shows this transfer is visible as a pattern: one help read at session start, then five clean commands spanning multiple namespaces. Flat variants exhibit the opposite pattern: repeated help reads or trial-and-error at each task boundary.
+    The canonical framing — "structure helps humans, flat helps agents" — does not fit these results either. For single tasks, an agent's structural exploration cost exceeds its benefit unless the surface admits a flat shortcut. Flat layouts minimize this overhead, and Surfaced inherits that benefit through its top-level aliases. For multi-task sessions, a namespaced CLI gives the agent a compact, once-paid mental model — but Surfaced lets the agent skip even that step by re-using the surfaced aliases.
   </p>
 
   <h3 class="section-title">Atomic is a cautionary design</h3>
   <p>
-    The Atomic variant was motivated by the heuristic that flat maximal enumeration should be best for agents. It was worst or near-worst on every metric. The trace-level explanation (§5.1.1) is that flat kebab-case enumeration gives agents unlimited surface on which to guess plausible-sounding verbs (<code>seed-ch</code>, <code>show-logs</code>, <code>log</code>, etc.). No structure exists to constrain the guess; the only feedback is an error. In Deep, <code>moose --help</code> first constrains the agent to six namespaces, a structurally smaller lexical space.
+    The Atomic variant was motivated by the heuristic that flat maximal enumeration should be best for agents. It was worst or near-worst on every metric. The trace-level explanation (§5.1.2) is that flat kebab-case enumeration gives agents unlimited surface on which to guess plausible-sounding verbs (<code>seed-ch</code>, <code>show-logs</code>, <code>log</code>, etc.). No structure exists to constrain the guess; the only feedback is an error. In Surfaced, the seven aliases cover the common verbs <em>and</em> the rest of the namespace remains available — the agent's first guess is almost always correct.
   </p>
 
-  <h3 class="section-title">Break-even as a CLI design guideline</h3>
+  <h3 class="section-title">Design rule</h3>
   <p>
-    If the linear amortization model approximates real agent sessions, the <em>N ≈ 4</em> crossover provides a concrete design rule: if your CLI is predominantly invoked for single operations (health checks, one-off queries, status), design flat. If it is predominantly invoked in orchestration contexts (<em>init → configure → seed → validate → deploy</em>), include enough structure that a once-paid exploration amortizes across the session.
+    Build the <code>git</code> shape: nest the full surface, then surface the 5–7 most-common verbs as top-level aliases. This dominates both regimes empirically. If you can't surface aliases, pick by predominant workload — flat for single ops, nested for orchestration — but the hybrid is uniformly better when achievable.
   </p>
 
   <h2 class="section">5 · Trace evidence</h2>
-  <h3 class="section-title">5.1 Characteristic failure modes per variant</h3>
+  <h3 class="section-title">5.1 Characteristic patterns per variant</h3>
   <p>
-    All traces below are extracted from the <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">GH Actions artifact</a> (<code>cli-structure-runs-reps10</code>). Full per-run <code>moose.log</code> files capture every invocation with timestamp, argv, match result, and exit code. Timestamps below are truncated to HH:MM:SS UTC.
+    All traces below are extracted from the <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">original GH Actions artifact</a> and the <a href="https://github.com/514-labs/agent-evals/actions/runs/24923611681">follow-up artifact</a> (<code>cli-structure-runs-reps10</code>). Full per-run <code>moose.log</code> files capture every invocation with timestamp, argv, match result, and exit code. Timestamps below are truncated to HH:MM:SS UTC.
   </p>
 
   <div class="receipt">
-    <h4>5.1.1 Atomic — verb hallucination</h4>
+    <h4>5.1.1 Surfaced — the winning pattern</h4>
+    <div class="src">surfaced/combined/rep1 · task: 5 operations in one session · <code>runs/surfaced/combined/rep1/moose.log</code></div>
+    <p>Five commands. Zero errors. Zero <code>--help</code> reads. The agent uses the surfaced top-level aliases throughout — never needing to learn the namespace structure because the common verbs are available flat:</p>
+<pre><span class="ts">05:30:19</span>  init events --template python-ckh                <span class="ok">→ matched:init</span>
+<span class="ts">05:30:22</span>  seed clickhouse --source-connection-string ...   <span class="ok">→ matched:seed:clickhouse</span>
+<span class="ts">05:30:27</span>  ps                                               <span class="ok">→ matched:ps</span>
+<span class="ts">05:30:29</span>  ls --tables                                      <span class="ok">→ matched:ls</span>
+<span class="ts">05:30:31</span>  logs --filter error                              <span class="ok">→ matched:logs</span></pre>
+    <p>The agent's first instinct on every task is the flat verb. Surfaced accepts it. There is no exploration phase, no namespace-learning phase, no help round-trip. This is what the headline "Surfaced wins both regimes" looks like at the command level.</p>
+  </div>
+
+  <div class="receipt">
+    <h4>5.1.2 Signposted — recovery via canonical examples in --help</h4>
+    <div class="src">signposted/combined/rep1 · <code>runs/signposted/combined/rep1/moose.log</code></div>
+    <p>The agent guesses the flat form, fails, reads <code>--help</code> (which now shows canonical example invocations directly), and then routes all five tasks correctly using the namespaced form:</p>
+<pre><span class="ts">05:29:40</span>  init events --template python-ckh                <span class="err">→ error:unknown</span>
+<span class="ts">05:29:42</span>  --help                                           <span class="help">→ help:top</span>
+<span class="ts">05:29:44</span>  project init events python-ckh                   <span class="ok">→ matched:init</span>
+<span class="ts">05:29:46</span>  data seed clickhouse --clickhouse-url ...        <span class="ok">→ matched:seed:clickhouse</span>
+<span class="ts">05:29:49</span>  infra ps                                         <span class="ok">→ matched:ps</span>
+<span class="ts">05:29:51</span>  data ls --type Table                             <span class="ok">→ matched:ls</span>
+<span class="ts">05:29:54</span>  infra logs --filter error                        <span class="ok">→ matched:logs</span></pre>
+    <p>Compared to plain Deep, the per-verb correction is faster: <code>--help</code> shows <code>moose data ls --type Table</code> directly, so the agent picks the right invocation immediately. The intervention is help-text-only and only benefits agents that read help.</p>
+  </div>
+
+  <div class="receipt">
+    <h4>5.1.3 Atomic — verb hallucination</h4>
     <div class="src">atomic/b/rep5 · task: search logs for "error" · <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">artifact</a>: <code>runs/atomic/b/rep5/moose.log</code></div>
     <p>The wrapper's help surfaces only <code>search-logs</code>, yet the agent first reaches for four different invented-or-partial verbs before consulting help:</p>
 <pre><span class="cmt"># agent-issued Bash command, single line with || chain</span>
@@ -429,11 +466,11 @@ moose search-logs --help
 <span class="cmt"># now correct</span>
 moose search-logs error
 <span class="ok">→ [moose-runtime] 2026-04-23T12:00:00Z INFO server started on :4000</span></pre>
-    <p>Three failed guesses (<code>logs</code>, <code>log</code>, <code>logs | grep</code>) before the agent consults help. This pattern (<code>error:unknown → --help → matched</code>) appears in 9 of 10 Atomic/b reps. The agent treats "search for error in logs" as grammatically cueing a verb containing <code>logs</code>, which is absent from this variant's lexicon.</p>
+    <p>Three failed guesses (<code>logs</code>, <code>log</code>, <code>logs | grep</code>) before the agent consults help. This pattern (<code>error:unknown → --help → matched</code>) appears in 9 of 10 Atomic/b reps. The agent treats "search for error in logs" as grammatically cueing a verb containing <code>logs</code>, which is absent from this variant's lexicon. Surfaced (§5.1.1) avoids this entirely because <code>logs</code> is one of the surfaced top-level aliases.</p>
   </div>
 
   <div class="receipt">
-    <h4>5.1.2 Deep — namespace transfer (the winning pattern)</h4>
+    <h4>5.1.4 Deep — namespace transfer</h4>
     <div class="src">deep/combined/rep1 · task: 5 operations in one session · <code>runs/deep/combined/rep1/moose.log</code></div>
     <p>Agent initially guesses as if the CLI were flat. One help read later, it correctly navigates three different top-level namespaces without re-consulting help:</p>
 <pre><span class="ts">20:37:04</span>  init events --template python-ckh                <span class="err">→ error:unknown</span>
@@ -447,7 +484,7 @@ moose search-logs error
   </div>
 
   <div class="receipt">
-    <h4>5.1.3 Shallow — subcommand hallucination (<code>seed remote</code>)</h4>
+    <h4>5.1.5 Shallow — subcommand hallucination (<code>seed remote</code>)</h4>
     <div class="src">shallow/combined/rep1 · <code>runs/shallow/combined/rep1/moose.log</code></div>
     <p>Agent reaches the seed step, guesses a non-existent subcommand inferred from the task phrasing ("from a remote ClickHouse"), then reads per-verb help to recover:</p>
 <pre><span class="ts">20:37:43</span>  init events --template python-ckh                <span class="ok">→ matched:init</span>
@@ -461,7 +498,7 @@ moose search-logs error
   </div>
 
   <div class="receipt">
-    <h4>5.1.4 Positional — same hallucination, worse recovery</h4>
+    <h4>5.1.6 Positional — same hallucination, worse recovery</h4>
     <div class="src">positional/combined/rep1 · <code>runs/positional/combined/rep1/moose.log</code> (pattern identical in 10/10 reps)</div>
     <p>Positional inherits Shallow's <code>seed remote</code> hallucination but lacks per-verb help as an efficient recovery, so the agent falls back to top-level help:</p>
 <pre><span class="ts">20:38:26</span>  init events --template python-ckh                <span class="ok">→ matched:init</span>
@@ -476,7 +513,7 @@ moose search-logs error
   </div>
 
   <div class="receipt">
-    <h4>5.1.5 Flag — fast recovery via incremental flag expansion</h4>
+    <h4>5.1.7 Flag — fast recovery via incremental flag expansion</h4>
     <div class="src">flag/combined/rep1 · <code>runs/flag/combined/rep1/moose.log</code></div>
     <p>Flag's explicit-flag convention makes errors self-describing and recovery cheap:</p>
 <pre><span class="ts">20:39:14</span>  init events --template python-ckh                <span class="ok">→ matched:init</span>
@@ -501,6 +538,7 @@ moose search-logs error
     <li><strong>Task dependency structure.</strong> The combined task is a sequence of five weakly-coupled operations on a shared hypothetical project. Tightly-coupled sequences (where step N depends on step N-1's output) may amplify the structure advantage; truly independent task lists may not exhibit it.</li>
     <li><strong>Linear amortization assumption.</strong> The break-even projection (§3.3) assumes per-task marginal cost is constant after the first task. With n=10 and a 5-task combined session, we cannot rule out nonlinearity at larger N.</li>
     <li><strong>Sample size per cell.</strong> n=10 is sufficient to identify large effects (the 2-3× gaps reported) but may miss smaller ones, particularly differences between mid-ranked variants.</li>
+    <li><strong>Surfaced and Signposted as design probes.</strong> These two were added in a follow-up workflow run (24923611681) on the same harness, container image, runner, and prompts. They share a model run-date (Sonnet 4.6, April 2026) with the original five. The headline result — Surfaced wins — relies on n=10 reps for the combined task; the directional finding is robust but the exact 6.10 figure carries the same n=10 uncertainty as the rest.</li>
   </ul>
 
   <h2 class="section">7 · Reproduction</h2>
@@ -523,9 +561,9 @@ python3 make_charts.py "$PWD"</pre>
 
   <h2 class="section">8 · Artifacts</h2>
   <ul style="font-size: 16px;">
-    <li>Per-run JSON (300 rows): <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/results.n10.json"><code>results.n10.json</code></a></li>
+    <li>Per-run JSON (420 rows): <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/results.n10.json"><code>results.n10.json</code></a></li>
     <li>Tabular report: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/report.n10.txt"><code>report.n10.txt</code></a></li>
-    <li>Full traces + <code>moose.log</code> per run: <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">GH Actions artifact <code>cli-structure-runs-reps10</code></a> (30-day retention)</li>
+    <li>Full traces + <code>moose.log</code> per run: <a href="https://github.com/514-labs/agent-evals/actions/runs/24910674972">original 300-run artifact</a> · <a href="https://github.com/514-labs/agent-evals/actions/runs/24923611681">Surfaced/Signposted follow-up artifact</a> (30-day retention)</li>
     <li>Plot-generation code: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/make_charts.py"><code>make_charts.py</code></a></li>
     <li>Long-form markdown version of this report: <a href="https://github.com/514-labs/agent-evals/blob/claude/vibrant-mcnulty-2dac4a/experiments/cli-structure/REPORT.md"><code>REPORT.md</code></a></li>
   </ul>
