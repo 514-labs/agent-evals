@@ -1,0 +1,81 @@
+{
+  "agent": "claude-code",
+  "efficiency": {
+    "agentSteps": 34,
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cachedInputTokens": 0,
+    "inputTokens": 268,
+    "llmApiCostSource": "agent-reported",
+    "llmApiCostUsd": 0.50402945,
+    "outputTokens": 8462,
+    "tokensUsed": 8730,
+    "wallClockSeconds": 189
+  },
+  "gates": {
+    "correct": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "canonical_query_result_matches_golden": true,
+        "source_row_count_unchanged": true,
+        "source_uniq_event_id_unchanged": true,
+        "source_userid_len_sum_unchanged": true,
+        "source_value_sum_unchanged": true
+      },
+      "score": 1
+    },
+    "functional": {
+      "core": {
+        "no_unhandled_errors": true,
+        "process_exits_clean": true
+      },
+      "passed": true,
+      "scenario": {
+        "canonical_query_executes": true,
+        "events_table_exists": true
+      },
+      "score": 1
+    },
+    "performant": {
+      "core": {},
+      "passed": false,
+      "scenario": {
+        "query_latency_under_target": false
+      },
+      "score": 0
+    },
+    "production": {
+      "core": {},
+      "passed": false,
+      "scenario": {},
+      "score": 0
+    },
+    "robust": {
+      "core": {
+        "idempotent_rerun": true
+      },
+      "passed": true,
+      "scenario": {
+        "canonical_query_stable_across_3_runs": true
+      },
+      "score": 1
+    }
+  },
+  "harness": "moose-initialized",
+  "highest_gate": 3,
+  "model": "claude-sonnet-4-20250514",
+  "normalized_score": 0.6,
+  "run_id": "foo-bar-fix-slow-query-claude-code-claude-sonnet-4-20250514-moose-initialized-informed-no-plan-1777332291125",
+  "run_metadata": {
+    "persona": "informed",
+    "planMode": "no-plan",
+    "promptContent": "The slow query in `/workspace/query.sql` runs against `analytics.events` (100M rows, 5 regions, 60 days). The table is currently `MergeTree() ORDER BY event_id`, which prunes nothing for this query's filter on `(region, event_ts)`. The query also computes `uniqExact(user_id)` per day, which is real CPU work on a full scan.\n\nBring the median latency below 100ms over 5 cache-cold runs (`SYSTEM DROP MARK CACHE; SYSTEM DROP UNCOMPRESSED CACHE` between runs). Do not drop or alter the row contents of `analytics.events`: row count, `uniqExact(event_id)`, `sum(value)`, and `sum(length(user_id))` must remain identical after your fix. The result rows of the canonical query must also match exactly.\n\nThe container has Moose installed and a scaffolded project at `/workspace/moose-project`, with `moose dev --dockerless` already running in the background against the same ClickHouse instance (HTTP `localhost:18123`, TCP `9000`, user `panda`, password `pandapass`, default DB `analytics`). `analytics.events` is currently *not* a Moose-managed OlapTable — it was seeded via raw DDL — so you have two equally valid paths:\n\n- Declare a Moose `MaterializedView` in `app/index.ts` that rolls `analytics.events` up by `(region, toDate(event_ts))` and rewrite the query (or add a small wrapper view) to read from it. Saving the file triggers Moose's reconciler.\n- Use raw `clickhouse-client` to add a `PROJECTION`, change `ORDER BY` via `MODIFY ORDER BY`, or add a `MATERIALIZED VIEW` directly. (You may also bring `analytics.events` under Moose by declaring an `OlapTable` for it with `lifeCycle: \"EXTERNALLY_MANAGED\"` so Moose doesn't try to recreate it.)\n\nOnly the final state of `analytics.events` and the canonical query latency are scored — the path you took doesn't matter, but production gates flag temp/backup tables left behind in the `analytics` database.\n\n- `clickhouse-client --user panda --password pandapass --query 'EXPLAIN indexes=1 ...'` to verify pruning.\n- Tail `/workspace/moose-project/moose.log` to see the reconciler's output if you change Moose source.\n- Document what you changed in `/workspace/README.md`.\n",
+    "promptPath": "/scenario/harnesses/moose-initialized/prompts/informed.md",
+    "promptPreview": "The slow query in `/workspace/query.sql` runs against `analytics.events` (100M rows, 5 regions, 60 days). The table is currently `MergeTree() ORDER BY event_id`, which prunes nothing for this query's filter on `(region, event_ts)`. The query also computes `uniqExact(user_id)` per day, which is real CPU work on a full scan.\n\nBring the median latency below 100ms over 5 cache-cold runs (`SYSTEM DROP MARK CACHE; SYSTEM DROP UNCOMPRESSED CACHE` between runs). Do not drop or alter the row contents of `analytics.events`: row count, `uniqExact(event_id)`, `sum(value)`, and `sum(length(user_id))` must remain identical after your fix. The result rows of the canonical query must also match exactly.\n\nThe container has Moose installed and a scaffolded project at `/workspace/moose-project`, with `moose dev --dockerless` already running in the background against the same ClickHouse instance (HTTP `localhost:18123`, TCP `9000`, user `panda`, password `pandapass`, default DB `analytics`). `analytics.ev",
+    "promptSha256": "8abb04beaa971dcc9189e9018521815625a87de06e925301399999efbdf3dd09"
+  },
+  "scenario": "foo-bar-fix-slow-query",
+  "version": "v0.2.0"
+}

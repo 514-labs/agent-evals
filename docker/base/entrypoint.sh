@@ -137,15 +137,6 @@ clickhouse_data_exists() {
 ensure_clickhouse_for_assertions() {
   local url="${CLICKHOUSE_URL:-}"
 
-  # If no CLICKHOUSE_URL, check if ClickHouse data exists on disk
-  if [[ -z "${url}" ]]; then
-    if clickhouse_data_exists "/var/lib/clickhouse"; then
-      url="http://localhost:8123"
-    else
-      return 0
-    fi
-  fi
-
   # Check if ClickHouse is listening (accept 401 as "running but needs auth")
   clickhouse_is_up() {
     local probe_url="$1"
@@ -154,13 +145,14 @@ ensure_clickhouse_for_assertions() {
     [[ "${http_code}" =~ ^[2-4][0-9][0-9]$ ]]
   }
 
-  # Already reachable? Nothing to do.
-  if clickhouse_is_up "${url%/}"; then
+  # Already reachable on the configured URL? Nothing to do.
+  if [[ -n "${url}" ]] && clickhouse_is_up "${url%/}"; then
     return 0
   fi
 
-  # Check common ports -- agent may have started ClickHouse on a different port
-  # than CLICKHOUSE_URL specifies (e.g. Moose uses 18123, system default is 8123)
+  # Probe common ports first -- handles harnesses that don't set CLICKHOUSE_URL
+  # (e.g. moose-initialized strips supervised CH and runs Moose on :18123) as
+  # well as agents who started ClickHouse on a non-default port.
   for probe_port in 8123 18123; do
     if clickhouse_is_up "http://localhost:${probe_port}"; then
       echo "ClickHouse is running on port ${probe_port}; redirecting assertions there."
@@ -173,6 +165,16 @@ ensure_clickhouse_for_assertions() {
       return 0
     fi
   done
+
+  # Nothing listening: fall back to data-on-disk recovery if we have a URL hint
+  # or known data dir at /var/lib/clickhouse.
+  if [[ -z "${url}" ]]; then
+    if clickhouse_data_exists "/var/lib/clickhouse"; then
+      url="http://localhost:8123"
+    else
+      return 0
+    fi
+  fi
 
   echo "ClickHouse unreachable at ${url}; attempting recovery for assertions..."
 
