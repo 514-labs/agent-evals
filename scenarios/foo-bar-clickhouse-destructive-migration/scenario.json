@@ -1,0 +1,43 @@
+{
+  "id": "foo-bar-clickhouse-destructive-migration",
+  "title": "Foo Bar ClickHouse Destructive Migration",
+  "description": "Change the ORDER BY of analytics.events from (event_ts, event_id) to (event_type, event_ts, event_id) while preserving all existing rows. MergeTree requires a table recreate + backfill.",
+  "lede": "In this scenario, an agent must perform a destructive ClickHouse migration — change ORDER BY without losing data.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harnesses": [
+    "base-rt",
+    "classic-de",
+    "moose-legacy-migrations",
+    "moose-delta-migrations"
+  ],
+  "tasks": [
+    {
+      "id": "change-order-by",
+      "description": "Change analytics.events ORDER BY from (event_ts, event_id) to (event_type, event_ts, event_id). Preserve all existing rows.",
+      "category": "migration"
+    }
+  ],
+  "infrastructure": {
+    "services": ["clickhouse"],
+    "description": "ClickHouse with analytics.events (10,000 seed rows, ORDER BY (event_ts, event_id)). Task is a destructive ORDER BY change — MergeTree requires recreate + backfill."
+  },
+  "tags": [
+    "clickhouse",
+    "migration",
+    "destructive",
+    "order-by",
+    "backfill",
+    "moose-dr"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 50,
+    "storageBytes": 10000,
+    "costPerQueryUsd": 0.001
+  }
+}
