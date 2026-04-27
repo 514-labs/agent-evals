@@ -1,0 +1,481 @@
+#!/usr/bin/env python3
+"""Simulated Moose CLI wrapper - SHALLOW variant (mirrors real Moose).
+
+Top-level verbs with a handful of subcommanded trees: workflow, seed, template,
+harness, component, db, kafka, add, docs, generate.
+
+This does NOT invoke real Moose.
+"""
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+VARIANT = "shallow"
+
+TOP_DESCRIPTIONS = {
+    "init": "Initialize a new project",
+    "build": "Build your moose project",
+    "check": "Check the project for non-runtime errors",
+    "plan": "Preview infrastructure changes for next deployment",
+    "migrate": "Execute a migration plan against a remote ClickHouse database",
+    "peek": "View some data from a table or stream",
+    "dev": "Start a local development environment",
+    "prod": "Start a production environment",
+    "generate": "Generate Dockerfiles, tokens, and migrations",
+    "clean": "Clear temporary data and stop development infrastructure",
+    "logs": "View Moose logs",
+    "ps": "View Moose processes",
+    "ls": "View Moose primitives & infrastructure",
+    "metrics": "Open the live metrics console",
+    "workflow": "Manage workflows",
+    "template": "Manage templates",
+    "harness": "Initialize a project with developer harness",
+    "component": "[EXPERIMENTAL] Manage components",
+    "db": "Import external database schemas",
+    "refresh": "Integrate tables from a remote Moose instance",
+    "seed": "Seed data into your project",
+    "truncate": "Truncate tables or delete the last N rows",
+    "mcp": "Run MCP proxy server for AI agents",
+    "kafka": "Manage Kafka-related operations",
+    "feedback": "Submit feedback or report issues",
+    "query": "Execute SQL queries against ClickHouse",
+    "docs": "Browse and search documentation",
+    "add": "[EXPERIMENTAL] Add a component to your project",
+}
+
+# Per-verb help text
+VERB_HELP = {
+    "init": """Usage: moose init <NAME> [TEMPLATE] [OPTIONS]
+
+Initialize a new project.
+
+Positional:
+  <NAME>      Name of your app or service
+  [TEMPLATE]  Template to use (e.g. typescript, python, python-ckh)
+
+Options:
+  -l, --location <LOCATION>              Location of your app or service
+      --no-fail-already-exists           Allow init in an existing directory
+      --from-remote [<CONNECTION>]       Initialize from a remote database
+      --custom-dockerfile                Generate a custom Dockerfile at project root
+
+Example: moose init events python-ckh
+""",
+    "build": """Usage: moose build [OPTIONS]
+
+Build your moose project.
+
+Options:
+  -d, --docker   Build for Docker
+      --amd64    Build for amd64 architecture
+      --arm64    Build for arm64 architecture
+""",
+    "check": """Usage: moose check [OPTIONS]
+
+Options:
+      --write-infra-map   Write the infrastructure map to disk
+""",
+    "plan": """Usage: moose plan [OPTIONS]
+
+Preview infrastructure changes for next deployment.
+
+Options:
+      --url <URL>               Remote Moose URL (default http://localhost:4000)
+      --token <TOKEN>           API token
+      --clickhouse-url <URL>    ClickHouse URL for serverless deployments
+      --json                    Output as JSON
+""",
+    "migrate": """Usage: moose migrate [OPTIONS]
+
+Execute a migration plan.
+
+Options:
+      --clickhouse-url <URL>   ClickHouse connection URL
+      --redis-url <URL>        Redis connection URL for state storage
+      --validate               Validate migration files without executing
+""",
+    "peek": """Usage: moose peek <NAME> [OPTIONS]
+
+View some data from a table or stream.
+
+Options:
+  -l, --limit <N>   Rows to view (default 5)
+  -f, --file <PATH> Output to a file
+  -t, --table       View data from a table
+  -s, --stream      View data from a stream/topic
+""",
+    "dev": """Usage: moose dev [OPTIONS]
+
+Start a local development environment.
+
+Options:
+      --no-infra       Skip starting local infrastructure
+      --mcp            Enable/disable MCP server (default true)
+      --timestamps     Show HH:MM:SS.mmm timestamps
+      --timing         Show elapsed time for operations
+      --log-payloads   Log payloads at ingest and streaming functions
+      --yes-all        Skip all confirmation prompts
+      --yes-destructive
+      --yes-rename
+      --dockerless
+""",
+    "prod": """Usage: moose prod [OPTIONS]
+
+Options:
+      --start-include-dependencies   Manage dependencies via Docker
+""",
+    "generate": """Usage: moose generate <SUBCOMMAND> [OPTIONS]
+
+Generate Dockerfiles, tokens, and migrations.
+
+Subcommands:
+  dockerfile     Generate the Dockerfile
+  hash-token     Generate an API key hash + bearer token pair
+  migration      Generate migration files
+""",
+    "clean": """Usage: moose clean
+
+Clear temporary data and stop development infrastructure.
+""",
+    "logs": """Usage: moose logs [OPTIONS]
+
+View Moose logs.
+
+Options:
+  -t, --tail              Follow logs in real-time
+  -f, --filter <STRING>   Filter logs by a specific string
+
+Example: moose logs --filter error
+""",
+    "ps": """Usage: moose ps
+
+View Moose processes.
+""",
+    "ls": """Usage: moose ls [OPTIONS]
+
+View Moose primitives & infrastructure.
+
+Options:
+      --type <TYPE>    Filter by infrastructure type (e.g. Table, Stream)
+      --name <NAME>    Filter by name (partial match)
+      --json           Output in JSON
+
+Example: moose ls --type Table
+""",
+    "metrics": """Usage: moose metrics
+
+Open the live metrics console.
+""",
+    "workflow": """Usage: moose workflow <SUBCOMMAND> [OPTIONS]
+
+Manage workflows.
+
+Subcommands:
+  run <NAME> [-i JSON]                      Run a workflow
+  resume <NAME> --from <TASK>               Resume from a task
+  list [--json]                             List registered workflows
+  history [-s STATUS] [-l N] [--json]       Show history
+  cancel <NAME>                             Cancel (with cleanup)
+  pause <NAME>                              Pause
+  unpause <NAME>                            Unpause
+  status <NAME> [--id ID] [--verbose] [--json]   Get status
+""",
+    "template": """Usage: moose template <SUBCOMMAND> [OPTIONS]
+
+Manage templates.
+
+Subcommands:
+  list [--json]   List available templates
+""",
+    "harness": """Usage: moose harness <SUBCOMMAND> [OPTIONS]
+
+Initialize a project with developer harness.
+
+Subcommands:
+  init [NAME] [TEMPLATE] [OPTIONS]   Initialize project + harness
+""",
+    "component": """Usage: moose component <SUBCOMMAND>
+
+[EXPERIMENTAL] Manage components.
+
+Subcommands:
+  list   List available components
+""",
+    "db": """Usage: moose db <SUBCOMMAND> [OPTIONS]
+
+Import external database schemas.
+
+Subcommands:
+  pull [--clickhouse-url URL] [--file-path PATH]   Update schema for EXTERNALLY_MANAGED tables
+""",
+    "refresh": """Usage: moose refresh [OPTIONS]
+
+Integrate tables from a remote Moose instance.
+
+Options:
+      --url <URL>       Remote Moose URL (default http://localhost:4000)
+      --token <TOKEN>   API token
+""",
+    "seed": """Usage: moose seed <SUBCOMMAND> [OPTIONS]
+
+Seed data into your project.
+
+Subcommands:
+  clickhouse   Seed ClickHouse tables with data
+      --clickhouse-url <URL>   ClickHouse connection URL
+      --limit <N>              Max rows per table
+      --all                    Copy all rows, ignoring limit
+      --order-by <EXPR>        ORDER BY clause for the seed query
+      --table <NAME>           Only seed a specific table
+      --report                 Show row counts after seeding (default true)
+
+Example: moose seed clickhouse --clickhouse-url clickhouse://explorer@play.clickhouse.com:9440/default
+""",
+    "truncate": """Usage: moose truncate [TABLES...] [OPTIONS]
+
+Truncate tables or delete the last N rows.
+
+Options:
+      --all           Apply to all non-view tables
+      --rows <N>      Number of most recent rows to delete per table
+""",
+    "mcp": """Usage: moose mcp [OPTIONS]
+
+Run MCP proxy server for AI agents.
+
+Options:
+      --host <HOST>   Host of dev server
+      --port <PORT>   Port of dev server
+""",
+    "kafka": """Usage: moose kafka <SUBCOMMAND> [OPTIONS]
+
+Manage Kafka-related operations.
+
+Subcommands:
+  pull <BOOTSTRAP> [--path PATH] [--include GLOB] [--exclude GLOB] [--schema-registry URL]
+""",
+    "feedback": """Usage: moose feedback [MESSAGE] [OPTIONS]
+
+Submit feedback or report issues.
+
+Options:
+      --bug                  Report a bug (opens GitHub Issues)
+      --community            Join community on Slack
+      --email <ADDRESS>      Your email for follow-up
+""",
+    "query": """Usage: moose query [QUERY] [OPTIONS]
+
+Execute SQL queries against ClickHouse.
+
+Options:
+  -f, --file <PATH>             Read query from file
+  -l, --limit <N>               Max rows (default 10000)
+  -c, --format-query <LANG>     Format as python|typescript literal
+  -p, --prettify                Prettify SQL before formatting
+""",
+    "docs": """Usage: moose docs [SLUG] [OPTIONS] | moose docs <SUBCOMMAND>
+
+Browse and search documentation.
+
+Subcommands:
+  browse          Interactively browse
+  search <QUERY>  Search docs (--expand also searches page headings)
+
+Options:
+  -l, --lang <ts|py>   Language
+      --raw            Raw output for piping
+      --expand         Show full expanded tree
+      --web            Open in browser
+""",
+    "add": """Usage: moose add <COMPONENT> [OPTIONS]
+
+[EXPERIMENTAL] Add a component to your project.
+
+Components:
+  mcp-server   MCP server with ClickHouse query tools
+  chat         AI chat panel for Next.js (requires mcp-server)
+  benchmark    Query benchmark package for TS Moose projects
+
+Options:
+  -d, --dir <PATH>    Target directory
+      --overwrite     Overwrite existing files
+  -y, --yes           Skip confirmation prompts
+""",
+}
+
+# Subtrees: first-arg dispatch under a verb
+SUBTREES = {
+    "workflow": {"run", "resume", "list", "history", "cancel", "pause", "unpause", "status"},
+    "template": {"list"},
+    "harness": {"init"},
+    "component": {"list"},
+    "db": {"pull"},
+    "seed": {"clickhouse"},
+    "kafka": {"pull"},
+    "add": {"mcp-server", "chat", "benchmark"},
+    "generate": {"dockerfile", "hash-token", "migration"},
+    "docs": {"browse", "search"},  # docs is hybrid: also takes [SLUG]
+}
+
+CAPABILITY_OUT = {
+    "init": ("init", "Project created at ./{name}\nNext: cd {name} && moose dev"),
+    "build": ("build", "Build complete."),
+    "check": ("check", "No errors found."),
+    "plan": ("plan", "Plan: 0 additions, 0 changes, 0 destroys."),
+    "migrate": ("migrate", "Migration executed against remote ClickHouse."),
+    "peek": ("peek", "Showing first 5 rows..."),
+    "dev": ("dev", "Moose dev server running on http://localhost:4000"),
+    "prod": ("prod", "Moose production server started."),
+    "clean": ("clean", "Cleaned temporary data and stopped infra."),
+    "logs": ("logs", "[moose-runtime] 2026-04-23T12:00:00Z INFO  server started on :4000"),
+    "ps": ("ps", "PID     SERVICE       STATUS\n1234    moose-dev     running\n1235    clickhouse    running\n1236    redpanda      running"),
+    "ls": ("ls", "TYPE       NAME            STATUS\nTable      events          healthy\nTable      aggregates      healthy\nStream     events_stream   healthy"),
+    "metrics": ("metrics", "Opening live metrics console..."),
+    "refresh": ("refresh", "Refreshed tables from remote Moose instance."),
+    "truncate": ("truncate", "Tables truncated."),
+    "mcp": ("mcp", "MCP proxy listening on http://127.0.0.1:4123"),
+    "feedback": ("feedback", "Thanks for the feedback!"),
+    "query": ("query", "Query OK. 0 rows returned."),
+    # subcommanded
+    "workflow.run": ("workflow:run", "Workflow started (run-id: wf-abc123)."),
+    "workflow.resume": ("workflow:resume", "Workflow resumed from task."),
+    "workflow.list": ("workflow:list", "Workflows:\n  - daily-ingest\n  - hourly-rollup"),
+    "workflow.history": ("workflow:history", "RUN_ID       NAME            STATUS    STARTED\nwf-abc123    daily-ingest    completed 2026-04-23T06:00:00Z"),
+    "workflow.cancel": ("workflow:cancel", "Workflow cancelled."),
+    "workflow.pause": ("workflow:pause", "Workflow paused."),
+    "workflow.unpause": ("workflow:unpause", "Workflow unpaused."),
+    "workflow.status": ("workflow:status", "Status: running"),
+    "template.list": ("template:list", "Available templates:\n  - typescript\n  - python\n  - python-ckh\n  - typescript-empty"),
+    "harness.init": ("harness:init", "Project + harness initialized."),
+    "component.list": ("component:list", "Available components:\n  - mcp-server\n  - chat\n  - benchmark"),
+    "db.pull": ("db:pull", "External table definitions updated."),
+    "seed.clickhouse": ("seed:clickhouse", "Seeded ClickHouse from remote connection."),
+    "kafka.pull": ("kafka:pull", "Kafka schemas pulled."),
+    "add.mcp-server": ("add:mcp-server", "Added mcp-server component."),
+    "add.chat": ("add:chat", "Added chat component."),
+    "add.benchmark": ("add:benchmark", "Added benchmark component."),
+    "generate.dockerfile": ("generate:dockerfile", "Generated Dockerfile."),
+    "generate.hash-token": ("generate:hash-token", "Generated key hash and bearer token."),
+    "generate.migration": ("generate:migration", "Migration files generated."),
+    "docs.browse": ("docs:browse", "Launching interactive docs browser..."),
+    "docs.search": ("docs:search", "Search results: 0 matches."),
+    "docs.root": ("docs", "Documentation index (collapsed)."),
+}
+
+
+def log(argv, result, exit_code):
+    path = os.environ.get("MOOSE_LOG_PATH", "/tmp/cli-structure-test/moose.log")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    entry = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "variant": VARIANT,
+        "argv": argv,
+        "result": result,
+        "exit_code": exit_code,
+    }
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def top_help():
+    out = ["Moose CLI (simulated SHALLOW variant) - top-level verbs, some subcommand trees",
+           "",
+           "Usage: moose <COMMAND> [ARGS] [OPTIONS]",
+           "",
+           "Commands:"]
+    for verb, desc in TOP_DESCRIPTIONS.items():
+        out.append(f"  {verb:<10} {desc}")
+    out += ["",
+            "Subcommanded: workflow, seed, template, harness, component, db, kafka, add, docs, generate",
+            "Run `moose <command> --help` for options."]
+    return "\n".join(out) + "\n"
+
+
+def suggest(token, candidates):
+    token_l = token.lower()
+    for c in candidates:
+        if token_l == c.lower() or token_l in c.lower() or c.lower() in token_l:
+            return c
+    best, best_score = None, 0
+    for c in candidates:
+        score = len(set(token_l) & set(c.lower()))
+        if score > best_score:
+            best, best_score = c, score
+    return best if best_score >= max(2, len(token) // 2) else None
+
+
+def main(argv):
+    if len(argv) == 0 or argv[0] in ("-h", "--help", "help"):
+        sys.stdout.write(top_help())
+        log(argv, "help:top", 0)
+        return 0
+
+    verb = argv[0]
+    if verb not in TOP_DESCRIPTIONS:
+        s = suggest(verb, list(TOP_DESCRIPTIONS.keys()))
+        hint = f"\n\nDid you mean `moose {s}`?" if s else ""
+        sys.stderr.write(f"error: unknown command '{verb}'{hint}\n")
+        sys.stderr.write("Run `moose --help` to see available commands.\n")
+        log(argv, "error:unknown", 2)
+        return 2
+
+    if len(argv) >= 2 and argv[1] in ("-h", "--help"):
+        sys.stdout.write(VERB_HELP[verb])
+        log(argv, f"help:verb:{verb}", 0)
+        return 0
+
+    # Subtree dispatch
+    if verb in SUBTREES:
+        if len(argv) < 2:
+            if verb == "docs":
+                # docs with no args = show index
+                sys.stdout.write(CAPABILITY_OUT["docs.root"][1] + "\n")
+                log(argv, f"matched:{CAPABILITY_OUT['docs.root'][0]}", 0)
+                return 0
+            sys.stderr.write(f"error: `moose {verb}` requires a subcommand.\n")
+            sys.stderr.write(f"Run `moose {verb} --help` to see subcommands.\n")
+            log(argv, "error:incomplete", 2)
+            return 2
+
+        sub = argv[1]
+        if sub not in SUBTREES[verb]:
+            # docs is hybrid: non-subcommand first arg = slug
+            if verb == "docs":
+                cap, out = CAPABILITY_OUT["docs.root"]
+                sys.stdout.write(f"{out} (slug: {sub})\n")
+                log(argv, f"matched:{cap}", 0)
+                return 0
+            s = suggest(sub, list(SUBTREES[verb]))
+            hint = f"\n\nDid you mean `moose {verb} {s}`?" if s else ""
+            sys.stderr.write(f"error: unknown subcommand 'moose {verb} {sub}'{hint}\n")
+            log(argv, "error:unknown", 2)
+            return 2
+
+        key = f"{verb}.{sub}"
+        cap, out = CAPABILITY_OUT[key]
+        if cap == "harness:init" and len(argv) >= 3 and not argv[2].startswith("-"):
+            name = argv[2]
+            os.makedirs(name, exist_ok=True)
+            with open(os.path.join(name, "moose.config.toml"), "w") as f:
+                f.write(f'name = "{name}"\n')
+        sys.stdout.write(out + "\n")
+        log(argv, f"matched:{cap}", 0)
+        return 0
+
+    # Flat verb
+    cap, out_tmpl = CAPABILITY_OUT[verb]
+    if cap == "init" and len(argv) >= 2 and not argv[1].startswith("-"):
+        name = argv[1]
+        os.makedirs(name, exist_ok=True)
+        with open(os.path.join(name, "moose.config.toml"), "w") as f:
+            f.write(f'name = "{name}"\n')
+        sys.stdout.write(out_tmpl.format(name=name) + "\n")
+    else:
+        sys.stdout.write(out_tmpl + "\n")
+    log(argv, f"matched:{cap}", 0)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

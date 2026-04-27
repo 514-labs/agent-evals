@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Simulated Moose CLI wrapper - FLAG variant.
+
+Flat top-level verbs. Where real Moose uses subcommands, a flag is used.
+Example: `moose seed --source clickhouse --clickhouse-url ...`
+
+This does NOT invoke real Moose.
+"""
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+VARIANT = "flag"
+
+# Verbs with their flag dispatch (if any) and help text.
+TOP = {
+    "init": {
+        "desc": "Initialize a new project",
+        "help": """Usage: moose init --name <NAME> [--template <TEMPLATE>] [OPTIONS]
+
+Options:
+      --name <NAME>                      Name of your app or service (required)
+      --template <TEMPLATE>              Template to use for the project
+  -l, --location <LOCATION>              Location of your app or service
+      --no-fail-already-exists           Allow init in an existing directory
+      --from-remote [<CONNECTION>]       Initialize from a remote database
+      --custom-dockerfile                Generate a custom Dockerfile at project root
+
+Example: moose init --name events --template python-ckh
+""",
+        "cap": "init",
+        "out": "Project created at ./{name}\nNext: cd {name} && moose dev",
+    },
+    "build": {"desc": "Build project", "help": "Usage: moose build [--docker] [--amd64] [--arm64]\n", "cap": "build", "out": "Build complete."},
+    "check": {"desc": "Check for non-runtime errors", "help": "Usage: moose check [--write-infra-map]\n", "cap": "check", "out": "No errors found."},
+    "plan": {"desc": "Preview infra changes", "help": "Usage: moose plan [--url <URL>] [--token <T>] [--clickhouse-url <URL>] [--json]\n", "cap": "plan", "out": "Plan: 0 additions, 0 changes, 0 destroys."},
+    "migrate": {"desc": "Execute migration", "help": "Usage: moose migrate [--clickhouse-url <URL>] [--redis-url <URL>] [--validate]\n", "cap": "migrate", "out": "Migration executed against remote ClickHouse."},
+    "peek": {"desc": "View data from table or stream", "help": "Usage: moose peek --name <NAME> [-l N] [-f PATH] [--table|--stream]\n", "cap": "peek", "out": "Showing first 5 rows..."},
+    "dev": {"desc": "Start local dev", "help": "Usage: moose dev [--no-infra] [--mcp] [--timestamps] [--timing] [--log-payloads] [--yes-all] [--yes-destructive] [--yes-rename] [--dockerless]\n", "cap": "dev", "out": "Moose dev server running on http://localhost:4000"},
+    "prod": {"desc": "Start prod", "help": "Usage: moose prod [--start-include-dependencies]\n", "cap": "prod", "out": "Moose production server started."},
+    "clean": {"desc": "Clean temp data, stop infra", "help": "Usage: moose clean\n", "cap": "clean", "out": "Cleaned temporary data and stopped infra."},
+    "logs": {"desc": "View logs", "help": "Usage: moose logs [-t|--tail] [-f|--filter <STRING>]\nExample: moose logs --filter error\n", "cap": "logs", "out": "[moose-runtime] 2026-04-23T12:00:00Z INFO  server started on :4000"},
+    "ps": {"desc": "View processes", "help": "Usage: moose ps\n", "cap": "ps", "out": "PID     SERVICE       STATUS\n1234    moose-dev     running\n1235    clickhouse    running\n1236    redpanda      running"},
+    "ls": {"desc": "View primitives & infra", "help": "Usage: moose ls [--type <TYPE>] [--name <NAME>] [--json]\nExample: moose ls --type Table\n", "cap": "ls", "out": "TYPE       NAME            STATUS\nTable      events          healthy\nTable      aggregates      healthy\nStream     events_stream   healthy"},
+    "metrics": {"desc": "Live metrics console", "help": "Usage: moose metrics\n", "cap": "metrics", "out": "Opening live metrics console..."},
+    "refresh": {"desc": "Refresh from remote Moose", "help": "Usage: moose refresh [--url <URL>] [--token <T>]\n", "cap": "refresh", "out": "Refreshed tables from remote Moose instance."},
+    "truncate": {"desc": "Truncate tables", "help": "Usage: moose truncate [--tables T1,T2,...] [--all] [--rows <N>]\n", "cap": "truncate", "out": "Tables truncated."},
+    "mcp": {"desc": "MCP proxy server", "help": "Usage: moose mcp [--host <HOST>] [--port <PORT>]\n", "cap": "mcp", "out": "MCP proxy listening on http://127.0.0.1:4123"},
+    "feedback": {"desc": "Send feedback", "help": "Usage: moose feedback --message <MSG> [--bug] [--community] [--email <ADDR>]\n", "cap": "feedback", "out": "Thanks for the feedback!"},
+    "query": {"desc": "Execute SQL", "help": "Usage: moose query --query <SQL> [-f PATH] [-l N] [-c LANG] [-p]\n", "cap": "query", "out": "Query OK. 0 rows returned."},
+    "template": {"desc": "Manage templates (--action list)", "help": "Usage: moose template --action list [--json]\n",
+                 "dispatch": ("--action", {"list": ("template:list", "Available templates:\n  - typescript\n  - python\n  - python-ckh\n  - typescript-empty")})},
+    "component": {"desc": "[EXPERIMENTAL] Manage components (--action list)", "help": "Usage: moose component --action list\n",
+                  "dispatch": ("--action", {"list": ("component:list", "Available components:\n  - mcp-server\n  - chat\n  - benchmark")})},
+    "db": {"desc": "Import external DB schemas (--action pull)", "help": "Usage: moose db --action pull [--clickhouse-url <URL>] [--file-path <PATH>]\n",
+           "dispatch": ("--action", {"pull": ("db:pull", "External table definitions updated.")})},
+    "harness": {"desc": "Project + harness (--action init)", "help": "Usage: moose harness --action init [--name <N>] [--template <T>] [--location <P>] [--agent <A>]...\n",
+                "dispatch": ("--action", {"init": ("harness:init", "Project + harness initialized.")})},
+    "kafka": {"desc": "Kafka operations (--action pull)", "help": "Usage: moose kafka --action pull --bootstrap <SERVERS> [--path <P>] [--include <GLOB>] [--exclude <GLOB>] [--schema-registry <URL>]\n",
+              "dispatch": ("--action", {"pull": ("kafka:pull", "Kafka schemas pulled.")})},
+    "seed": {"desc": "Seed data (--source clickhouse)", "help": "Usage: moose seed --source clickhouse [--clickhouse-url <URL>] [--limit <N>|--all] [--order-by <EXPR>] [--table <T>] [--report]\n",
+             "dispatch": ("--source", {"clickhouse": ("seed:clickhouse", "Seeded ClickHouse from remote connection.")})},
+    "workflow": {"desc": "Workflows (--action run|resume|list|history|cancel|pause|unpause|status)",
+                 "help": """Usage: moose workflow --action <ACTION> [OPTIONS]
+
+Actions:
+  run        --name <N> [--input <JSON>]
+  resume     --name <N> --from <TASK>
+  list       [--json]
+  history    [--status <S>] [--limit <N>] [--json]
+  cancel     --name <N>
+  pause      --name <N>
+  unpause    --name <N>
+  status     --name <N> [--id <ID>] [--verbose] [--json]
+""",
+                 "dispatch": ("--action", {
+                     "run": ("workflow:run", "Workflow started (run-id: wf-abc123)."),
+                     "resume": ("workflow:resume", "Workflow resumed from task."),
+                     "list": ("workflow:list", "Workflows:\n  - daily-ingest\n  - hourly-rollup"),
+                     "history": ("workflow:history", "RUN_ID       NAME            STATUS    STARTED\nwf-abc123    daily-ingest    completed 2026-04-23T06:00:00Z"),
+                     "cancel": ("workflow:cancel", "Workflow cancelled."),
+                     "pause": ("workflow:pause", "Workflow paused."),
+                     "unpause": ("workflow:unpause", "Workflow unpaused."),
+                     "status": ("workflow:status", "Status: running"),
+                 })},
+    "add": {"desc": "[EXPERIMENTAL] Add component (--component mcp-server|chat|benchmark)",
+            "help": "Usage: moose add --component <NAME> [-d <DIR>] [--overwrite] [-y]\n",
+            "dispatch": ("--component", {
+                "mcp-server": ("add:mcp-server", "Added mcp-server component."),
+                "chat": ("add:chat", "Added chat component."),
+                "benchmark": ("add:benchmark", "Added benchmark component."),
+            })},
+    "generate": {"desc": "Codegen (--artifact dockerfile|hash-token|migration)",
+                 "help": "Usage: moose generate --artifact <dockerfile|hash-token|migration> [OPTIONS]\n",
+                 "dispatch": ("--artifact", {
+                     "dockerfile": ("generate:dockerfile", "Generated Dockerfile."),
+                     "hash-token": ("generate:hash-token", "Generated key hash and bearer token."),
+                     "migration": ("generate:migration", "Migration files generated."),
+                 })},
+    "docs": {"desc": "Docs (--action browse|search|view)",
+             "help": """Usage: moose docs [--action <ACTION>] [--slug <SLUG>] [--query <Q>] [OPTIONS]
+
+Actions:
+  (none)    Show docs index
+  view      --slug <SLUG>
+  browse    Interactive browse
+  search    --query <QUERY> [--expand]
+
+Options:
+  -l, --lang <ts|py>   Language
+      --raw            Raw output for piping
+      --expand         Expanded tree / also search headings
+      --web            Open in browser
+""",
+             "dispatch": ("--action", {
+                 "browse": ("docs:browse", "Launching interactive docs browser..."),
+                 "search": ("docs:search", "Search results: 0 matches."),
+                 "view": ("docs", "Documentation page (view)."),
+             })},
+}
+
+
+def log(argv, result, exit_code):
+    path = os.environ.get("MOOSE_LOG_PATH", "/tmp/cli-structure-test/moose.log")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    entry = {
+        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "variant": VARIANT,
+        "argv": argv,
+        "result": result,
+        "exit_code": exit_code,
+    }
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def top_help():
+    out = ["Moose CLI (simulated FLAG variant) - flat verbs, category-as-flag",
+           "",
+           "Usage: moose <VERB> [FLAGS]",
+           "",
+           "Verbs:"]
+    for v, meta in TOP.items():
+        out.append(f"  {v:<11} {meta['desc']}")
+    out.append("")
+    out.append("Run `moose <verb> --help` for its flags.")
+    return "\n".join(out) + "\n"
+
+
+def suggest(token, candidates):
+    token_l = token.lower()
+    for c in candidates:
+        if token_l == c.lower() or token_l in c.lower() or c.lower() in token_l:
+            return c
+    best, best_score = None, 0
+    for c in candidates:
+        score = len(set(token_l) & set(c.lower()))
+        if score > best_score:
+            best, best_score = c, score
+    return best if best_score >= max(2, len(token) // 2) else None
+
+
+def find_flag_value(argv, flag):
+    """Return value for --flag <value> or None."""
+    for i, a in enumerate(argv):
+        if a == flag and i + 1 < len(argv):
+            return argv[i + 1]
+        if a.startswith(flag + "="):
+            return a.split("=", 1)[1]
+    return None
+
+
+def main(argv):
+    if len(argv) == 0 or argv[0] in ("-h", "--help", "help"):
+        sys.stdout.write(top_help())
+        log(argv, "help:top", 0)
+        return 0
+
+    verb = argv[0]
+    if verb not in TOP:
+        s = suggest(verb, list(TOP.keys()))
+        hint = f"\n\nDid you mean `moose {s}`?" if s else ""
+        sys.stderr.write(f"error: unknown command '{verb}'{hint}\n")
+        sys.stderr.write("Run `moose --help` to see all verbs.\n")
+        log(argv, "error:unknown", 2)
+        return 2
+
+    rest = argv[1:]
+    if rest and rest[0] in ("-h", "--help"):
+        sys.stdout.write(TOP[verb]["help"])
+        log(argv, f"help:verb:{verb}", 0)
+        return 0
+
+    meta = TOP[verb]
+
+    if "dispatch" in meta:
+        flag, actions = meta["dispatch"]
+        val = find_flag_value(rest, flag)
+        if val is None:
+            # Handle docs root (no --action)
+            if verb == "docs":
+                sys.stdout.write("Documentation index (collapsed).\n")
+                log(argv, "matched:docs", 0)
+                return 0
+            sys.stderr.write(f"error: `moose {verb}` requires {flag} <VALUE>.\n")
+            sys.stderr.write(f"Known values: {', '.join(actions.keys())}\n")
+            log(argv, "error:incomplete", 2)
+            return 2
+        if val not in actions:
+            s = suggest(val, list(actions.keys()))
+            hint = f"\n\nDid you mean `moose {verb} {flag} {s}`?" if s else ""
+            sys.stderr.write(f"error: unknown {flag} value '{val}'{hint}\n")
+            log(argv, "error:unknown", 2)
+            return 2
+        cap, out = actions[val]
+        if cap == "harness:init":
+            name = find_flag_value(rest, "--name")
+            if name and not name.startswith("-"):
+                os.makedirs(name, exist_ok=True)
+                with open(os.path.join(name, "moose.config.toml"), "w") as f:
+                    f.write(f'name = "{name}"\n')
+        sys.stdout.write(out + "\n")
+        log(argv, f"matched:{cap}", 0)
+        return 0
+
+    # Plain verb
+    cap, out_tmpl = meta["cap"], meta["out"]
+    if cap == "init":
+        name = find_flag_value(rest, "--name")
+        if name and not name.startswith("-"):
+            os.makedirs(name, exist_ok=True)
+            with open(os.path.join(name, "moose.config.toml"), "w") as f:
+                f.write(f'name = "{name}"\n')
+            sys.stdout.write(out_tmpl.format(name=name) + "\n")
+        else:
+            sys.stdout.write(out_tmpl.format(name="project") + "\n")
+    else:
+        sys.stdout.write(out_tmpl + "\n")
+    log(argv, f"matched:{cap}", 0)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
