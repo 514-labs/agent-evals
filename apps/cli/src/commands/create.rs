@@ -198,21 +198,16 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     println!();
     print_tree(&root, "", true)?;
     println!();
-    println!("Four setup layers to know about:");
-    println!("  - TOOL install (global) -> apps/web/data/harnesses/<id>.json::installScript");
-    println!("    (runs at image BUILD time, shared across all scenarios using that harness).");
-    println!("  - TOOL install (this scenario) -> harnesses/<harness-id>/install.sh");
-    println!("    (runs at image BUILD time, after the global install).");
-    println!("  - STATE for every harness -> flat files in init/");
-    println!("    (run at container STARTUP, every run).");
-    if args.harnesses.len() >= 2 {
-        println!("  - STATE for one harness -> harnesses/<harness-id>/init/");
-        println!("    (run at container STARTUP, only when that harness is active).");
-        println!("    Subdirs were scaffolded for: {}.", args.harnesses.join(", "));
-    } else {
-        println!("  - STATE for one harness -> harnesses/<harness-id>/init/");
-        println!("    (only relevant when scenario declares 2+ harnesses).");
-    }
+    println!("Scenario (shared across harnesses)");
+    println!("  scenario.json, supervisord.conf, init/, assertions/");
+    println!();
+    println!("Per harness -- harnesses/<harness-id>/");
+    println!("  prompts/{{baseline,informed}}.md   one pair per persona (required)");
+    println!("  init/                            (optional) starting state for this harness");
+    println!("  install.sh                       (optional) build-time tools for this harness");
+    println!();
+    println!("Per-harness prompts test whether the agent uses a named tool well; per-harness");
+    println!("init lets each harness boot into the state its tools expect.");
     println!();
     println!("Next steps:");
     println!("  1. Fill in harnesses/<harness-id>/prompts/baseline.md and informed.md for each harness");
