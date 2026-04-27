@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>axp</title>
+<meta name="description" content="Optimize a CLI for AI agents. axp benchmarks a CLI, generates variants, re-tests, and writes a patch for the version that wins." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" />
+
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --bg-elev: #111114;
+    --fg: #e7e5e4;
+    --fg-muted: #a8a29e;
+    --fg-dim: #6b6964;
+    --border: rgba(255, 255, 255, 0.09);
+    --accent: #f5a524;
+    --good: #a3e635;
+    --sans: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection { background: var(--accent); color: var(--bg); }
+  a { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--fg-dim); }
+  a:hover { text-decoration-color: var(--fg); }
+
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 80px 24px 80px;
+  }
+  @media (max-width: 600px) {
+    main { padding: 56px 20px 56px; }
+  }
+
+  .name {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--fg);
+    margin: 0 0 8px;
+  }
+  .name::before { content: "$ "; color: var(--fg-dim); }
+
+  .tag {
+    font-size: 22px;
+    color: var(--fg);
+    line-height: 1.35;
+    margin: 0 0 32px;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--fg-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 36px 0 10px;
+    font-weight: 500;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin: 0;
+    color: var(--fg);
+    overflow-x: auto;
+    white-space: pre;
+    -webkit-font-smoothing: antialiased;
+    -moz-tab-size: 2;
+    tab-size: 2;
+  }
+
+  .term { margin-bottom: 4px; }
+
+  .term .prompt { color: var(--fg-dim); }
+  .term .dim    { color: var(--fg-dim); }
+  .term .accent { color: var(--accent); }
+  .term .good   { color: var(--good); }
+  .term .key    { color: var(--fg-muted); }
+
+  .install {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .install pre { flex: 1; }
+  .copy {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    border-radius: 8px;
+    padding: 0 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    min-width: 76px;
+    transition: color 120ms ease, border-color 120ms ease;
+  }
+  .copy:hover { color: var(--fg); border-color: rgba(255, 255, 255, 0.2); }
+  .copy.copied { color: var(--accent); border-color: var(--accent); }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  ol.loop {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: l;
+  }
+  ol.loop li {
+    counter-increment: l;
+    padding: 14px 0 14px 56px;
+    border-top: 1px solid var(--border);
+    position: relative;
+  }
+  ol.loop li:last-child { border-bottom: 1px solid var(--border); }
+  ol.loop li::before {
+    content: counter(l, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+  ol.loop b { font-weight: 600; }
+  ol.loop span.body { color: var(--fg-muted); }
+
+  .meta {
+    margin-top: 48px;
+    color: var(--fg-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .meta a { color: var(--fg-muted); }
+</style>
+</head>
+<body>
+
+<main>
+  <p class="name">axp</p>
+  <p class="tag">Optimize a CLI or MCP server for AI agents.</p>
+
+  <h2>install</h2>
+  <div class="install">
+    <pre id="install-cmd">curl -fsSL https://decbench.ai/install.sh | sh</pre>
+    <button class="copy" data-target="install-cmd">copy</button>
+  </div>
+
+  <h2>quickstart</h2>
+  <pre>axp run ./your-cli --task "your task here" --n 10</pre>
+
+  <h2>example run</h2>
+  <pre class="term"><span class="prompt">$</span> axp run ./moose --task ./tasks.yaml --n 10
+
+<span class="dim">[baseline]</span>     atomic-cli    <span class="key">turns</span> 12.6   <span class="key">errors</span> 3.0   <span class="key">cost</span> $0.066
+<span class="dim">[hypothesize]</span>  5 candidates: deep, flag, shallow, positional, mcp
+<span class="dim">[prototype]</span>    variants prepared in ./.axp/variants/
+<span class="dim">[re-test]</span>      running 5 variants &times; 10 reps...
+
+results:
+  deep         <span class="key">turns</span>  9.0    <span class="key">errors</span> 1.0    <span class="key">cost</span> $0.051   <span class="good">&larr; winner</span>
+  flag         <span class="key">turns</span>  9.7    <span class="key">errors</span> 0.9    <span class="key">cost</span> $0.058
+  shallow      <span class="key">turns</span> 10.8    <span class="key">errors</span> 1.0    <span class="key">cost</span> $0.061
+  mcp          <span class="key">turns</span> 10.5    <span class="key">errors</span> 0.7    <span class="key">cost</span> $0.063
+  positional   <span class="key">turns</span> 11.4    <span class="key">errors</span> 2.0    <span class="key">cost</span> $0.066
+
+vs. baseline:  <span class="accent">-29%</span> turns,  <span class="accent">-67%</span> errors,  <span class="accent">-23%</span> cost
+patch:         ./.axp/deep.patch</pre>
+
+  <h2>how it works</h2>
+  <ol class="loop">
+    <li><b>Test.</b> <span class="body">axp runs your CLI through a task with a real AI agent. It records turns, tool-call errors, retries, latency, tokens, and exit status.</span></li>
+    <li><b>Hypothesize.</b> <span class="body">axp surfaces the trace so you can see where the agent stalled, retried, or wandered. You list the candidates to test in axp.toml: command shape, flag layout, help text, error messages, retry policy. Candidates can be CLI variants, MCP server variants, or a CLI vs MCP head-to-head.</span></li>
+    <li><b>Prototype.</b> <span class="body">axp generates each hypothesis as a working CLI variant in an isolated workspace.</span></li>
+    <li><b>Re-test.</b> <span class="body">Every variant runs against the same task set. axp prints the winner and writes a patch.</span></li>
+  </ol>
+
+  <p class="meta">early access &middot; <a href="mailto:joj@fiveonefour.com?subject=axp%20early%20access">joj@fiveonefour.com</a> &middot; built by 514</p>
+</main>
+
+<script>
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById(btn.dataset.target);
+      if (!target) return;
+      var text = target.textContent;
+      var done = function () {
+        btn.classList.add('copied');
+        var original = 'copy';
+        btn.textContent = 'copied';
+        setTimeout(function () {
+          btn.classList.remove('copied');
+          btn.textContent = original;
+        }, 1400);
+      };
+      var fallback = function () {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        done();
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+</script>
+</body>
+</html>
