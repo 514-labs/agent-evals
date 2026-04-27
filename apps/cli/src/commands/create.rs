@@ -196,32 +196,25 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
 
     println!("Created scenario at {}", root.display());
     println!();
-    print_tree(&root, "", true)?;
-    println!();
-    println!("Scenario (shared across harnesses)");
-    println!("  scenario.json, supervisord.conf, init/, assertions/");
-    println!();
-    println!("Per harness -- harnesses/<harness-id>/");
-    println!("  prompts/{{baseline,informed}}.md   one pair per persona (required)");
-    println!("  init/                            (optional) starting state for this harness");
-    println!("  install.sh                       (optional) build-time tools for this harness");
+    print_tree(&root)?;
     println!();
     println!("Per-harness prompts test whether the agent uses a named tool well; per-harness");
     println!("init lets each harness boot into the state its tools expect.");
     println!();
     println!("Next steps:");
     println!("  1. Fill in harnesses/<harness-id>/prompts/baseline.md and informed.md for each harness");
-    println!("  2. Add init scripts, seed data, and gate assertions");
-    println!("  3. Complete scenario.json metadata (including lede: \"In this scenario, an agent must...\")");
-    println!("  4. Validate the scenario:");
+    println!("  2. Add seed data: shared in init/, harness-specific in harnesses/<harness-id>/init/");
+    println!("  3. Write gate assertions in assertions/");
+    println!("  4. Complete scenario.json metadata (including lede: \"In this scenario, an agent must...\")");
+    println!("  5. Validate the scenario:");
     println!("     dec-bench validate --scenario {}", args.name);
-    println!("  5. Build the local eval image:");
+    println!("  6. Build the local eval image:");
     println!("     dec-bench build --scenario {}", args.name);
-    println!("  6. Run the eval:");
+    println!("  7. Run the eval:");
     println!("     dec-bench run --scenario {}", args.name);
-    println!("  7. Inspect the latest run:");
+    println!("  8. Inspect the latest run:");
     println!("     dec-bench results --latest --scenario {}", args.name);
-    println!("  8. Open the audit UI for a run:");
+    println!("  9. Open the audit UI for a run:");
     println!("     dec-bench audit open --scenario {} --run-id <run-id>", args.name);
 
     Ok(())
@@ -231,23 +224,17 @@ fn write_file(path: &Path, content: &str) -> Result<()> {
     fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))
 }
 
-fn print_tree(dir: &Path, prefix: &str, is_last: bool) -> Result<()> {
-    let name = dir.file_name().unwrap_or_default().to_string_lossy();
-    let connector = if prefix.is_empty() { "" } else if is_last { "└── " } else { "├── " };
-    println!("{prefix}{connector}{name}/");
+fn print_tree(root: &Path) -> Result<()> {
+    let name = root.file_name().unwrap_or_default().to_string_lossy();
+    println!("{name}/");
+    print_children(root, "", "")
+}
 
+fn print_children(dir: &Path, prefix: &str, rel: &str) -> Result<()> {
     let mut entries: Vec<_> = fs::read_dir(dir)?
         .filter_map(|e| e.ok())
         .collect();
     entries.sort_by_key(|e| e.file_name());
-
-    let child_prefix = if prefix.is_empty() {
-        String::new()
-    } else if is_last {
-        format!("{prefix}    ")
-    } else {
-        format!("{prefix}│   ")
-    };
 
     let total = entries.len();
     for (i, entry) in entries.iter().enumerate() {
@@ -255,15 +242,52 @@ fn print_tree(dir: &Path, prefix: &str, is_last: bool) -> Result<()> {
         let path = entry.path();
         let fname = entry.file_name().to_string_lossy().to_string();
         let conn = if last { "└── " } else { "├── " };
+        let child_rel = if rel.is_empty() { fname.clone() } else { format!("{rel}/{fname}") };
+        let display = if path.is_dir() { format!("{fname}/") } else { fname.clone() };
+        let line = format!("{prefix}{conn}{display}");
+
+        if let Some(note) = annotate(&child_rel) {
+            let cols = line.chars().count();
+            let pad = 40usize.saturating_sub(cols);
+            println!("{line}{:pad$}  # {note}", "", pad = pad);
+        } else {
+            println!("{line}");
+        }
 
         if path.is_dir() {
-            print_tree(&path, &child_prefix, last)?;
-        } else {
-            println!("{child_prefix}{conn}{fname}");
+            let new_prefix = if last {
+                format!("{prefix}    ")
+            } else {
+                format!("{prefix}│   ")
+            };
+            print_children(&path, &new_prefix, &child_rel)?;
         }
     }
 
     Ok(())
+}
+
+fn annotate(rel: &str) -> Option<&'static str> {
+    if let Some(rest) = rel.strip_prefix("harnesses/") {
+        let parts: Vec<&str> = rest.split('/').collect();
+        return match parts.as_slice() {
+            [_id] => Some("(scenario, harness) pair"),
+            [_id, "prompts"] => Some("prompts for this pair (required)"),
+            [_id, "init"] => Some("(optional) starting state for this harness"),
+            [_id, "install.sh"] => Some("(optional) build-time tools for this harness"),
+            [_id, "prompts", "baseline.md"] => Some("casual-user persona"),
+            [_id, "prompts", "informed.md"] => Some("specific-instructions persona"),
+            _ => None,
+        };
+    }
+    match rel {
+        "scenario.json" => Some("metadata; declares harnesses[]"),
+        "supervisord.conf" => Some("services that start in the container"),
+        "init" => Some("seed data shared across harnesses"),
+        "assertions" => Some("gate checks (shared)"),
+        "harnesses" => Some("one subdir per harness in scenario.json"),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
