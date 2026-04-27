@@ -9,6 +9,35 @@ Create a new DEC Bench evaluation scenario. This skill gathers context from the 
 
 **CRITICAL: Never generate scenario files from scratch.** Always use `dec-bench create` to scaffold. The scaffold enforces the correct directory structure, file naming, and JSON shape. Generating files manually is how agents produce wrong output.
 
+## Object model (read this first)
+
+A scenario is a matrix, not a single run.
+
+  1 scenario × N harnesses × 2 personas = 2N evaluations.
+
+- A scenario declares `harnesses[]` in `scenario.json`.
+- For every entry there, the (scenario, harness) pair is its own unit of ownership: it has its own `prompts/baseline.md` and `prompts/informed.md`, and may have its own `init/` (seed data) and `install.sh` (build-time tools).
+- `init/`, `assertions/`, `supervisord.conf`, and `scenario.json` at the scenario root are shared across all harnesses.
+
+```
+scenarios/<id>/
+  scenario.json                     # declares harnesses[]
+  supervisord.conf                  # services (shared)
+  init/                             # shared seed data
+  assertions/                       # shared gates
+  harnesses/<harness-id>/
+    prompts/{baseline,informed}.md  # required per pair
+    init/                           # optional; only this pair
+    install.sh                      # optional; only this pair
+```
+
+When the user describes a task, decide first: is this one harness or a comparison across harnesses? That choice determines how many prompt sets you write.
+
+Why prompts and init can differ per harness:
+
+- Prompts diverge to control whether the agent reaches for a specific tool. The baseline tests whether the agent picks the tool unprompted; an informed prompt that names the tool tests how well the agent uses the tool when told to. Different harnesses ship different tools, so informed prompts usually name different tools per harness.
+- Init diverges when harnesses need different starting infrastructure (e.g. a scaffolded Moose project for `olap-for-swe` vs a scaffolded dbt project for `classic-de`) so each harness boots into the state its tools expect.
+
 ## Step 1: Check for similar scenarios
 
 Before creating anything, scan the existing scenarios to avoid duplicating work:
@@ -124,7 +153,7 @@ This is too vague, doesn't specify infrastructure, and doesn't set testable acce
 
 A scenario controls its runtime environment through three files: `supervisord.conf` (which services start), `init/` (schema and seed data, with optional per-harness subdirs), and optionally `env.sh` (ports and connection strings). The base image (`docker/base/Dockerfile`) already includes Postgres, ClickHouse, Redpanda, Node.js, and Python — you do not install them.
 
-Four setup layers. Put each thing in the right one:
+These map to the object model above. Four setup layers. Put each thing in the right one:
 
 | Layer | Lives in | Runs at | Contents |
 |---|---|---|---|
