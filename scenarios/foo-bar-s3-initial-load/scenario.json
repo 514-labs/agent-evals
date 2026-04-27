@@ -1,0 +1,49 @@
+{
+  "id": "foo-bar-s3-initial-load",
+  "title": "Foo Bar S3 Initial Load",
+  "description": "Load a manifest-selected S3-style object prefix into a typed ClickHouse orders table. Handle mixed CSV and JSONL files, environment-provided S3 credentials, a replayed object that must be ignored, and verification against the manifest.",
+  "lede": "In this scenario, an agent must implement an initial load from S3-style source files into ClickHouse, preserve typed order fields, and prove the loaded table matches the source manifest without duplicate re-ingest.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harnesses": ["base-rt", "olap-for-swe", "moose-initialized"],
+  "tasks": [
+    {
+      "id": "declare-clickhouse-destination",
+      "description": "Create a typed ClickHouse destination table for the historical orders export.",
+      "category": "schema-design"
+    },
+    {
+      "id": "load-s3-prefix",
+      "description": "Load only manifest-approved CSV and JSONL objects from the S3-style prefix into the destination table.",
+      "category": "ingestion"
+    },
+    {
+      "id": "verify-manifest-counts",
+      "description": "Validate row counts, checksums, and duplicate handling against the source manifest.",
+      "category": "debugging"
+    }
+  ],
+  "infrastructure": {
+    "services": [],
+    "description": "ClickHouse is installed but not pre-started. A deterministic S3-style bucket prefix is seeded under /data/s3 with a manifest, three loadable objects, and one replayed object that must be ignored."
+  },
+  "tags": [
+    "s3",
+    "initial-load",
+    "clickhouse",
+    "manifest-validation",
+    "deduplication",
+    "moose",
+    "boreal"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 75,
+    "storageBytes": 5000000,
+    "costPerQueryUsd": 0.001
+  }
+}
