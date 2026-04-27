@@ -14,7 +14,7 @@ mkdir -p "$HOME/.claude/skills"
 
 # Prefer the official init flow; fall back to writing a minimal mcpServers
 # stub if the subcommand isn't available in this CLI build.
-if ! 514 agent init --agent claude-code --yes; then
+if ! 514 agent init --agent claude-code --yes </dev/null; then
   node - <<'NODE'
 const fs = require('fs');
 const home = process.env.HOME;

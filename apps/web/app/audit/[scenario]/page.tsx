@@ -37,30 +37,33 @@ export default async function ScenarioAuditLandingPage({
   }
 
   return (
-    <div className="px-4 lg:px-8 py-8">
-      <div className="flex items-center gap-2 text-xs tracking-[0.04em] text-black/40 mb-4">
-        <Link href="/audit" className="hover:text-black transition-colors">
+    <div className="mx-auto max-w-[1420px] px-6 lg:px-14 py-10">
+      <div className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.14em] text-[color:var(--chart-4)] mb-4">
+        <Link
+          href="/audit"
+          className="hover:text-[color:var(--foreground)] transition-colors"
+        >
           Audit
         </Link>
-        <span>/</span>
-        <span className="text-black/70">
+        <span>›</span>
+        <span className="text-[color:var(--muted-foreground)]">
           {formatScenarioName(scenario)}
         </span>
       </div>
 
-      <div className="border-[3px] border-black">
-        <div className="bg-black px-4 py-2.5">
-          <span className="text-xs font-bold uppercase tracking-[0.3em] text-white">
+      <div className="border border-[color:var(--border)] bg-[color:var(--card)]">
+        <div className="bg-[color:var(--secondary)]/60 border-b border-[color:var(--border)] px-5 py-2.5">
+          <span className="font-[family-name:var(--font-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-[color:var(--muted-foreground)]">
             No Runs Available
           </span>
         </div>
         <div className="p-6">
-          <h1 className="font-[family-name:var(--font-display)] tracking-tight text-4xl">
+          <h1 className="font-[family-name:var(--font-display)] tracking-tight text-3xl text-[color:var(--foreground)]">
             {context?.title ?? formatScenarioName(scenario)}
           </h1>
-          <p className="mt-3 text-sm text-black/50 max-w-2xl leading-relaxed">
+          <p className="mt-3 text-sm text-[color:var(--muted-foreground)] max-w-2xl leading-relaxed">
             No run bundles have been exported for this scenario yet. Run{" "}
-            <code className="text-black/70 bg-black/5 px-1.5 py-0.5 text-sm">
+            <code className="font-mono text-[color:var(--foreground)] bg-[color:var(--secondary)] border border-[color:var(--border)] px-1.5 py-0.5 text-xs">
               pnpm export:audits
             </code>{" "}
             to generate audit bundles from result files.
@@ -68,13 +71,13 @@ export default async function ScenarioAuditLandingPage({
           <div className="mt-6 flex gap-3">
             <Link
               href="/audit"
-              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-[#B91C1C] transition-colors"
+              className="font-[family-name:var(--font-mono)] text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1.5 border border-[color:var(--foreground)] text-[color:var(--foreground)] hover:bg-[color:var(--foreground)] hover:text-[color:var(--background)] transition-colors"
             >
               All Scenarios
             </Link>
             <Link
               href="/leaderboard"
-              className="text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 border-[2px] border-black hover:bg-black hover:text-white transition-colors"
+              className="font-[family-name:var(--font-mono)] text-[11px] font-bold uppercase tracking-[0.12em] px-3 py-1.5 border border-[color:var(--border)] text-[color:var(--muted-foreground)] hover:bg-[color:var(--foreground)] hover:text-[color:var(--background)] hover:border-[color:var(--foreground)] transition-colors"
             >
               Leaderboard
             </Link>

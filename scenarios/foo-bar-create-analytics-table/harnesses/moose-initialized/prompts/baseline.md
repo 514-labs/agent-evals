@@ -1,0 +1,1 @@
+I need a ClickHouse table to run analytics on user activity events. A sample of the data is in `/data/samples/user_activity_sample.csv`. Use the Moose project at `/workspace/moose-project` to set up the table so I can efficiently query activity counts per user over a date range, and total duration per action type. Verify by loading the sample data and running both query patterns.

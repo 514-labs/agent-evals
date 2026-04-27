@@ -13,7 +13,7 @@ export function DocsBreadcrumbBar({ tree }: { tree: Root }) {
   if (crumbs.length === 0) return null
 
   return (
-    <div className="border-b border-[color:var(--border)] bg-[color:var(--secondary)]/60">
+    <div className="border-b border-[color:var(--border)] bg-[color:var(--sidebar)]/60">
       <div className="mx-auto max-w-[1420px] px-6 lg:px-14 h-[34px] flex items-center gap-[7px] overflow-x-auto">
         {crumbs.map((crumb, idx) => {
           const isLast = idx === crumbs.length - 1

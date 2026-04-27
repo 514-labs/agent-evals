@@ -183,6 +183,46 @@ Same-named skills overwrite the defaults that `514 agent init` places in the ima
 
 The fragment is deep-merged into `$HOME/.claude.json`; same-named servers overwrite, defaults preserved.
 
+## Worked example: 514 CLI
+
+The binary inside the image must be a **Linux** executable matching the container arch (`aarch64-unknown-linux-gnu` on Apple Silicon, `x86_64-unknown-linux-gnu` on Intel/Linux). Produce one from your local 514 source tree — this repo does not build 514 itself; `tools/514/install.sh` pulls published releases from `https://fiveonefour.com/install.sh`.
+
+```bash title="Single-scenario test"
+cd /path/to/agent-evals
+./target/debug/dec-bench build \
+  --scenario 514-list-projects \
+  --harness olap-for-swe \
+  --version v0.2.0-patched \
+  --override 514=/path/to/514-cli-linux
+
+./target/debug/dec-bench run \
+  --scenario 514-list-projects \
+  --harness olap-for-swe \
+  --persona baseline \
+  --version v0.2.0-patched \
+  --timeout 20
+```
+
+The override swaps both `~/.local/bin/514` and `/usr/local/bin/514` inside the image. Verify:
+
+```bash
+docker run --rm --entrypoint bash <image-tag> -c 'md5sum /usr/local/bin/514 ~/.local/bin/514'
+```
+
+### Auth caveat
+
+514 scenarios call the live 514 API. Export `HOSTING_CLI_API_KEY` (and optionally `HOSTING_CLI_EMAIL`, `HOSTING_CLI_ORG_ID`) on the host before `dec-bench run`; the CLI forwards them into the container, where `scenarios/514-list-projects/init/setup-514-auth.sh` writes them to `~/.fiveonefour/credentials.toml`.
+
+## Running the 514 sweep
+
+Canonical sweep for a local 514 CLI binary. Auto-discovers every `scenarios/514-*` directory and runs each against the `baseline` and `informed` personas at concurrency 2:
+
+```bash title="Full 514 sweep"
+./scripts/run-514-user-patched.sh /path/to/514-cli-linux
+```
+
+A companion `scripts/run-514-user-patched-images-only.sh` skips the build step and re-runs existing `v0.2.0-patched` images.
+
 ## Running the full moose sweep
 
 For moose-family overrides, there's a canonical script that builds and runs the five moose scenarios at concurrency 2:

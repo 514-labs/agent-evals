@@ -15,7 +15,7 @@ interface SplitCtaProps {
 export function SplitCta({ left, right }: SplitCtaProps) {
   return (
     <div className="flex flex-col md:flex-row">
-      <div className="flex-1 min-w-0 flex flex-col gap-2.5 border border-[color:var(--secondary)] bg-[color:var(--secondary)] p-8">
+      <div className="flex-1 min-w-0 flex flex-col gap-2.5 border border-[color:var(--sidebar)] bg-[color:var(--sidebar)] p-8">
         <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--muted-foreground)]">
           {left.kicker}
         </span>
@@ -27,7 +27,7 @@ export function SplitCta({ left, right }: SplitCtaProps) {
         </p>
         <div className="mt-auto pt-3 flex flex-wrap gap-3">{left.actions}</div>
       </div>
-      <div className="flex-1 min-w-0 flex flex-col gap-2.5 border border-[color:var(--secondary)] bg-[color:var(--foreground)] p-8">
+      <div className="flex-1 min-w-0 flex flex-col gap-2.5 border border-[color:var(--sidebar)] bg-[color:var(--foreground)] p-8">
         <span className="font-[family-name:var(--font-mono)] text-[9px] font-bold uppercase tracking-[1px] text-[color:var(--border)]">
           {right.kicker}
         </span>

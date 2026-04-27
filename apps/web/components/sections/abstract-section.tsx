@@ -38,7 +38,7 @@ export function AbstractSection() {
   const stats = computeAbstractStats(getLeaderboardEntries());
 
   return (
-    <section id="abstract" className="py-8 border-t border-[color:var(--secondary)] flex flex-col gap-10">
+    <section id="abstract" className="py-8 border-t border-[color:var(--sidebar)] flex flex-col gap-10">
       <div>
         <span className="font-[family-name:var(--font-display)] text-[10px] font-bold uppercase tracking-[1px] text-[color:var(--chart-4)] block mb-4">
           Abstract

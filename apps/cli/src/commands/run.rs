@@ -37,11 +37,12 @@ const ASSERTION_LOG_START: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_START__";
 const ASSERTION_LOG_END: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_END__";
 const SERVICE_LOGS_START: &str = "__DEC_BENCH_SERVICE_LOGS_JSON_START__";
 const SERVICE_LOGS_END: &str = "__DEC_BENCH_SERVICE_LOGS_JSON_END__";
-const SENSITIVE_ENV_KEYS: [&str; 4] = [
+const SENSITIVE_ENV_KEYS: [&str; 5] = [
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
     "CODEX_API_KEY",
     "CURSOR_API_KEY",
+    "HOSTING_CLI_API_KEY",
 ];
 
 /// Agent/model pair for matrix runs (e.g. "claude-code:claude-sonnet-4-6")
@@ -418,6 +419,9 @@ async fn run_single(
         "CURSOR_API_KEY",
         "POSTGRES_URL",
         "CLICKHOUSE_URL",
+        "HOSTING_CLI_API_KEY",
+        "HOSTING_CLI_EMAIL",
+        "HOSTING_CLI_ORG_ID",
     ] {
         if let Ok(value) = std::env::var(key) {
             env.push(format!("{key}={value}"));

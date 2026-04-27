@@ -73,7 +73,7 @@ export function ResultsSection() {
               return (
                 <tr
                   key={agent}
-                  className="border-b border-[color:var(--secondary)] hover:bg-[color:var(--secondary)] transition-colors"
+                  className="border-b border-[color:var(--sidebar)] hover:bg-[color:var(--sidebar)] transition-colors"
                 >
                   <td className="py-2.5 pr-4 text-xs font-bold capitalize">
                     {label}
