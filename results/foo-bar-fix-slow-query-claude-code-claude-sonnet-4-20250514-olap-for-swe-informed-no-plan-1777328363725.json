@@ -1,0 +1,97 @@
+{
+  "agent": "claude-code",
+  "efficiency": {
+    "agentSteps": 28,
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cachedInputTokens": 0,
+    "inputTokens": 226,
+    "llmApiCostSource": "agent-reported",
+    "llmApiCostUsd": 0.35787385,
+    "outputTokens": 6768,
+    "tokensUsed": 6994,
+    "wallClockSeconds": 155
+  },
+  "gates": {
+    "correct": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "canonical_query_result_matches_golden": true,
+        "source_row_count_unchanged": true,
+        "source_uniq_event_id_unchanged": true,
+        "source_userid_len_sum_unchanged": true,
+        "source_value_sum_unchanged": true
+      },
+      "score": 1
+    },
+    "functional": {
+      "core": {
+        "no_unhandled_errors": true,
+        "process_exits_clean": true
+      },
+      "passed": true,
+      "scenario": {
+        "canonical_query_executes": true,
+        "events_table_exists": true
+      },
+      "score": 1
+    },
+    "performant": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "query_latency_under_target": true
+      },
+      "score": 1
+    },
+    "production": {
+      "core": {
+        "files_are_reasonably_sized": true,
+        "functions_are_focused": true,
+        "has_type_safety": true,
+        "no_dead_code_markers": true,
+        "no_debug_artifacts": true,
+        "no_deep_nesting": true,
+        "no_secrets_in_code": true,
+        "output_line_count_disciplined": true,
+        "output_line_count_reasonable": true,
+        "uses_env_vars": true,
+        "zero_compiler_errors": true,
+        "zero_lint_errors": true
+      },
+      "passed": true,
+      "scenario": {
+        "no_hardcoded_connection_strings": true,
+        "no_temp_or_backup_tables_in_analytics": true
+      },
+      "score": 1
+    },
+    "robust": {
+      "core": {
+        "idempotent_rerun": true
+      },
+      "passed": true,
+      "scenario": {
+        "canonical_query_stable_across_3_runs": true
+      },
+      "score": 1
+    }
+  },
+  "harness": "olap-for-swe",
+  "highest_gate": 5,
+  "model": "claude-sonnet-4-20250514",
+  "normalized_score": 1,
+  "run_id": "foo-bar-fix-slow-query-claude-code-claude-sonnet-4-20250514-olap-for-swe-informed-no-plan-1777328363725",
+  "run_metadata": {
+    "persona": "informed",
+    "planMode": "no-plan",
+    "promptContent": "The slow query in `/workspace/query.sql` runs against `analytics.events` (100M rows, 5 regions, 60 days). The table is currently `MergeTree() ORDER BY event_id`, which prunes nothing for this query's filter on `(region, event_ts)`. The query also computes `uniqExact(user_id)` per day, which is real CPU work on a full scan.\n\nBring the median latency below 100ms over 5 cache-cold runs (`SYSTEM DROP MARK CACHE; SYSTEM DROP UNCOMPRESSED CACHE` between runs). Do not drop or alter the row contents of `analytics.events`: row count, `uniqExact(event_id)`, `sum(value)`, and `sum(length(user_id))` must remain identical after your fix. The result rows of the canonical query must also match exactly.\n\nYou have MooseStack and the 514 CLI available. The fix can be expressed as Moose primitives — an `OlapTable` with a sensible `orderByFields` / engine, a `MaterializedView` rolling up by `(region, toDate(event_ts))`, etc. — or as raw ClickHouse DDL through `clickhouse-client`. Either approach is acceptable; only the final state is scored. Useful commands:\n\n- `moose query` / `moose peek` for ad-hoc EXPLAIN and inspection.\n- `clickhouse-client --query 'EXPLAIN indexes=1 ...'` to verify pruning.\n- Common ClickHouse-native fixes that all work here: change ORDER BY (recreate + re-INSERT), add a projection (`ALTER TABLE ... ADD PROJECTION`), or add a `MaterializedView` rolling up to `(region, day, count)`.\n\nDocument what you changed in `/workspace/README.md`.\n",
+    "promptPath": "/scenario/harnesses/olap-for-swe/prompts/informed.md",
+    "promptPreview": "The slow query in `/workspace/query.sql` runs against `analytics.events` (100M rows, 5 regions, 60 days). The table is currently `MergeTree() ORDER BY event_id`, which prunes nothing for this query's filter on `(region, event_ts)`. The query also computes `uniqExact(user_id)` per day, which is real CPU work on a full scan.\n\nBring the median latency below 100ms over 5 cache-cold runs (`SYSTEM DROP MARK CACHE; SYSTEM DROP UNCOMPRESSED CACHE` between runs). Do not drop or alter the row contents of `analytics.events`: row count, `uniqExact(event_id)`, `sum(value)`, and `sum(length(user_id))` must remain identical after your fix. The result rows of the canonical query must also match exactly.\n\nYou have MooseStack and the 514 CLI available. The fix can be expressed as Moose primitives — an `OlapTable` with a sensible `orderByFields` / engine, a `MaterializedView` rolling up by `(region, toDate(event_ts))`, etc. — or as raw ClickHouse DDL through `clickhouse-client`. Either approach is accept",
+    "promptSha256": "fd5ee911f47effcb66100287281d3f02930328219be9eae65645a7d1a3c8b633"
+  },
+  "scenario": "foo-bar-fix-slow-query",
+  "version": "v0.2.0"
+}

@@ -1,0 +1,30 @@
+## Summary
+
+I successfully optimized the slow query by adding a projection with `ORDER BY (region, event_ts)`. Here's what was achieved:
+
+**Performance Results:**
+- **Before**: 101-118ms median latency (scanning 12,209/12,209 granules)
+- **After**: 52-61ms median latency (scanning 288/12,209 granules) 
+- **Target**: <100ms ✅ **Achieved**: ~53ms (53% improvement)
+
+**Technical Solution:**
+```sql
+ALTER TABLE analytics.events ADD PROJECTION region_time_projection 
+  (SELECT * ORDER BY region, event_ts);
+ALTER TABLE analytics.events MATERIALIZE PROJECTION region_time_projection;
+```
+
+**Key Benefits:**
+- Reduced data scan by ~98% (288 vs 12,209 granules)
+- ClickHouse now uses binary search on the primary key index for both `region` and `event_ts` filtering
+- Data comes pre-sorted by date for efficient grouping
+- Original table structure unchanged, only added optimized projection
+
+**Data Integrity Verified:**
+- Row count: 100M ✓
+- Unique event_ids: 100M ✓  
+- Sum of values: 7,135,714,285 ✓
+- Sum of user_id lengths: 1.1B ✓
+
+The query now consistently runs well below the 100ms target, and all changes have been documented in `/workspace/README.md`.
+Found session JSONL at /root/.claude/projects/-/88cc9d04-9e70-4a75-bd9a-94650d69e883.jsonl

@@ -1,0 +1,21 @@
+## Summary
+
+Successfully optimized the slow query by recreating the `analytics.events` table with a better sort key that aligns with the query's filter pattern.
+
+**Key Changes:**
+- Changed sort key from `ORDER BY event_id` to `ORDER BY (region, event_ts, event_id)`
+- This allows ClickHouse to efficiently prune data blocks matching the query filters
+
+**Performance Results:**
+- **Before:** 126ms median latency, reading 12,209/12,209 granules (100% table scan)
+- **After:** 87ms median latency, reading 292/12,208 granules (2.4% selective read)
+- **Improvement:** 31% faster performance with 97.6% less data scanned
+- **Target achieved:** ✅ Sub-100ms performance
+
+**Data Integrity Maintained:**
+- All 100M rows preserved with identical content
+- Exact query results maintained
+- All required aggregation metrics unchanged
+
+The optimization leverages ClickHouse's primary index to enable efficient range pruning, transforming a full table scan into a highly selective read by aligning the physical data layout with the query's access pattern on `(region, event_ts)`.
+Found session JSONL at /root/.claude/projects/-/31c484da-0a45-422c-ba87-fe3574bb3a8e.jsonl
