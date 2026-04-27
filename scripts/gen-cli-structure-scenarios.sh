@@ -56,6 +56,11 @@ for variant in "${VARIANTS[@]}"; do
   cp "experiments/cli-structure/variants/${variant}/bin/moose" "${dir}/init/moose"
   chmod +x "${dir}/init/moose"
 
+  # Patch the wrapper's MOOSE_LOG_PATH default so it lands in /workspace/moose.log
+  # even when the env var isn't propagated into the agent's bash -c subprocess
+  # (init/setup.sh exports it via /etc/profile.d/, but bash -c doesn't source that).
+  perl -i -pe 's{/tmp/cli-structure-test/moose\.log}{/workspace/moose.log}g' "${dir}/init/moose"
+
   # ---------- scenario.json ----------
   desc="$(variant_desc "$variant")"
   lede="$(variant_lede "$variant")"
