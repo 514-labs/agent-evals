@@ -1,0 +1,70 @@
+{
+  "id": "moose-evolving-pipeline",
+  "title": "Moose Evolving Pipeline",
+  "description": "Build an ingest pipeline from Postgres to ClickHouse with a daily revenue aggregation, then evolve the schema to add region and device columns with a backfill, then expose the results through an HTTP API.",
+  "lede": "In this scenario, an agent must build a pipeline, evolve its schema, and expose an API — three lifecycle phases that compound the value of typed schemas and automated migrations.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "features": [
+    "schema-evolution-lifecycle"
+  ],
+  "services": [
+    "postgres"
+  ],
+  "harnesses": [
+    "base-rt",
+    "olap-for-swe",
+    "moose-initialized"
+  ],
+  "tasks": [
+    {
+      "id": "ingest-and-aggregate",
+      "description": "Load events from Postgres into ClickHouse and create a daily revenue aggregation table.",
+      "category": "ingestion"
+    },
+    {
+      "id": "schema-evolution",
+      "description": "Add region and device columns, load a second batch of events, and backfill historical rows.",
+      "category": "migration"
+    },
+    {
+      "id": "expose-api",
+      "description": "Stand up an HTTP API on port 3000 serving revenue-by-region and top-products endpoints.",
+      "category": "schema-design"
+    }
+  ],
+  "infrastructure": {
+    "services": [
+      "postgres-16"
+    ],
+    "description": "Postgres seeded with two event tables (v1 and v2). ClickHouse installed but not running."
+  },
+  "tags": [
+    "ingestion",
+    "schema-evolution",
+    "migration",
+    "backfill",
+    "api",
+    "materialized-views",
+    "multi-step",
+    "lifecycle",
+    "swe",
+    "lab"
+  ],
+  "startingState": "seeded",
+  "competencies": [
+    "data-pipeline-construction",
+    "schema-evolution-and-migration",
+    "api-development"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 150,
+    "storageBytes": 100000000,
+    "costPerQueryUsd": 0.005
+  }
+}

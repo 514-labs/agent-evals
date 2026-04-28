@@ -16,6 +16,11 @@ if [[ ! -d moose-project ]]; then
   moose init moose-project typescript-empty
 fi
 cd moose-project
+
+# Set the default database to "analytics" so tables with
+# database: "analytics" land in the right place without extra config.
+sed -i 's/^db_name = "local"/db_name = "analytics"/' moose.config.toml
+
 if [[ ! -d node_modules ]]; then
   npm install
 fi

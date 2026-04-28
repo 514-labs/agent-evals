@@ -8,6 +8,7 @@
 // aren't agent-authored code).
 export const IGNORED_SCAN_DIRS: ReadonlySet<string> = new Set([
   ".git",
+  ".cursor",
   ".next",
   ".turbo",
   ".moose",
