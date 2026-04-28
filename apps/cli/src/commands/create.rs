@@ -120,14 +120,12 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
 
     write_file(
         &root.join("supervisord.conf"),
-        &format!(
-            "[program:postgres]\n\
-             command=/usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/data\n\
-             autostart=true\n\
-             autorestart=false\n\
-             \n\
-             ; Add additional services below\n"
-        ),
+        "[program:postgres]\n\
+         command=/usr/lib/postgresql/16/bin/postgres -D /var/lib/postgresql/data\n\
+         autostart=true\n\
+         autorestart=false\n\
+         \n\
+         ; Add additional services below\n",
     )?;
 
     write_file(&root.join("init/postgres-setup.sql"), "-- Schema and seed data for Postgres\n")?;
