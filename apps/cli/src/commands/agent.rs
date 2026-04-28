@@ -5,9 +5,10 @@ use std::str::FromStr;
 /// keys, compatible model prefixes, and matrix defaults.
 ///
 /// Every method is an exhaustive `match self`. Adding a variant here forces
-/// five compile errors pointing at every place that needs to be updated —
-/// the compiler replaces the five separate const tables that used to drift.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, clap::ValueEnum)]
+/// compile errors at every match site until the implementation is complete.
+/// `EnumIter` ensures `iter()` automatically covers the new variant —
+/// no manual list to forget.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, clap::ValueEnum, strum::EnumIter)]
 #[clap(rename_all = "kebab-case")]
 pub enum Agent {
     ClaudeCode,
@@ -54,8 +55,11 @@ impl Agent {
         }
     }
 
-    pub const fn all() -> &'static [Self] {
-        &[Self::ClaudeCode, Self::Codex, Self::Cursor]
+    /// Iterate over every variant. Backed by `EnumIter` — adding a variant
+    /// here automatically includes it; no manual list to maintain.
+    pub fn all() -> impl Iterator<Item = Self> {
+        use strum::IntoEnumIterator;
+        Self::iter()
     }
 }
 
@@ -64,12 +68,9 @@ impl FromStr for Agent {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::all()
-            .iter()
-            .copied()
             .find(|a| a.slug() == s)
             .ok_or_else(|| {
                 let known = Self::all()
-                    .iter()
                     .map(|a| a.slug())
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -122,7 +123,7 @@ mod tests {
     fn slug_round_trips_via_from_str() {
         for agent in Agent::all() {
             let parsed: Agent = agent.slug().parse().expect("slug should parse back");
-            assert_eq!(parsed, *agent);
+            assert_eq!(parsed, agent);
         }
     }
 

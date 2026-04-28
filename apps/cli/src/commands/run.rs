@@ -162,12 +162,11 @@ struct MatrixJob {
 
 fn default_agent_models() -> Vec<(Agent, String)> {
     Agent::all()
-        .iter()
         .flat_map(|agent| {
             agent
                 .default_models()
                 .iter()
-                .map(|m| (*agent, m.to_string()))
+                .map(move |m| (agent, m.to_string()))
         })
         .collect()
 }
