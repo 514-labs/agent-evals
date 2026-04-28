@@ -103,9 +103,7 @@ pub async fn execute(args: ResultsArgs) -> Result<()> {
         }
     }
 
-    let detail = if args.latest {
-        results.first().cloned()
-    } else if args.run_id.is_some() {
+    let detail = if args.latest || args.run_id.is_some() {
         results.first().cloned()
     } else {
         None
@@ -355,8 +353,8 @@ fn print_table(entries: &[ResultEntry]) {
     }
 
     println!(
-        "{:<28} {:<22} {:<12} {:<14} {:<26} {:<6} {:<8} {}",
-        "RUN_ID", "SCENARIO", "HARNESS", "AGENT", "MODEL", "GATE", "SCORE", "FILE"
+        "{:<28} {:<22} {:<12} {:<14} {:<26} {:<6} {:<8} FILE",
+        "RUN_ID", "SCENARIO", "HARNESS", "AGENT", "MODEL", "GATE", "SCORE"
     );
     println!("{}", "-".repeat(160));
 

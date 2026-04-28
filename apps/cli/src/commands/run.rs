@@ -18,6 +18,7 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tracing::{info, warn};
 
+use super::agent::Agent;
 use super::preflight;
 
 const SCENARIO_REGISTRY_DIR: &str = "apps/web/data/scenarios";
@@ -48,7 +49,7 @@ const SENSITIVE_ENV_KEYS: [&str; 5] = [
 /// Agent/model pair for matrix runs (e.g. "claude-code:claude-sonnet-4-6")
 #[derive(Clone, Debug)]
 pub struct AgentModel {
-    pub agent: String,
+    pub agent: Agent,
     pub model: String,
 }
 
@@ -60,8 +61,9 @@ fn parse_agent_model(value: &str) -> std::result::Result<AgentModel, String> {
             value
         ));
     }
+    let agent: Agent = parts[0].parse()?;
     Ok(AgentModel {
-        agent: parts[0].to_string(),
+        agent,
         model: parts[1].to_string(),
     })
 }
@@ -93,8 +95,8 @@ pub struct RunArgs {
     pub parallel: Parallelism,
 
     /// Agent runner ID baked into the image tag (single-run mode)
-    #[arg(long, default_value = "claude-code")]
-    pub agent: String,
+    #[arg(long, value_enum, default_value_t = Agent::ClaudeCode)]
+    pub agent: Agent,
 
     /// Model slug baked into the image tag (single-run mode)
     #[arg(long, default_value = "claude-sonnet-4-20250514")]
@@ -152,37 +154,39 @@ pub enum Parallelism {
 struct MatrixJob {
     scenario_id: String,
     harness: String,
-    agent: String,
+    agent: Agent,
     model: String,
     persona: Persona,
     mode: PlanMode,
 }
 
-const DEFAULT_AGENTS: &[(&str, &str)] = &[
-    ("claude-code", "claude-sonnet-4-6"),
-    ("claude-code", "claude-opus-4-6"),
-    ("codex", "gpt-5.4"),
-    ("cursor", "composer-2"),
-];
+fn default_agent_models() -> Vec<(Agent, String)> {
+    Agent::all()
+        .iter()
+        .flat_map(|agent| {
+            agent
+                .default_models()
+                .iter()
+                .map(|m| (*agent, m.to_string()))
+        })
+        .collect()
+}
 
 pub async fn execute(args: RunArgs) -> Result<()> {
     if args.matrix {
-        let agent_models: Vec<(String, String)> = if args.agent_models.is_empty() {
-            DEFAULT_AGENTS
-                .iter()
-                .map(|(a, m)| (a.to_string(), m.to_string()))
-                .collect()
+        let agent_models: Vec<(Agent, String)> = if args.agent_models.is_empty() {
+            default_agent_models()
         } else {
             args.agent_models
                 .iter()
-                .map(|am| (am.agent.clone(), am.model.clone()))
+                .map(|am| (am.agent, am.model.clone()))
                 .collect()
         };
 
         // Validate all agent/model/key combos upfront before any Docker work.
-        let pairs: Vec<(&str, &str)> = agent_models
+        let pairs: Vec<(Agent, &str)> = agent_models
             .iter()
-            .map(|(a, m)| (a.as_str(), m.as_str()))
+            .map(|(a, m)| (*a, m.as_str()))
             .collect();
         preflight::validate_agent_model_keys(&pairs).await?;
 
@@ -219,7 +223,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                 match has_existing_result(
                     &args.results_dir,
                     &job.scenario_id,
-                    &job.agent,
+                    job.agent.slug(),
                     &job.model,
                     &job.harness,
                     job.persona.as_str(),
@@ -227,7 +231,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                     Some(existing) => {
                         info!(
                             scenario = job.scenario_id,
-                            agent = job.agent,
+                            agent = job.agent.slug(),
                             model = job.model,
                             "Skipping — result exists: {existing}"
                         );
@@ -342,7 +346,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         .context("--scenario is required unless --matrix is enabled")?;
 
     // Validate agent/model/key upfront before any Docker work.
-    preflight::validate_agent_model_keys(&[(&args.agent, &args.model)]).await?;
+    preflight::validate_agent_model_keys(&[(args.agent, &args.model)]).await?;
 
     preflight::check_docker()?;
     let docker = preflight::connect_docker()?;
@@ -361,7 +365,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
 fn args_for_job(base: &RunArgs, job: &MatrixJob) -> RunArgs {
     let mut args = base.clone();
-    args.agent = job.agent.clone();
+    args.agent = job.agent;
     args.model = job.model.clone();
     args.harness = job.harness.clone();
     args
@@ -383,7 +387,7 @@ async fn run_single(
         let build_args = super::build::BuildArgs {
             scenario: scenario_id.to_string(),
             harness: args.harness.clone(),
-            agent: args.agent.clone(),
+            agent: args.agent,
             model: args.model.clone(),
             version: args.version.clone(),
             base_image: "ghcr.io/514-labs/dec-bench:base".to_string(),
@@ -1047,7 +1051,7 @@ fn load_scenarios_with_harnesses() -> Result<Vec<RegistryScenario>> {
 
 fn build_matrix_jobs(
     scenarios: &[RegistryScenario],
-    agent_models: &[(String, String)],
+    agent_models: &[(Agent, String)],
     scenario_filter: Option<&str>,
     harness_filter: Option<&str>,
     persona_filter: &Option<Persona>,
@@ -1076,7 +1080,7 @@ fn build_matrix_jobs(
                     jobs.push(MatrixJob {
                         scenario_id: scenario.id.clone(),
                         harness: harness.clone(),
-                        agent: agent.clone(),
+                        agent: *agent,
                         model: model_name.clone(),
                         persona: persona.clone(),
                         mode: mode.clone(),
@@ -1152,7 +1156,7 @@ fn make_run_id(args: &RunArgs, scenario_id: &str, persona: &Persona, mode: &Plan
     format!(
         "{}-{}-{}-{}-{}-{}-{}",
         sanitize_identifier_component(scenario_id),
-        sanitize_identifier_component(&args.agent),
+        sanitize_identifier_component(args.agent.slug()),
         sanitize_identifier_component(&args.model),
         sanitize_identifier_component(&args.harness),
         persona.as_str(),
@@ -1448,8 +1452,8 @@ mod tests {
         }
     }
 
-    fn agent_pair(agent: &str, model: &str) -> (String, String) {
-        (agent.to_string(), model.to_string())
+    fn agent_pair(agent: &str, model: &str) -> (Agent, String) {
+        (agent.parse().expect("valid agent slug in test"), model.to_string())
     }
 
     #[test]

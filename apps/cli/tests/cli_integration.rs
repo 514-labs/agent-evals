@@ -1,3 +1,4 @@
+#![allow(deprecated)] // assert_cmd 2.x: cargo_bin migration pending
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;

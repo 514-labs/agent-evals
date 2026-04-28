@@ -7,6 +7,8 @@ use anyhow::{bail, Context, Result};
 use bollard::Docker;
 use bollard::API_DEFAULT_VERSION;
 
+use super::agent::{Agent, ProviderKey};
+
 pub fn resolve_repo_root() -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("Failed to determine current directory")?;
     for ancestor in cwd.ancestors() {
@@ -159,89 +161,42 @@ pub fn check_image_exists(image: &str) -> Result<()> {
     }
 }
 
-// Provider API endpoints used for key validation.
-const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/models";
-const OPENAI_API_URL: &str = "https://api.openai.com/v1/models";
-const CURSOR_API_URL: &str = "https://api.cursor.com/auth/verify";
-
-/// Known agents and the API key env vars they require.
-const AGENT_KEYS: &[(&str, &[&str])] = &[
-    ("claude-code", &["ANTHROPIC_API_KEY"]),
-    ("codex", &["OPENAI_API_KEY"]),
-    ("cursor", &["CURSOR_API_KEY"]),
-];
-
-/// Known agents and the model prefixes they support.
-const AGENT_MODEL_PREFIXES: &[(&str, &[&str])] = &[
-    ("claude-code", &["claude-"]),
-    ("codex", &["gpt-", "o"]),
-    ("cursor", &["composer-"]),
-];
-
-fn required_keys_for(agent: &str) -> Option<&'static [&'static str]> {
-    AGENT_KEYS
-        .iter()
-        .find(|(a, _)| *a == agent)
-        .map(|(_, keys)| *keys)
-}
-
-fn allowed_model_prefixes_for(agent: &str) -> Option<&'static [&'static str]> {
-    AGENT_MODEL_PREFIXES
-        .iter()
-        .find(|(a, _)| *a == agent)
-        .map(|(_, prefixes)| *prefixes)
-}
-
-/// Validate agent name, model compatibility, and API keys for one or more
-/// agent/model pairs. Call this at the **start** of `execute()` so problems
-/// surface before any Docker builds or container launches.
+/// Validate agent/model compatibility and API keys for one or more pairs.
+/// Call this at the **start** of `execute()` so problems surface before any
+/// Docker builds or container launches.
 ///
-/// Checks run in order: agent validity → model compatibility → key presence →
+/// Checks run in order: model compatibility → key presence →
 /// key validity (live API call). Earlier failures short-circuit so we don't
 /// spam users with redundant errors.
-pub async fn validate_agent_model_keys(pairs: &[(&str, &str)]) -> Result<()> {
-    let known_agents: Vec<&str> = AGENT_KEYS.iter().map(|(a, _)| *a).collect();
+pub async fn validate_agent_model_keys(pairs: &[(Agent, &str)]) -> Result<()> {
     let mut errors: Vec<String> = Vec::new();
-    // Track which keys pass presence so we can validate them live.
     let mut keys_to_validate: HashSet<&str> = HashSet::new();
 
     for (agent, model) in pairs {
-        // 1. Agent must be known
-        if !known_agents.contains(agent) {
+        // 1. Model must be compatible with the agent
+        let prefixes = agent.model_prefixes();
+        if !prefixes.iter().any(|p| model.starts_with(p)) {
+            let examples = prefixes
+                .iter()
+                .map(|p| format!("{p}*"))
+                .collect::<Vec<_>>()
+                .join(", ");
             errors.push(format!(
-                "Unknown agent '{agent}'. Available agents: {}",
-                known_agents.join(", ")
+                "Model '{model}' is not compatible with agent '{agent}'. \
+                 Expected model matching: {examples}"
             ));
-            continue; // skip further checks for this pair
         }
 
-        // 2. Model must be compatible with the agent
-        if let Some(prefixes) = allowed_model_prefixes_for(agent) {
-            if !prefixes.iter().any(|p| model.starts_with(p)) {
-                let examples = prefixes
-                    .iter()
-                    .map(|p| format!("{p}*"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+        // 2. Required API key must be set and non-empty
+        for key in agent.required_keys() {
+            let is_set = std::env::var(key).is_ok_and(|v| !v.trim().is_empty());
+            if !is_set {
                 errors.push(format!(
-                    "Model '{model}' is not compatible with agent '{agent}'. \
-                     Expected model matching: {examples}"
+                    "Missing {key} (required by agent '{agent}'). Set it before running:\n\n\
+                     \texport {key}=<your-key>"
                 ));
-            }
-        }
-
-        // 3. Required API key must be set and non-empty
-        if let Some(required) = required_keys_for(agent) {
-            for key in required.iter() {
-                let is_set = std::env::var(key).map_or(false, |v| !v.trim().is_empty());
-                if !is_set {
-                    errors.push(format!(
-                        "Missing {key} (required by agent '{agent}'). Set it before running:\n\n\
-                         \texport {key}=<your-key>"
-                    ));
-                } else {
-                    keys_to_validate.insert(key);
-                }
+            } else {
+                keys_to_validate.insert(key);
             }
         }
     }
@@ -255,7 +210,7 @@ pub async fn validate_agent_model_keys(pairs: &[(&str, &str)]) -> Result<()> {
         );
     }
 
-    // 4. Validate keys against their provider APIs (in parallel).
+    // 3. Validate keys against their provider APIs (in parallel).
     let mut key_errors: Vec<String> = Vec::new();
     let mut handles = Vec::new();
 
@@ -294,30 +249,28 @@ fn format_errors(errors: &[String]) -> String {
 
 /// Hit a lightweight provider endpoint to confirm the key authenticates.
 /// Returns `Ok(())` on success, `Err(message)` on auth failure.
+/// Skips validation (returns `Ok`) for unknown key names.
 async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<(), String> {
+    let Some(provider) = ProviderKey::from_key_name(key_name) else {
+        return Ok(());
+    };
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
 
-    let (url, request) = match key_name {
-        "ANTHROPIC_API_KEY" => {
-            let req = client
-                .get(ANTHROPIC_API_URL)
-                .header("x-api-key", value)
-                .header("anthropic-version", "2023-06-01");
-            (ANTHROPIC_API_URL, req)
-        }
-        "OPENAI_API_KEY" => {
-            let req = client.get(OPENAI_API_URL).bearer_auth(value);
-            (OPENAI_API_URL, req)
-        }
-        "CURSOR_API_KEY" => {
+    let url = provider.api_url();
+    let request = match provider {
+        ProviderKey::Anthropic => client
+            .get(url)
+            .header("x-api-key", value)
+            .header("anthropic-version", "2023-06-01"),
+        ProviderKey::OpenAi => client.get(url).bearer_auth(value),
+        ProviderKey::Cursor => {
             // Cursor uses Basic Auth with the API key as the username.
-            let req = client.get(CURSOR_API_URL).basic_auth(value, Option::<&str>::None);
-            (CURSOR_API_URL, req)
+            client.get(url).basic_auth(value, Option::<&str>::None)
         }
-        _ => return Ok(()),
     };
 
     match request.send().await {
@@ -330,7 +283,6 @@ async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<()
             ))
         }
         Ok(resp) => {
-            // Unexpected status — don't block the run, just warn.
             tracing::warn!(
                 "{key_name} validation returned HTTP {} from {url} — skipping check",
                 resp.status()
@@ -338,7 +290,6 @@ async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<()
             Ok(())
         }
         Err(e) if e.is_timeout() || e.is_connect() => {
-            // Network issue — don't block the run.
             tracing::warn!("{key_name} validation failed (network): {e} — skipping check");
             Ok(())
         }
@@ -410,16 +361,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unknown_agent_is_rejected() {
-        let result = validate_agent_model_keys(&[("unknown-agent", "some-model")]).await;
-        assert!(result.is_err());
-        let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("Unknown agent"));
-    }
-
-    #[tokio::test]
     async fn incompatible_model_is_rejected() {
-        let result = validate_agent_model_keys(&[("claude-code", "gpt-5.4")]).await;
+        let result = validate_agent_model_keys(&[(Agent::ClaudeCode, "gpt-5.4")]).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("not compatible"));
@@ -433,14 +376,14 @@ mod tests {
     #[tokio::test]
     async fn compatible_model_with_key_set() {
         std::env::set_var("CURSOR_API_KEY", "sk-test-key");
-        let result = validate_agent_model_keys(&[("cursor", "composer-2")]).await;
+        let result = validate_agent_model_keys(&[(Agent::Cursor, "composer-2")]).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn missing_key_is_rejected() {
         std::env::remove_var("ANTHROPIC_API_KEY");
-        let result = validate_agent_model_keys(&[("claude-code", "claude-sonnet-4-6")]).await;
+        let result = validate_agent_model_keys(&[(Agent::ClaudeCode, "claude-sonnet-4-6")]).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("ANTHROPIC_API_KEY"));
@@ -450,9 +393,7 @@ mod tests {
     async fn multiple_errors_reported_together() {
         // codex + claude model = wrong model AND missing key
         std::env::remove_var("OPENAI_API_KEY");
-        let result = validate_agent_model_keys(&[
-            ("codex", "claude-sonnet-4-6"),
-        ]).await;
+        let result = validate_agent_model_keys(&[(Agent::Codex, "claude-sonnet-4-6")]).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("not compatible"));

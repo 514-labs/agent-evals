@@ -224,7 +224,7 @@ fn validate_with_repo_root(
     // Each declared harness must own its prompts at harnesses/{harness}/prompts/.
     for harness in &scenario.harnesses {
         validate_harness_prompts(
-            &scenario_dir,
+            scenario_dir,
             harness,
             &mut errors,
             &mut warnings,
@@ -269,7 +269,7 @@ fn validate_with_repo_root(
         &mut warnings,
     );
     for harness in &scenario.harnesses {
-        validate_harness(&repo_root, harness, &mut warnings);
+        validate_harness(repo_root, harness, &mut warnings);
     }
 
     let registry_ready = validate_registry_inputs(
@@ -415,9 +415,9 @@ fn validate_init_dir(
         .count();
 
     if file_count == 0 {
-        warnings.push(format!(
-            "Flat init/ directory has no files. All seed data for this scenario is harness-specific."
-        ));
+        warnings.push(
+            "Flat init/ directory has no files. All seed data for this scenario is harness-specific.".to_string()
+        );
     }
 
     let _ = warnings; // suppress unused warning if caller adds more checks
