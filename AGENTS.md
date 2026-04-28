@@ -2,13 +2,78 @@
 
 DEC Bench is an open-source benchmark for evaluating AI agents on real-world data engineering tasks. Monorepo containing a Rust CLI, Next.js marketing site with leaderboard and audit tools, and a TypeScript scoring framework.
 
-## When to use which skill
+## First run (read this if you just cloned the repo)
 
-| User intent | Skill | Install |
-|-------------|-------|---------|
-| "Get started", "install", "set up", "first run" | `dec-bench-quickstart` | `npx skills add 514-labs/agent-evals --skill dec-bench-quickstart` |
-| "Run scenario", "run eval", "benchmark", "compare agents" | `dec-bench-run` | `npx skills add 514-labs/agent-evals --skill dec-bench-run` |
-| "Create scenario", "new scenario", "add eval", "write a benchmark for" | `dec-bench-create-scenario` | `npx skills add 514-labs/agent-evals --skill dec-bench-create-scenario` |
+If the user wants to "get started", "run a scenario", or "test their setup", walk them through this:
+
+1. **Install Docker** if not already installed, and make sure it is running. `docker info` should succeed.
+2. **Install the DEC Bench CLI**:
+   ```bash
+   curl -fsSL https://decbench.ai/install.sh | sh
+   ```
+   Then `dec-bench list` should print the scenario catalog. If not, the install failed.
+3. **Export an API key** for whichever agent the user wants to evaluate:
+   - `ANTHROPIC_API_KEY` for Claude Code
+   - `OPENAI_API_KEY` for Codex
+   - `CURSOR_API_KEY` for Cursor
+4. **Build and run the canonical first scenario**:
+   ```bash
+   dec-bench build --scenario foo-bar-csv-ingest
+   dec-bench run --scenario foo-bar-csv-ingest
+   dec-bench results --latest --scenario foo-bar-csv-ingest
+   ```
+
+If anything in steps 1-3 is missing, tell the user exactly what to fix and stop. Do not continue with a broken setup.
+
+For the full quickstart skill, see `.claude/skills/dec-bench-quickstart/SKILL.md` (or `.agents/skills/dec-bench-quickstart/SKILL.md`).
+
+## Scenario object model (read this before touching scenarios)
+
+A scenario is a matrix, not a single run.
+
+  1 scenario × N harnesses × 2 personas = 2N evaluations.
+
+- A scenario declares `harnesses[]` in `scenario.json`.
+- For every entry there, the (scenario, harness) pair is its own unit of ownership: it has its own `prompts/baseline.md` and `prompts/informed.md`, and may have its own `init/` (seed data) and `install.sh` (build-time tools).
+- `init/`, `assertions/`, `supervisord.conf`, and `scenario.json` at the scenario root are shared across all harnesses.
+
+```
+scenarios/<id>/
+  scenario.json                     # declares harnesses[]
+  supervisord.conf                  # services (shared)
+  init/                             # shared seed data
+  assertions/                       # shared gates
+  harnesses/<harness-id>/
+    prompts/{baseline,informed}.md  # required per pair
+    init/                           # optional; only this pair
+    install.sh                      # optional; only this pair
+```
+
+When the user describes a task, decide first: is this one harness or a comparison across harnesses? That choice determines how many prompt sets you write.
+
+Why prompts and init can differ per harness:
+
+- Prompts diverge to control whether the agent reaches for a specific tool. The baseline tests whether the agent picks the tool unprompted; an informed prompt that names the tool tests how well the agent uses the tool when told to. Different harnesses ship different tools, so informed prompts usually name different tools per harness.
+- Init diverges when harnesses need different starting infrastructure (e.g. a scaffolded Moose project for `olap-for-swe` vs a scaffolded dbt project for `classic-de`) so each harness boots into the state its tools expect.
+
+The `dec-bench-create-scenario` skill expands on this and is the right next read for any scenario authoring task.
+
+## Embedded skills
+
+Skills are checked into this repo. They auto-load when a user opens the repo with their agent. No `npx skills add` step is required.
+
+| User intent | Skill | Path |
+|-------------|-------|------|
+| "Get started", "install", "set up", "first run" | `dec-bench-quickstart` | `.agents/skills/dec-bench-quickstart/SKILL.md` |
+| "Run scenario", "run eval", "benchmark", "compare agents" | `dec-bench-run` | `.agents/skills/dec-bench-run/SKILL.md` |
+| "Create scenario", "new scenario", "add eval", "write a benchmark for" | `dec-bench-create-scenario` | `.agents/skills/dec-bench-create-scenario/SKILL.md` |
+| "Test a local moose-cli / ClickHouse / skill build before release" | `dec-bench-local-override` | `.agents/skills/dec-bench-local-override/SKILL.md` |
+
+**Claude Code** auto-loads from `.claude/skills/` (mirrors of the same content kept in sync via `tools/sync-skills.sh`).
+
+**Codex and Cursor** read this `AGENTS.md` natively. When the user's intent matches a row above, read the linked `SKILL.md` and follow it.
+
+If you edit any file under `.agents/skills/dec-bench-*`, run `tools/sync-skills.sh` to refresh `.claude/skills/`. The script is idempotent.
 
 ## Linear Defaults
 

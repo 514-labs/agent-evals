@@ -20,6 +20,8 @@ dec-bench run --scenario foo-bar-csv-ingest
 dec-bench results --latest --scenario foo-bar-csv-ingest
 ```
 
+Open the repo in Claude Code, Cursor, or Codex and the DEC Bench agent skills auto-load. Ask "get me started" and your agent will walk you through the steps above. See [`AGENTS.md`](./AGENTS.md) for the full first-run guide and [`examples/`](./examples) for a tour of the worked scenarios.
+
 ## The Five-Gate Model
 
 Each evaluation run is scored against five sequential quality gates:
@@ -70,6 +72,22 @@ dec-bench run --scenario foo-bar-csv-ingest --harness classic-de
 dec-bench list
 ```
 
+A scenario is a matrix, not a single run: `1 scenario × N harnesses × 2 personas = 2N evaluations`. Each (scenario, harness) pair owns its own prompts and may carry its own seed data; `scenario.json`, root `init/`, `assertions/`, and `supervisord.conf` are shared across harnesses.
+
+```
+scenarios/<id>/
+  scenario.json                     # declares harnesses[]
+  supervisord.conf                  # services (shared)
+  init/                             # shared seed data
+  assertions/                       # shared gates
+  harnesses/<harness-id>/
+    prompts/{baseline,informed}.md  # required per pair
+    init/                           # optional; only this pair
+    install.sh                      # optional; only this pair
+```
+
+See [`AGENTS.md`](./AGENTS.md#scenario-object-model-read-this-before-touching-scenarios) for why prompts and init can differ per harness.
+
 ## Infrastructure
 
 Every scenario runs against real databases, not mocks:
@@ -107,22 +125,22 @@ Every scenario runs against real databases, not mocks:
 
 **Add a harness:** Create `apps/web/data/harnesses/<harness>.json` with tools and install script.
 
-**Add a scenario:** `dec-bench create --name my-eval --domain ugc --tier tier-1`, then define the prompt and assertions.
-
-Refer to the [documentation](https://decbench.ai/docs/supported-agents) for detailed extension guides.
+**Add a scenario:** `dec-bench create --name my-eval --domain ugc --tier tier-1`, then define the prompt and assertions. Open the repo in Claude Code, Cursor, or Codex and the `dec-bench-create-scenario` skill walks through the rest. Worked scenarios live in [`examples/`](./examples).
 
 ## Agent Skills
 
-Install DEC Bench skills for your agent:
+Skills are checked into the repo at [`.claude/skills/`](./.claude/skills) and [`.agents/skills/`](./.agents/skills) and auto-load when you open the repo with Claude Code, Cursor, or Codex. No install step.
 
-```bash
-npx skills add . --skill dec-bench-quickstart -a claude-code -a cursor -a codex
-npx skills add . --skill dec-bench-run -a claude-code -a cursor -a codex
-npx skills add . --skill dec-bench-create-scenario -a claude-code -a cursor -a codex
-npx skills add . --skill dec-bench-local-override -a claude-code -a cursor -a codex
-```
+| Skill | When it fires |
+|-------|---------------|
+| `dec-bench-quickstart` | "get started", "install", "first run" |
+| `dec-bench-run` | "run scenario", "benchmark", "compare agents" |
+| `dec-bench-create-scenario` | "create scenario", "add eval", "write a benchmark for" |
+| `dec-bench-local-override` | "test a local moose-cli / ClickHouse / skill build before release" |
 
-`dec-bench-local-override` guides contributors through substituting a locally-built artifact (moose-cli, moose-lib, ClickHouse, a Claude skill, etc.) into a scenario image to test changes before a release. See [Testing Local Artifact Overrides](https://decbench.ai/docs/add-eval/testing-local-overrides) for the web-facing reference.
+`dec-bench-local-override` guides contributors through substituting a locally-built artifact (moose-cli, moose-lib, ClickHouse, a Claude skill, etc.) into a scenario image to test changes before a release.
+
+The canonical source for skill content is [`.agents/skills/`](./.agents/skills). After editing a skill, run [`tools/sync-skills.sh`](./tools/sync-skills.sh) to mirror it into `.claude/skills/`.
 
 ## Testing
 
@@ -135,12 +153,6 @@ pnpm --filter web test:data
 ## Contributing
 
 We welcome contributions across scenarios, harnesses, evaluation logic, documentation, and tooling. Contributions should meet the quality criteria described in the [contributor guidelines](https://decbench.ai/docs).
-
-## Prerequisites
-
-- Git
-- Docker (running)
-- An API key for your chosen agent
 
 ## License
 
