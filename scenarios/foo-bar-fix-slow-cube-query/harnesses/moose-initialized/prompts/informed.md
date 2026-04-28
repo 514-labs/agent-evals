@@ -4,8 +4,9 @@ Make the canonical query in `/workspace/query.sql` run in under **100ms** (media
 
 Environment:
 
-- A Moose project is scaffolded at `/workspace/moose-project` and `moose dev --dockerless` is already running in the background against the same ClickHouse the table lives in (HTTP `localhost:18123`, TCP `9000`, user `panda`, password `pandapass`, default DB `analytics`).
-- `analytics.events` was seeded via raw DDL — it is not currently a Moose-managed `OlapTable`. You can use Moose primitives, raw `clickhouse-client`, or any combination; only the final state of `analytics.events` and the canonical query latency are scored.
+- This harness is Moose-based. A Moose project is already scaffolded at `/workspace/moose-project` and `moose dev --dockerless` is running in the background against the same ClickHouse the table lives in (HTTP `localhost:18123`, TCP `9000`, user `panda`, password `pandapass`, default DB `analytics`). Treat Moose as your primary path for managing schema and aggregation: declare `OlapTable`, `MaterializedView`, etc. in `app/index.ts` and let the reconciler apply them. Reach for raw `clickhouse-client` only when something is awkward to express in Moose.
+- `analytics.events` was seeded via raw DDL — it is not currently a Moose-managed `OlapTable`. Only the final state of `analytics.events` and the canonical query latency are scored, so any combination of Moose primitives and raw DDL is acceptable.
+- Use the `514--perf-optimize` skill (and `clickhouse--best-practices` when you need rule-level guidance). They are the canonical playbooks for this kind of work in a 514 / Moose project.
 
 Constraints:
 

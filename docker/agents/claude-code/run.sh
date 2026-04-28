@@ -29,7 +29,7 @@ CLAUDE_ARGS=(
   --model "${MODEL:-claude-sonnet-4-20250514}"
   --dangerously-skip-permissions
   --append-system-prompt "${SYSTEM_PROMPT}"
-  --max-turns 2000
+  --max-turns "${MAX_TURNS:-100}"
   --output-format json
 )
 
