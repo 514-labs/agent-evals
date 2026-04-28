@@ -1,0 +1,61 @@
+{
+  "id": "foo-bar-production-bootstrap",
+  "title": "Foo Bar Production Bootstrap",
+  "description": "Stand up a working production data service from a clean workspace by deploying the typescript-express template via the 514 CLI to Boreal, waiting for the deployment to be healthy, and verifying the live deployment ingests an event and surfaces it through a query path.",
+  "lede": "In this scenario, an agent must take a fresh terminal to a healthy production deployment serving real traffic — deploy the pinned template via Boreal, capture the URL, and prove a round-trip event lands.",
+  "tier": "tier-2",
+  "domain": "foo-bar",
+  "harnesses": [
+    "olap-for-swe"
+  ],
+  "tasks": [
+    {
+      "id": "deploy-via-boreal",
+      "description": "Run `514 project create --name $DEPLOY_PROJECT_NAME --template $DEPLOY_TEMPLATE` to provision a Boreal project from the prebuilt typescript-express image.",
+      "category": "cli-tooling"
+    },
+    {
+      "id": "wait-for-healthy",
+      "description": "Poll the Boreal deployment status until it reports healthy and the URL responds. Fail loudly if it never becomes healthy within DEPLOY_HEALTHY_TIMEOUT_SECONDS.",
+      "category": "monitoring"
+    },
+    {
+      "id": "capture-url",
+      "description": "Capture the deployed base URL from `514` and write it to $DEPLOYED_URL_FILE so the assertions can probe it independently.",
+      "category": "cli-tooling"
+    },
+    {
+      "id": "verify-live",
+      "description": "Send the smoke-test event in /data/test_event.json to POST <url>/ingest/Foo, then read it back through GET <url>/api/bar to confirm a row was added to the aggregated view. The CLI exiting 0 is not enough — the deployed system must actually serve traffic.",
+      "category": "ingestion"
+    }
+  ],
+  "infrastructure": {
+    "services": [],
+    "description": "No local databases. The 514 CLI is pre-installed and authenticated against Boreal. All deploy operations target real remote Boreal. The template is pinned to `typescript-express` (env var DEPLOY_TEMPLATE) so the scenario tests deployment, not template selection. /data/user-need.md states the user goal in natural language; /data/test_event.json contains a Foo-shaped smoke-test event."
+  },
+  "tags": [
+    "deploy",
+    "boreal",
+    "hosting",
+    "template",
+    "bootstrap",
+    "production",
+    "end-to-end",
+    "swe"
+  ],
+  "productionChecks": {
+    "maxExpectedLines": 450,
+    "maxFileLines": 220
+  },
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 500,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0.001
+  }
+}
