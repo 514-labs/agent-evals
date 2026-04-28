@@ -5,6 +5,7 @@ use std::process::{Command, Stdio};
 use anyhow::{bail, Context, Result};
 use clap::Args;
 
+use super::agent::Agent;
 use super::preflight;
 
 #[derive(Args, Clone, Debug)]
@@ -18,8 +19,8 @@ pub struct BuildArgs {
     pub harness: String,
 
     /// Agent runner ID baked into the image tag
-    #[arg(long, default_value = "claude-code")]
-    pub agent: String,
+    #[arg(long, value_enum, default_value_t = Agent::ClaudeCode)]
+    pub agent: Agent,
 
     /// Model slug baked into the image tag
     #[arg(long, default_value = "claude-sonnet-4-20250514")]
@@ -84,7 +85,7 @@ pub async fn execute(args: BuildArgs) -> Result<()> {
 
     println!(
         "Building scenario={} harness={} agent={} model={} version={}",
-        args.scenario, args.harness, args.agent, args.model, args.version
+        args.scenario, args.harness, args.agent.slug(), args.model, args.version
     );
 
     let output = Command::new(&plan.script_path)
@@ -152,7 +153,7 @@ fn build_plan_at_repo_root(repo_root: &Path, args: &BuildArgs) -> Result<BuildPl
 
     let agent_run_script = repo_root
         .join("docker/agents")
-        .join(&args.agent)
+        .join(args.agent.slug())
         .join("run.sh");
     preflight::ensure_exists(&agent_run_script, "Agent run script")?;
 
@@ -160,7 +161,7 @@ fn build_plan_at_repo_root(repo_root: &Path, args: &BuildArgs) -> Result<BuildPl
 
     let image_tag = format!(
         "{}.{}.{}.{}.{}",
-        args.scenario, args.harness, args.agent, args.model, args.version
+        args.scenario, args.harness, args.agent.slug(), args.model, args.version
     );
 
     let mut command_args = vec![
@@ -169,7 +170,7 @@ fn build_plan_at_repo_root(repo_root: &Path, args: &BuildArgs) -> Result<BuildPl
         "--harness".to_string(),
         args.harness.clone(),
         "--agent".to_string(),
-        args.agent.clone(),
+        args.agent.slug().to_string(),
         "--model".to_string(),
         args.model.clone(),
         "--version".to_string(),
@@ -337,7 +338,7 @@ mod tests {
         fs::create_dir_all(path.join("docker")).expect("docker dir");
         fs::create_dir_all(path.join("scenarios/foo")).expect("scenario dir");
         fs::create_dir_all(path.join("apps/web/data/harnesses")).expect("harness dir");
-        fs::create_dir_all(path.join("docker/agents/test-agent")).expect("agent dir");
+        fs::create_dir_all(path.join("docker/agents/claude-code")).expect("agent dir");
         fs::write(path.join("docker/build.sh"), "#!/usr/bin/env bash\n").expect("build script");
         fs::write(
             path.join("apps/web/data/harnesses/base-rt.json"),
@@ -345,7 +346,7 @@ mod tests {
         )
         .expect("harness json");
         fs::write(
-            path.join("docker/agents/test-agent/run.sh"),
+            path.join("docker/agents/claude-code/run.sh"),
             "#!/usr/bin/env bash\n",
         )
         .expect("run script");
@@ -365,7 +366,7 @@ mod tests {
         BuildArgs {
             scenario: "foo".to_string(),
             harness: "base-rt".to_string(),
-            agent: "test-agent".to_string(),
+            agent: Agent::ClaudeCode,
             model: "test-model".to_string(),
             version: "v-test".to_string(),
             base_image: "base:image".to_string(),
@@ -382,7 +383,7 @@ mod tests {
         let plan = build_plan_at_repo_root(temp.path(), &default_args()).expect("build plan");
 
         assert!(plan.repo_root.join(".git").exists());
-        assert_eq!(plan.image_tag, "foo.base-rt.test-agent.test-model.v-test");
+        assert_eq!(plan.image_tag, "foo.base-rt.claude-code.test-model.v-test");
         assert_eq!(plan.command_args[0], "--scenario");
         assert!(plan.script_path.ends_with("docker/build.sh"));
         assert!(plan.staged_overrides.is_empty());

@@ -39,16 +39,16 @@ pub async fn execute(args: ListArgs) -> Result<()> {
         .iter()
         .filter(|scenario| {
             args.tier
-                .as_deref()
-                .map_or(true, |tier| scenario.tier == tier)
+                .as_ref()
+                .is_none_or(|tier| scenario.tier == *tier)
                 && args
                     .domain
-                    .as_deref()
-                    .map_or(true, |domain| scenario.domain == domain)
-                && args.category.as_deref().map_or(true, |category| {
+                    .as_ref()
+                    .is_none_or(|domain| scenario.domain == *domain)
+                && args.category.as_ref().is_none_or(|category| {
                     scenario.task_categories.iter().any(|entry| entry == category)
                 })
-                && args.competency.as_deref().map_or(true, |competency| {
+                && args.competency.as_ref().is_none_or(|competency| {
                     scenario.competencies.iter().any(|entry| entry == competency)
                 })
         })
@@ -60,8 +60,8 @@ pub async fn execute(args: ListArgs) -> Result<()> {
     }
 
     println!(
-        "{:<42} {:<8} {:<24} {:<24} {}",
-        "ID", "TIER", "DOMAIN", "CATEGORY", "DESCRIPTION"
+        "{:<42} {:<8} {:<24} {:<24} DESCRIPTION",
+        "ID", "TIER", "DOMAIN", "CATEGORY"
     );
     println!("{}", "-".repeat(136));
     for scenario in filtered {
