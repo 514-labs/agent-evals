@@ -1,6 +1,6 @@
 A pre-seeded Tinybird project lives at `/workspace/events-project`. The `events` data source currently declares `event_id`, `event_ts`, `event_type`, `user_id` with `ENGINE_SORTING_KEY "event_ts, event_id"`. 10,000 rows are loaded. Two anchor data sources (`_seed_meta`, `_seed_spotchecks`) also live in the project.
 
-The Tinybird Local container is **stopped** — restart with `docker start tb-local` to resume. Its `tinybird-data` volume holds all seeded state. Once up, the Tinybird API is on `localhost:7181` and the ClickHouse HTTP interface on `localhost:7182`.
+The Tinybird Local container is **stopped** but its named volume (in `$TB_VOLUME`) holds all seeded state. Start it with `docker start "$TB_CONTAINER"` — it'll rebind `localhost:7181` (Tinybird API) and `localhost:7182` (ClickHouse HTTP interface, read-only). `$TB_CONTAINER` and `$TB_VOLUME` are exported into your environment (per-run unique so concurrent runs don't collide).
 
 Target shape for the `events` data source:
 - Existing columns preserved: `event_id` (String), `event_ts` (DateTime), `event_type` (String), `user_id` (String)

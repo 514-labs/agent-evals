@@ -38,7 +38,7 @@ case "${EVAL_HARNESS:-}" in
       export CLICKHOUSE_HOST="localhost"
       export CLICKHOUSE_PORT="7182"
       export EVENTS_DATABASE="${TB_WORKSPACE}"
-      export TB_WORKSPACE TB_ADMIN_TOKEN
+      export TB_WORKSPACE TB_ADMIN_TOKEN TB_CONTAINER TB_VOLUME
     else
       export CLICKHOUSE_URL="http://localhost:7182"
       export CLICKHOUSE_HOST="localhost"

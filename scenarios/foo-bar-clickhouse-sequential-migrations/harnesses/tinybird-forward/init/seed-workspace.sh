@@ -5,7 +5,12 @@
 # scaffolds the Tinybird project files, deploys the pre-migration schema,
 # and seeds 10k rows + anchor data sources. Stops the Tinybird Local
 # container at the end but leaves its volume intact so the agent can
-# `docker start tb-local` and inherit the state.
+# `docker start "$TB_CONTAINER"` and inherit the state.
+#
+# Sidecar names (TB_CONTAINER, TB_VOLUME) are namespaced by $HOSTNAME
+# (the harness container ID) so concurrent runs don't collide on each
+# other's container/volume. They're written to /workspace/.tb-env so
+# env.sh exposes them as env vars to every subsequent lifecycle phase.
 #
 # Why docker-run-direct and not `tb local start`:
 #   `tb local start` spawns a Docker container with default flags — no
@@ -21,6 +26,13 @@
 #   Tinybird_Local_Build_<hash>). We resolve these at seed time and stash
 #   them in /workspace/.tb-env so env.sh can build CLICKHOUSE_URL.
 set -euo pipefail
+
+# ----- Per-run sidecar names -----
+# $HOSTNAME inside the harness container is its docker container ID, so
+# every parallel run gets a unique TB_CONTAINER/TB_VOLUME and a `docker
+# rm -f tb-local` from one run can't kill another run's sidecar.
+TB_CONTAINER="tb-local-${HOSTNAME}"
+TB_VOLUME="tinybird-data-${HOSTNAME}"
 
 # ----- Preconditions -----
 command -v tb     >/dev/null 2>&1 || { echo "ERROR: tb CLI not on PATH"     >&2; exit 1; }
@@ -74,18 +86,18 @@ ENGINE_SORTING_KEY "event_id"
 EOF
 
 # ----- Bring up Tinybird Local -----
-docker rm -f tb-local >/dev/null 2>&1 || true
-docker volume rm tinybird-data >/dev/null 2>&1 || true
-docker volume create tinybird-data >/dev/null
+docker rm -f "${TB_CONTAINER}" >/dev/null 2>&1 || true
+docker volume rm "${TB_VOLUME}" >/dev/null 2>&1 || true
+docker volume create "${TB_VOLUME}" >/dev/null
 
 echo "seed: pulling tinybirdco/tinybird-local:latest (amd64; requires Rosetta on Apple Silicon)..."
 docker pull --platform=linux/amd64 tinybirdco/tinybird-local:latest >/dev/null
 
-echo "seed: starting Tinybird Local in harness netns ($HOSTNAME)..."
+echo "seed: starting Tinybird Local (${TB_CONTAINER}) in harness netns ($HOSTNAME)..."
 docker run -d \
-  --name tb-local \
+  --name "${TB_CONTAINER}" \
   --network="container:${HOSTNAME}" \
-  -v tinybird-data:/var/lib/tinybird-server \
+  -v "${TB_VOLUME}:/var/lib/tinybird-server" \
   --platform=linux/amd64 \
   tinybirdco/tinybird-local:latest >/dev/null
 
@@ -99,7 +111,7 @@ for _ in $(seq 1 240); do
 done
 if [[ "${READY}" != "1" ]]; then
   echo "ERROR: Tinybird Local never became ready on :7182" >&2
-  docker logs tb-local 2>&1 | tail -60 >&2
+  docker logs "${TB_CONTAINER}" 2>&1 | tail -60 >&2
   exit 1
 fi
 
@@ -214,18 +226,20 @@ tb --local datasource append _seed_spotchecks --file /tmp/seed_spotchecks.ndjson
 cat > /workspace/.tb-env <<EOF
 TB_WORKSPACE=${WORKSPACE}
 TB_ADMIN_TOKEN=${TB_ADMIN_TOKEN}
+TB_CONTAINER=${TB_CONTAINER}
+TB_VOLUME=${TB_VOLUME}
 EOF
 chmod 0600 /workspace/.tb-env
 
-# ----- Stop tb-local (volume persists on host) -----
-docker stop tb-local >/dev/null
+# ----- Stop sidecar (volume persists on host) -----
+docker stop "${TB_CONTAINER}" >/dev/null
 
 # Confirm teardown: ports should be free.
 if curl -fsS --max-time 2 "http://localhost:7182/v0/health" >/dev/null 2>&1; then
-  echo "ERROR: port 7182 still responsive after docker stop tb-local" >&2
+  echo "ERROR: port 7182 still responsive after docker stop ${TB_CONTAINER}" >&2
   exit 1
 fi
 
-echo "seed-workspace.sh (tinybird-forward): tb-local stopped, 10k rows + anchors persisted in volume tinybird-data"
+echo "seed-workspace.sh (tinybird-forward): ${TB_CONTAINER} stopped, 10k rows + anchors persisted in volume ${TB_VOLUME}"
 echo "  workspace: ${WORKSPACE}"
-echo "  agent restarts with: docker start tb-local"
+echo "  agent restarts with: docker start \"\$TB_CONTAINER\""
