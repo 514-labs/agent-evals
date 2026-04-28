@@ -1,17 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
-
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-const DEPLOYED_URL_FILE = "/workspace/.deployed-url";
-
-function readDeployedUrl(): string | null {
-  if (!existsSync(DEPLOYED_URL_FILE)) return null;
-  return readFileSync(DEPLOYED_URL_FILE, "utf8").trim() || null;
-}
-
-function trimSlash(url: string): string {
-  return url.replace(/\/+$/, "");
-}
+import { tryResolveEndpoints } from "./shared";
 
 interface ProbeResult {
   path: string;
@@ -22,21 +11,20 @@ interface ProbeResult {
 export async function all_three_canonical_paths_respond(
   _ctx: AssertionContext,
 ): Promise<AssertionResult> {
-  const url = readDeployedUrl();
-  if (!url) return { passed: false, message: "No deployed URL recorded.", details: {} };
-  const base = trimSlash(url);
+  const endpoints = tryResolveEndpoints();
+  if (!endpoints) return { passed: false, message: "No deployed URL recorded.", details: {} };
 
   const probes: ProbeResult[] = [];
 
   try {
-    const res = await fetch(`${base}/health`);
-    probes.push({ path: "/health", status: res.status, ok: res.status === 200 });
+    const res = await fetch(endpoints.healthUrl);
+    probes.push({ path: endpoints.healthUrl, status: res.status, ok: res.status === 200 });
   } catch (err) {
-    probes.push({ path: "/health", status: (err as Error).message, ok: false });
+    probes.push({ path: endpoints.healthUrl, status: (err as Error).message, ok: false });
   }
 
   try {
-    const res = await fetch(`${base}/ingest/Foo`, {
+    const res = await fetch(endpoints.ingestUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -45,16 +33,18 @@ export async function all_three_canonical_paths_respond(
         optionalText: "dec-bench robust-gate independent probe",
       }),
     });
-    probes.push({ path: "/ingest/Foo", status: res.status, ok: res.status === 200 });
+    // Most ingest endpoints return 200 on success; some return 201/202.
+    const ok = res.status >= 200 && res.status < 300;
+    probes.push({ path: endpoints.ingestUrl, status: res.status, ok });
   } catch (err) {
-    probes.push({ path: "/ingest/Foo", status: (err as Error).message, ok: false });
+    probes.push({ path: endpoints.ingestUrl, status: (err as Error).message, ok: false });
   }
 
   try {
-    const res = await fetch(`${base}/api/bar?orderBy=totalRows&startDay=1&endDay=31&limit=1`);
-    probes.push({ path: "/api/bar", status: res.status, ok: res.status === 200 });
+    const res = await fetch(endpoints.queryUrl);
+    probes.push({ path: endpoints.queryUrl, status: res.status, ok: res.status === 200 });
   } catch (err) {
-    probes.push({ path: "/api/bar", status: (err as Error).message, ok: false });
+    probes.push({ path: endpoints.queryUrl, status: (err as Error).message, ok: false });
   }
 
   const failures = probes.filter((p) => !p.ok);
@@ -62,7 +52,7 @@ export async function all_three_canonical_paths_respond(
   return {
     passed,
     message: passed
-      ? `All three canonical paths respond (/health, /ingest/Foo, /api/bar).`
+      ? `All three canonical paths respond (health, ingest, query).`
       : `Partial deploy detected — failing paths: ${failures.map((f) => `${f.path}=${f.status}`).join(", ")}.`,
     details: { probes },
   };
@@ -71,9 +61,9 @@ export async function all_three_canonical_paths_respond(
 export async function ingest_rejects_malformed_payload(
   _ctx: AssertionContext,
 ): Promise<AssertionResult> {
-  const url = readDeployedUrl();
-  if (!url) return { passed: false, message: "No deployed URL recorded.", details: {} };
-  const ingestUrl = `${trimSlash(url)}/ingest/Foo`;
+  const endpoints = tryResolveEndpoints();
+  if (!endpoints) return { passed: false, message: "No deployed URL recorded.", details: {} };
+  const ingestUrl = endpoints.ingestUrl;
 
   // Missing required `primaryKey` field, wrong type for `timestamp`.
   const malformed = { timestamp: "not-a-number", optionalText: "garbage" };
