@@ -1,8 +1,10 @@
 use anyhow::Result;
+use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;
 
 mod commands;
+mod version_check;
 
 #[derive(Parser)]
 #[command(name = "dec-bench")]
@@ -39,9 +41,25 @@ async fn main() -> Result<()> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => match err.kind() {
+            ErrorKind::DisplayHelp
+            | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+            | ErrorKind::DisplayVersion => {
+                let force_fresh = err.kind() == ErrorKind::DisplayVersion;
+                let _ = err.print();
+                let handle = version_check::spawn_check(force_fresh);
+                version_check::print_if_ready(handle).await;
+                return Ok(());
+            }
+            _ => err.exit(),
+        },
+    };
 
-    match cli.command {
+    let version_check = version_check::spawn_check(false);
+
+    let result = match cli.command {
         Commands::Audit(args) => commands::audit::execute(args).await,
         Commands::Build(args) => commands::build::execute(args).await,
         Commands::Create(args) => commands::create::execute(args).await,
@@ -50,5 +68,9 @@ async fn main() -> Result<()> {
         Commands::Run(args) => commands::run::execute(args).await,
         Commands::List(args) => commands::list::execute(args).await,
         Commands::Results(args) => commands::results::execute(args).await,
-    }
+    };
+
+    version_check::print_if_ready(version_check).await;
+
+    result
 }
