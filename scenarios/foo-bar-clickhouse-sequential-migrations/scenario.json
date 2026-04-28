@@ -1,0 +1,58 @@
+{
+  "id": "foo-bar-clickhouse-sequential-migrations",
+  "title": "Foo Bar ClickHouse Sequential Migrations",
+  "description": "Apply three ordered migrations to analytics.events: (1) add session_id column, (2) backfill session_id deterministically from user_id + event_ts, (3) change ORDER BY to (session_id, event_ts, event_id). Every migration depends on the previous; skipping or reordering breaks invariants.",
+  "lede": "In this scenario, an agent must apply a sequence of three dependent migrations to a ClickHouse events table — additive, backfill, and destructive — in order, without losing data.",
+  "tier": "tier-3",
+  "domain": "foo-bar",
+  "harnesses": [
+    "base-rt",
+    "classic-de",
+    "moose-legacy-migrations",
+    "moose-delta-migrations",
+    "atlas-clickhouse",
+    "tinybird-forward"
+  ],
+  "tasks": [
+    {
+      "id": "add-session-id-column",
+      "description": "Add a session_id String column to analytics.events. Existing rows should default to empty string.",
+      "category": "migration"
+    },
+    {
+      "id": "backfill-session-id",
+      "description": "Populate session_id for all existing rows as concat(user_id, '_', toString(toUnixTimestamp(toStartOfDay(event_ts)))). Preserve all 10000 rows.",
+      "category": "migration"
+    },
+    {
+      "id": "change-order-by",
+      "description": "Change analytics.events ORDER BY to (session_id, event_ts, event_id) so queries filtering by session_id hit the primary-key index. Preserve all rows and their backfilled session_id values.",
+      "category": "migration"
+    }
+  ],
+  "infrastructure": {
+    "services": ["clickhouse"],
+    "description": "ClickHouse with analytics.events (10,000 seed rows, ORDER BY (event_ts, event_id), NO session_id column yet). Task is a three-step ordered migration — additive, backfill, destructive."
+  },
+  "tags": [
+    "clickhouse",
+    "migration",
+    "sequential",
+    "backfill",
+    "order-by",
+    "destructive",
+    "moose-dr",
+    "atlas",
+    "tinybird"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 0,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 80,
+    "storageBytes": 12000,
+    "costPerQueryUsd": 0.0015
+  }
+}
