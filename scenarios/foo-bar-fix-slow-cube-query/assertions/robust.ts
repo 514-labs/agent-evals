@@ -26,8 +26,21 @@ const FLOAT_TOLERANCE_REL = 3e-2;
 const FLOAT_TOLERANCE_ABS = 1e-6;
 const FLOAT_COLUMNS = ["avg_value", "p50", "p90"];
 
+// Stability checks must be measured against the storage layer on every run.
+// Disable the query result cache so we don't get a single cached fingerprint
+// trivially echoed across all 3 iterations.
+const NO_CACHE_SETTINGS = {
+  use_query_cache: 0,
+  enable_reads_from_query_cache: 0,
+  enable_writes_to_query_cache: 0,
+} as const;
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
-  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+  const result = await ctx.clickhouse.query({
+    query: sql,
+    format: "JSONEachRow",
+    clickhouse_settings: NO_CACHE_SETTINGS,
+  });
   return (await (result as any).json()) as T[];
 }
 

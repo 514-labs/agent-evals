@@ -37,6 +37,14 @@ async function timedRunMs(ctx: AssertionContext): Promise<number> {
   const result = await ctx.clickhouse.query({
     query: CANONICAL_QUERY,
     format: "JSONEachRow",
+    // Force a true cold execution. Even if the agent enabled the query result
+    // cache server-side via a profile, this per-statement override bypasses it
+    // so the measurement reflects actual storage/index work, not cached results.
+    clickhouse_settings: {
+      use_query_cache: 0,
+      enable_reads_from_query_cache: 0,
+      enable_writes_to_query_cache: 0,
+    },
   });
   await (result as any).json();
   return Date.now() - start;
@@ -56,12 +64,16 @@ export async function query_latency_under_target(
   const timings: number[] = [];
   for (let i = 0; i < RUNS; i++) {
     try {
+      await exec(ctx, "SYSTEM DROP QUERY CACHE");
       await exec(ctx, "SYSTEM DROP MARK CACHE");
       await exec(ctx, "SYSTEM DROP UNCOMPRESSED CACHE");
     } catch {
       // Some configurations restrict SYSTEM commands; the timing is still
       // meaningful even without forced cold caches.
     }
+    // Per-statement opt-out of query result cache so that even if the agent
+    // enabled it server-side via a profile, this measurement still pays the
+    // real query cost on every iteration.
     timings.push(await timedRunMs(ctx));
   }
 

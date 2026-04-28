@@ -187,10 +187,11 @@ echo "  golden rows:      ${golden_lines}"
 echo "=== measuring baseline latency (5 cache-cold runs) ==="
 declare -a TIMINGS_MS
 for i in 1 2 3 4 5; do
+  CH --query "SYSTEM DROP QUERY CACHE" >/dev/null 2>&1 || true
   CH --query "SYSTEM DROP MARK CACHE" >/dev/null 2>&1 || true
   CH --query "SYSTEM DROP UNCOMPRESSED CACHE" >/dev/null 2>&1 || true
   start_ns=$(date +%s%N)
-  CH --query "${CANONICAL_QUERY} FORMAT Null"
+  CH --query "${CANONICAL_QUERY} FORMAT Null SETTINGS use_query_cache = 0, enable_reads_from_query_cache = 0, enable_writes_to_query_cache = 0"
   end_ns=$(date +%s%N)
   elapsed_ms=$(( (end_ns - start_ns) / 1000000 ))
   TIMINGS_MS+=("${elapsed_ms}")

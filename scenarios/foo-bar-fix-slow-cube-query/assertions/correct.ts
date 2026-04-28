@@ -26,8 +26,22 @@ ORDER BY month, region, tag, priority
 LIMIT 50
 `;
 
+// Always run integrity / golden-result probes with the query result cache
+// disabled. Otherwise an agent who turned the cache on at the profile level
+// could mask source-data corruption: the first cached fingerprint would keep
+// returning even if the underlying table changed afterwards.
+const NO_CACHE_SETTINGS = {
+  use_query_cache: 0,
+  enable_reads_from_query_cache: 0,
+  enable_writes_to_query_cache: 0,
+} as const;
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
-  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
+  const result = await ctx.clickhouse.query({
+    query: sql,
+    format: "JSONEachRow",
+    clickhouse_settings: NO_CACHE_SETTINGS,
+  });
   return (await (result as any).json()) as T[];
 }
 
