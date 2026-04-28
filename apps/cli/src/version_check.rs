@@ -1,3 +1,4 @@
+use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -82,34 +83,58 @@ async fn fetch_latest() -> Option<String> {
 
 /// Fire-and-forget background check. Returns a handle that resolves to the
 /// latest version string if (and only if) it is newer than the running binary.
-pub fn spawn_check(force_fresh: bool) -> JoinHandle<Option<String>> {
-    tokio::spawn(async move {
-        if std::env::var_os("DEC_BENCH_NO_UPDATE_CHECK").is_some() {
-            return None;
-        }
+pub enum CheckHandle {
+    /// Result already known synchronously (cache hit or feature disabled).
+    Resolved(Option<String>),
+    /// Network fetch in flight on the runtime.
+    Pending(JoinHandle<Option<String>>),
+}
 
-        if !force_fresh {
-            if let Some(entry) = read_cache() {
-                let age = now_secs().saturating_sub(entry.checked_at);
-                if age < CACHE_TTL.as_secs() {
-                    return newer_than_current(&entry.latest).then_some(entry.latest);
-                }
+pub fn spawn_check(force_fresh: bool) -> CheckHandle {
+    if std::env::var_os("DEC_BENCH_NO_UPDATE_CHECK").is_some() {
+        return CheckHandle::Resolved(None);
+    }
+
+    if !force_fresh {
+        if let Some(entry) = read_cache() {
+            let age = now_secs().saturating_sub(entry.checked_at);
+            if age < CACHE_TTL.as_secs() {
+                return CheckHandle::Resolved(
+                    newer_than_current(&entry.latest).then_some(entry.latest),
+                );
             }
         }
+    }
 
+    CheckHandle::Pending(tokio::spawn(async move {
         let latest = fetch_latest().await?;
         write_cache(&latest);
         newer_than_current(&latest).then_some(latest)
-    })
+    }))
 }
 
-/// Await the spawned check and print an update banner to stderr if a newer
-/// version is known. The cache short-circuits the network call after the
-/// first run, so subsequent invocations within `CACHE_TTL` resolve instantly.
-pub async fn print_if_ready(handle: JoinHandle<Option<String>>) {
-    let Ok(Some(latest)) = handle.await else {
-        return;
+/// Resolve the check and print an update banner to stderr if a newer version
+/// is known. When a network fetch is in flight, prints a one-line
+/// "Checking for updates..." status and clears it on TTYs once done.
+pub async fn print_if_ready(handle: CheckHandle) {
+    let result = match handle {
+        CheckHandle::Resolved(r) => r,
+        CheckHandle::Pending(task) => {
+            let mut stderr = std::io::stderr();
+            let _ = write!(stderr, "Checking for updates...");
+            let _ = stderr.flush();
+            let r = task.await.ok().flatten();
+            if stderr.is_terminal() {
+                let _ = write!(stderr, "\r\x1b[2K");
+            } else {
+                let _ = writeln!(stderr);
+            }
+            let _ = stderr.flush();
+            r
+        }
     };
+
+    let Some(latest) = result else { return };
     eprintln!();
     eprintln!(
         "A new version of dec-bench is available: {} -> {}",
