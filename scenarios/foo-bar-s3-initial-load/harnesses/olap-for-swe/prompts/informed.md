@@ -1,4 +1,4 @@
-Use Moose and ClickHouse to implement the initial-load workflow from the S3-style prefix at `/data/s3/foo-bar-prod-exports/initial-load/orders/2026-01/`.
+Use the Moose CLI and ClickHouse to implement the initial-load workflow from the S3-style prefix at `/data/s3/foo-bar-prod-exports/initial-load/orders/2026-01/`.
 
 Use the environment variables for source configuration instead of hardcoding values:
 
@@ -19,13 +19,14 @@ Create or initialize a Moose TypeScript project if needed, start `moose dev --do
 - `promo_code` Nullable(String) or String
 - `source_object` String
 
-Choose the one-off initial-load path for this historical backfill. Load only manifest rows where `should_load=true`: `orders_2026_01.csv`, `orders_2026_02.csv`, and `orders_2026_03.jsonl`. Do not load `archive/replayed/orders_2026_02_copy.csv`.
+Choose the one-off initial-load path for this historical backfill. The prefix is partitioned hive-style under `dt=YYYY-MM-DD/hour=HH/` and contains 15 manifest-approved objects in mixed formats (CSV, gzipped CSV, JSONL, Parquet) plus replay copies under `archive/replayed/`. Load only manifest rows where `should_load=true`. Skip everything under `archive/replayed/`. One CSV is missing the `promo_code` column entirely — treat it as NULL.
 
 Expected validation:
 
-- 12 unique orders
-- `sum(amount_cents) = 35284`
-- status counts are `paid=10`, `refunded=1`, `failed=1`
+- 600,000 unique orders
+- `sum(amount_cents) = 904799879`
+- status counts are `paid=552070`, `refunded=30032`, `failed=17898`
+- exactly 15 distinct `source_object` values (one per manifest-approved file)
 - no duplicate `order_id`
 - no rows with a `source_object` containing `archive/replayed`
 

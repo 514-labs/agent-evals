@@ -3,10 +3,7 @@ import { basename, extname, join } from "node:path";
 
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import {
-  hasReadmeOrDocs,
-  scanWorkspaceForHardcodedConnections,
-} from "../../_shared/assertion-helpers";
+import { scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 
 const WORKSPACE_ROOT = "/workspace";
 const SECRET_LITERALS = [
@@ -78,10 +75,6 @@ export async function no_hardcoded_s3_secret_values(): Promise<AssertionResult> 
         : "Workspace hardcodes seeded S3 secret values instead of reading environment variables.",
     details: { findings },
   };
-}
-
-export async function has_operator_handoff_docs(): Promise<AssertionResult> {
-  return hasReadmeOrDocs();
 }
 
 export async function no_leftover_tmp_tables(

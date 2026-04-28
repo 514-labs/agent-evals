@@ -124,7 +124,7 @@ export async function replayed_object_was_not_loaded(
   };
 }
 
-export async function exactly_three_source_objects_loaded(
+export async function manifest_source_object_count_matches(
   ctx: AssertionContext,
 ): Promise<AssertionResult> {
   const found = await findOrdersTable(ctx);
@@ -155,11 +155,11 @@ export async function exactly_three_source_objects_loaded(
   );
   const count = Number(rows[0]?.n ?? 0);
   return {
-    passed: count === 3,
+    passed: count === 15,
     message:
-      count === 3
-        ? "Loaded rows reference exactly three source objects."
-        : `Expected 3 source objects, got ${count}.`,
-    details: { expected: 3, actual: count, column: sourceCol },
+      count === 15
+        ? "Loaded rows reference all 15 manifest-approved source objects."
+        : `Expected 15 source objects, got ${count}.`,
+    details: { expected: 15, actual: count, column: sourceCol },
   };
 }

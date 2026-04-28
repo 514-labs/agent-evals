@@ -52,12 +52,12 @@ export async function manifest_row_count_matches(
   );
   const count = Number(rows[0]?.n ?? 0);
   return {
-    passed: count === 12,
+    passed: count === 600_000,
     message:
-      count === 12
+      count === 600_000
         ? "Loaded row count matches manifest."
-        : `Expected 12 rows, got ${count}.`,
-    details: { expected: 12, actual: count },
+        : `Expected 600000 rows, got ${count}.`,
+    details: { expected: 600_000, actual: count },
   };
 }
 
@@ -87,12 +87,12 @@ export async function order_amount_checksum_matches(
   );
   const actual = Number(rows[0]?.amount_sum ?? 0);
   return {
-    passed: actual === 35284,
+    passed: actual === 904_799_879,
     message:
-      actual === 35284
+      actual === 904_799_879
         ? "Amount checksum matches manifest-selected source rows."
-        : `Expected amount checksum 35284, got ${actual}.`,
-    details: { expected: 35284, actual, column: amountCol },
+        : `Expected amount checksum 904799879, got ${actual}.`,
+    details: { expected: 904_799_879, actual, column: amountCol },
   };
 }
 
@@ -131,15 +131,18 @@ export async function status_distribution_matches(
     refunded: Number(rows[0]?.refunded ?? 0),
     failed: Number(rows[0]?.failed ?? 0),
   };
+  const expected = { paid: 552_070, refunded: 30_032, failed: 17_898 };
   const passed =
-    actual.paid === 10 && actual.refunded === 1 && actual.failed === 1;
+    actual.paid === expected.paid &&
+    actual.refunded === expected.refunded &&
+    actual.failed === expected.failed;
   return {
     passed,
     message: passed
       ? "Status distribution matches manifest-selected source rows."
-      : `Expected paid=10, refunded=1, failed=1; got paid=${actual.paid}, refunded=${actual.refunded}, failed=${actual.failed}.`,
+      : `Expected paid=${expected.paid}, refunded=${expected.refunded}, failed=${expected.failed}; got paid=${actual.paid}, refunded=${actual.refunded}, failed=${actual.failed}.`,
     details: {
-      expected: { paid: 10, refunded: 1, failed: 1 },
+      expected,
       actual,
       column: statusCol,
     },

@@ -1,8 +1,8 @@
 {
   "id": "foo-bar-s3-initial-load",
   "title": "Foo Bar S3 Initial Load",
-  "description": "Load a manifest-selected S3-style object prefix into a typed ClickHouse orders table. Handle mixed CSV and JSONL files, environment-provided S3 credentials, a replayed object that must be ignored, and verification against the manifest.",
-  "lede": "In this scenario, an agent must implement an initial load from S3-style source files into ClickHouse, preserve typed order fields, and prove the loaded table matches the source manifest without duplicate re-ingest.",
+  "description": "Load a manifest-selected S3-style object prefix into a typed ClickHouse orders table. Handle hive-partitioned files in mixed formats (CSV, gzipped CSV, JSONL, Parquet), environment-provided S3 credentials, replayed objects that must be ignored, a schema-drift file missing one column, and verification against the manifest.",
+  "lede": "In this scenario, an agent must implement an initial load of ~600K orders across 15 hive-partitioned source files in four formats into ClickHouse, preserve typed order fields, handle a schema-drift file and replay duplicates, and prove the loaded table matches the source manifest.",
   "tier": "tier-2",
   "domain": "foo-bar",
   "harnesses": ["base-rt", "olap-for-swe", "moose-initialized"],
@@ -14,7 +14,7 @@
     },
     {
       "id": "load-s3-prefix",
-      "description": "Load only manifest-approved CSV and JSONL objects from the S3-style prefix into the destination table.",
+      "description": "Load only manifest-approved objects (CSV, gzipped CSV, JSONL, Parquet) from the hive-partitioned S3-style prefix into the destination table.",
       "category": "ingestion"
     },
     {
@@ -24,8 +24,8 @@
     }
   ],
   "infrastructure": {
-    "services": [],
-    "description": "ClickHouse is installed but not pre-started. A deterministic S3-style bucket prefix is seeded under /data/s3 with a manifest, three loadable objects, and one replayed object that must be ignored."
+    "services": ["clickhouse"],
+    "description": "ClickHouse is running locally. A deterministic S3-style bucket prefix is seeded under /data/s3 with a manifest, 15 loadable hive-partitioned objects in mixed formats (CSV, gzipped CSV, JSONL, Parquet), 2 replay duplicates under archive/replayed/, and 1 schema-drift file missing the promo_code column."
   },
   "tags": [
     "s3",
