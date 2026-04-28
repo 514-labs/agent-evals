@@ -26,8 +26,16 @@ echo "[override:514] replaced $dest and /usr/local/bin/514"
 # Re-run `514 agent init` now that the binary actually works. The install
 # step may have tried this with a glibc-incompatible release binary and
 # silently fallen back to a minimal MCP stub, leaving no skills installed.
-if 514 agent init --agent claude-code --yes </dev/null; then
-  echo "[override:514] ran 'agent init' to seed default skills"
+#
+# To iterate on skill content, point at a branch of 514-labs/agent-skills
+# by changing SKILLS_BRANCH below. Reset to "main" when done.
+SKILLS_BRANCH="add-project-create-skill"
+init_args=(--agent claude-code --yes)
+if [[ "$SKILLS_BRANCH" != "main" ]]; then
+  init_args+=(--branch "$SKILLS_BRANCH")
+fi
+if 514 agent init "${init_args[@]}" </dev/null; then
+  echo "[override:514] ran 'agent init' (branch: $SKILLS_BRANCH) to seed default skills"
 else
   echo "[override:514] 'agent init' still failed — skills may be missing" >&2
 fi
