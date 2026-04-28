@@ -1,16 +1,15 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { describeTable } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
 export async function metrics_daily_has_derived_columns(ctx: AssertionContext): Promise<AssertionResult> {
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    "SELECT name FROM system.columns WHERE database = 'analytics' AND table = 'metrics_daily'",
-  );
-  const names = rows.map((r) => r.name.toLowerCase());
+  const cols = await describeTable(ctx, "analytics", "metrics_daily");
+  const names = cols.map((c) => c.name.toLowerCase());
   const hasConversion = names.some((n) => n.includes("conversion"));
   const hasAov = names.some((n) => n.includes("avg") || n.includes("aov") || n.includes("order_value"));
   const hasDau = names.some((n) => n.includes("dau") || n.includes("active") || n.includes("users"));

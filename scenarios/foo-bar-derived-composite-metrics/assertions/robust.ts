@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
+import { avoidsSelectStarQueries, describeTable, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -9,11 +9,8 @@ async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
 
 export async function conversion_rate_in_valid_range(ctx: AssertionContext): Promise<AssertionResult> {
   try {
-    const colRows = await queryRows<{ name: string }>(
-      ctx,
-      "SELECT name FROM system.columns WHERE database = 'analytics' AND table = 'metrics_daily'",
-    );
-    const convCol = colRows.find((r) => r.name.toLowerCase().includes("conversion"))?.name ?? "conversion_rate";
+    const cols = await describeTable(ctx, "analytics", "metrics_daily");
+    const convCol = cols.find((c) => c.name.toLowerCase().includes("conversion"))?.name ?? "conversion_rate";
     const rows = await queryRows<Record<string, number>>(
       ctx,
       `SELECT ${convCol} AS v FROM analytics.metrics_daily WHERE ${convCol} IS NOT NULL LIMIT 1`,

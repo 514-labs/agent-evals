@@ -173,6 +173,56 @@ test("session-log fallback flags duplicate-key idempotency failures", async (t) 
   assert.match(rerunLog.message ?? "", /risk markers/i);
 });
 
+test("session-log fallback does NOT flag prose that mentions duplicates without error context", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  const sessionRoot = createFixtureDir("eval-core-session-");
+  const sessionLogPath = join(sessionRoot, "session.log");
+  // Real-world case: agent's final summary explaining *why* their design
+  // handles duplicates correctly. Pre-fix, this tripped the heuristic.
+  writeFileSync(
+    sessionLogPath,
+    [
+      "SummingMergeTree on both targets — ClickHouse merges duplicate keys",
+      "by summing numeric columns, so re-materializations don't cause",
+      "double-counts. The target table already exists from the initial deploy.",
+    ].join("\n") + "\n",
+    "utf8",
+  );
+
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+  t.after(() => rmSync(sessionRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+    sessionLogPath,
+  });
+
+  assert.equal(output.gates.robust.core.idempotent_rerun, true);
+});
+
+test("session-log fallback flags duplicate-key errors with explicit error context", async (t) => {
+  const workspaceRoot = createFixtureDir("eval-core-workspace-");
+  const sessionRoot = createFixtureDir("eval-core-session-");
+  const sessionLogPath = join(sessionRoot, "session.log");
+  // ClickHouse error format — "already exists" appears with "Code: NNN" and
+  // "DB::Exception" context, so the weak-marker gate should still fire.
+  writeFileSync(
+    sessionLogPath,
+    "Code: 253. DB::Exception: Table default.events already exists. (TABLE_ALREADY_EXISTS)\n",
+    "utf8",
+  );
+
+  t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));
+  t.after(() => rmSync(sessionRoot, { recursive: true, force: true }));
+
+  const { output } = await runCoreEvaluation({
+    workspaceRoot,
+    sessionLogPath,
+  });
+
+  assert.equal(output.gates.robust.core.idempotent_rerun, false);
+});
+
 test("production env assertion passes when the scenario declares no services", async (t) => {
   const workspaceRoot = createFixtureDir("eval-core-workspace-");
   t.after(() => rmSync(workspaceRoot, { recursive: true, force: true }));

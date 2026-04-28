@@ -1,10 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-async function fetchJson(url: string): Promise<any> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+import { fetchEgressJson } from "../../_shared/assertion-helpers";
 
 export async function metrics_total_matches_source(ctx: AssertionContext): Promise<AssertionResult> {
   const rows = await ctx.clickhouse.query({
@@ -14,12 +10,20 @@ export async function metrics_total_matches_source(ctx: AssertionContext): Promi
   const data = (await (rows as any).json()) as { s: number }[];
   const expectedTotal = Number(data[0]?.s ?? 0);
 
-  const apiData = await fetchJson("http://localhost:3000/api/metrics");
+  const result = await fetchEgressJson<any>(ctx, "metrics", { paths: ["/api/metrics"] });
+  const apiData = result?.data;
+  if (apiData === undefined) {
+    return {
+      passed: false,
+      message: "API did not return JSON.",
+      details: { url: result?.url, expectedTotal },
+    };
+  }
   const actualTotal = Number(apiData?.total ?? apiData?.sum ?? 0);
   const passed = Math.abs(expectedTotal - actualTotal) < 0.01;
   return {
     passed,
     message: passed ? "Metrics total matches source." : `Expected ${expectedTotal}, got ${actualTotal}.`,
-    details: { expectedTotal, actualTotal },
+    details: { url: result?.url, expectedTotal, actualTotal },
   };
 }

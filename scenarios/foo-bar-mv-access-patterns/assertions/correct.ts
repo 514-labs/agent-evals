@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findTable } from "../../_shared/assertion-helpers";
+import { describeTable, findTable } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -30,11 +30,8 @@ export async function daily_summary_has_expected_columns(ctx: AssertionContext):
   if (!found) {
     return { passed: false, message: "Daily summary table not found.", details: {} };
   }
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    `SELECT lower(name) AS name FROM system.columns WHERE database = '${found.database}' AND table = '${found.table}'`,
-  );
-  const cols = rows.map((r) => r.name);
+  const describeCols = await describeTable(ctx, found.database, found.table);
+  const cols = describeCols.map((c) => c.name.toLowerCase());
   // Expect some form of: day/date column, user_id, event_count, total_duration
   const hasDay = cols.some((c) => c.includes("day") || c.includes("date"));
   const hasUser = cols.some((c) => c.includes("user"));
@@ -73,11 +70,8 @@ export async function top_users_has_duration_column(ctx: AssertionContext): Prom
   if (!found) {
     return { passed: false, message: "Top users table not found.", details: {} };
   }
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    `SELECT lower(name) AS name FROM system.columns WHERE database = '${found.database}' AND table = '${found.table}'`,
-  );
-  const cols = rows.map((r) => r.name);
+  const describeCols = await describeTable(ctx, found.database, found.table);
+  const cols = describeCols.map((c) => c.name.toLowerCase());
   const hasDuration = cols.some((c) => c.includes("duration") || c.includes("total") || c.includes("sum"));
   const hasUser = cols.some((c) => c.includes("user"));
   const passed = hasDuration && hasUser;
