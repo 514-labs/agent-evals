@@ -1,0 +1,99 @@
+{
+  "agent": "claude-code",
+  "efficiency": {
+    "agentSteps": 115,
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cachedInputTokens": 0,
+    "inputTokens": 125,
+    "llmApiCostSource": "agent-reported",
+    "llmApiCostUsd": 7.051042499999999,
+    "outputTokens": 68093,
+    "tokensUsed": 68218,
+    "wallClockSeconds": 1210
+  },
+  "gates": {
+    "correct": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "canonical_query_result_matches_golden": true,
+        "source_priority_sum_unchanged": true,
+        "source_row_count_unchanged": true,
+        "source_tags_len_sum_unchanged": true,
+        "source_uniq_event_id_unchanged": true,
+        "source_userid_len_sum_unchanged": true,
+        "source_value_sum_unchanged": true
+      },
+      "score": 1
+    },
+    "functional": {
+      "core": {
+        "no_unhandled_errors": true,
+        "process_exits_clean": true
+      },
+      "passed": true,
+      "scenario": {
+        "canonical_query_executes": true,
+        "events_table_exists": true
+      },
+      "score": 1
+    },
+    "performant": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "query_latency_under_target": true
+      },
+      "score": 1
+    },
+    "production": {
+      "core": {
+        "files_are_reasonably_sized": true,
+        "functions_are_focused": true,
+        "has_type_safety": true,
+        "no_dead_code_markers": true,
+        "no_debug_artifacts": true,
+        "no_deep_nesting": true,
+        "no_secrets_in_code": true,
+        "output_line_count_disciplined": true,
+        "output_line_count_reasonable": true,
+        "uses_env_vars": true,
+        "zero_compiler_errors": true,
+        "zero_lint_errors": true
+      },
+      "passed": true,
+      "scenario": {
+        "no_hardcoded_connection_strings": true,
+        "no_temp_or_backup_tables_in_analytics": true
+      },
+      "score": 1
+    },
+    "robust": {
+      "core": {
+        "idempotent_rerun": true
+      },
+      "passed": true,
+      "scenario": {
+        "canonical_query_stable_across_3_runs": true
+      },
+      "score": 1
+    }
+  },
+  "harness": "base-rt",
+  "highest_gate": 5,
+  "model": "claude-opus-4-7",
+  "normalized_score": 1,
+  "run_id": "foo-bar-fix-slow-cube-query-claude-code-claude-opus-4-7-base-rt-informed-no-plan-1777395706761",
+  "run_metadata": {
+    "persona": "informed",
+    "planMode": "no-plan",
+    "promptContent": "The slow query in `/workspace/query.sql` is an OLAP cube-aggregation against `analytics.events` (30M rows, 6 months of data, 5 regions, 20 tag values, 5 priority levels, 6 event types including `deleted`). The table is `MergeTree() ORDER BY event_id`, deliberately uncorrelated with how this query filters and groups.\n\nMake the canonical query in `/workspace/query.sql` run in under **100ms** (median of 5 cache-cold runs — `SYSTEM DROP MARK CACHE; SYSTEM DROP UNCOMPRESSED CACHE` between runs). The evaluator runs that exact query as-is — your job is to change the storage / indexing / aggregation layer so that query becomes fast, not to rewrite the query itself. Keep iterating until you actually hit the target; measure each iteration end-to-end against the canonical query the way the evaluator will, and don't stop at the first attempt that \"feels faster\".\n\nConstraints:\n\n- The contents of `analytics.events` must remain identical: row count, `uniqExact(event_id)`, `sum(value)`, `sum(length(user_id))`, `sum(length(tags))`, and `sum(priority)` are all checked.\n- The result rows of the canonical query must still match: integer columns exactly, float aggregates within ~3% relative (the `quantileTDigest` sketch tolerates that).\n- Don't leave temp / backup tables in the `analytics` database.\n\nDocument what you tried, what worked, and what didn't in `/workspace/README.md`.\n",
+    "promptPath": "/scenario/harnesses/base-rt/prompts/informed.md",
+    "promptPreview": "The slow query in `/workspace/query.sql` is an OLAP cube-aggregation against `analytics.events` (30M rows, 6 months of data, 5 regions, 20 tag values, 5 priority levels, 6 event types including `deleted`). The table is `MergeTree() ORDER BY event_id`, deliberately uncorrelated with how this query filters and groups.\n\nMake the canonical query in `/workspace/query.sql` run in under **100ms** (median of 5 cache-cold runs — `SYSTEM DROP MARK CACHE; SYSTEM DROP UNCOMPRESSED CACHE` between runs). The evaluator runs that exact query as-is — your job is to change the storage / indexing / aggregation layer so that query becomes fast, not to rewrite the query itself. Keep iterating until you actually hit the target; measure each iteration end-to-end against the canonical query the way the evaluator will, and don't stop at the first attempt that \"feels faster\".\n\nConstraints:\n\n- The contents of `analytics.events` must remain identical: row count, `uniqExact(event_id)`, `sum(value)`, `sum(length(us",
+    "promptSha256": "539d77518c9bf85c1ebedfd1d032cd335ac2415389c82c01e528ad4c2c78f071"
+  },
+  "scenario": "foo-bar-fix-slow-cube-query",
+  "version": "v0.2.0"
+}
