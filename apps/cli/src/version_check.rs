@@ -82,16 +82,18 @@ async fn fetch_latest() -> Option<String> {
 
 /// Fire-and-forget background check. Returns a handle that resolves to the
 /// latest version string if (and only if) it is newer than the running binary.
-pub fn spawn_check() -> JoinHandle<Option<String>> {
+pub fn spawn_check(force_fresh: bool) -> JoinHandle<Option<String>> {
     tokio::spawn(async move {
         if std::env::var_os("DEC_BENCH_NO_UPDATE_CHECK").is_some() {
             return None;
         }
 
-        if let Some(entry) = read_cache() {
-            let age = now_secs().saturating_sub(entry.checked_at);
-            if age < CACHE_TTL.as_secs() {
-                return newer_than_current(&entry.latest).then_some(entry.latest);
+        if !force_fresh {
+            if let Some(entry) = read_cache() {
+                let age = now_secs().saturating_sub(entry.checked_at);
+                if age < CACHE_TTL.as_secs() {
+                    return newer_than_current(&entry.latest).then_some(entry.latest);
+                }
             }
         }
 

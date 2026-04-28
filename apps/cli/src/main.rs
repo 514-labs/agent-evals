@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::error::ErrorKind;
 use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;
 
@@ -40,9 +41,23 @@ async fn main() -> Result<()> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => match err.kind() {
+            ErrorKind::DisplayHelp
+            | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
+            | ErrorKind::DisplayVersion => {
+                let force_fresh = err.kind() == ErrorKind::DisplayVersion;
+                let _ = err.print();
+                let handle = version_check::spawn_check(force_fresh);
+                version_check::print_if_ready(handle).await;
+                return Ok(());
+            }
+            _ => err.exit(),
+        },
+    };
 
-    let version_check = version_check::spawn_check();
+    let version_check = version_check::spawn_check(false);
 
     let result = match cli.command {
         Commands::Audit(args) => commands::audit::execute(args).await,
