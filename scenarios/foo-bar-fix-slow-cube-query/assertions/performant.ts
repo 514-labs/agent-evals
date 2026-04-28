@@ -8,15 +8,24 @@ const RUNS = 5;
 
 const CANONICAL_QUERY = `
 SELECT
-  toDate(event_ts) AS day,
-  count() AS event_count,
-  uniqExact(user_id) AS unique_users
+  formatDateTime(toStartOfMonth(event_ts), '%Y-%m-01') AS month,
+  region,
+  arrayJoin(tags) AS tag,
+  priority,
+  count() AS n,
+  avg(value) AS avg_value,
+  quantileTDigest(0.5)(value) AS p50,
+  quantileTDigest(0.9)(value) AS p90,
+  uniqExact(user_id) AS unique_users,
+  COUNT() OVER () AS total
 FROM analytics.events
-WHERE region = 'us-east'
-  AND event_ts >= toDateTime('2026-02-01 00:00:00')
-  AND event_ts <  toDateTime('2026-02-08 00:00:00')
-GROUP BY day
-ORDER BY day
+WHERE event_ts >= toDateTime('2026-01-01 00:00:00')
+  AND event_ts <  toDateTime('2026-07-01 00:00:00')
+  AND value IS NOT NULL
+  AND event_type != 'deleted'
+GROUP BY month, region, tag, priority
+ORDER BY month, region, tag, priority
+LIMIT 50
 `;
 
 async function exec(ctx: AssertionContext, sql: string): Promise<void> {

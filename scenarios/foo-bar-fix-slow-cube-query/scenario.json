@@ -1,0 +1,47 @@
+{
+  "id": "foo-bar-fix-slow-cube-query",
+  "title": "Foo Bar Fix Slow Cube Query",
+  "description": "Optimize a slow OLAP cube-aggregation query (monthly rollup of region \u00d7 tag \u00d7 priority with count, avg, two t-digest quantiles, distinct user count, and a window total) over a 30M-row ClickHouse events table so it runs in under 100ms, without dropping or mutating the source data.",
+  "lede": "An agent must optimize a slow ClickHouse OLAP-cube aggregation query (arrayJoin + quantileTDigest + window function) so it runs under 100ms without changing the underlying data.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harnesses": [
+    "base-rt",
+    "moose-initialized"
+  ],
+  "tasks": [
+    {
+      "id": "optimize-slow-cube-query",
+      "description": "Reduce the median latency of the canonical cube-aggregation query in /workspace/query.sql below 100ms while preserving the source data and the query result set.",
+      "category": "query-optimization"
+    }
+  ],
+  "infrastructure": {
+    "services": [
+      "clickhouse"
+    ],
+    "description": "ClickHouse running with a 30M-row analytics.events table (event_id, event_ts, user_id, event_type, region, value, tags Array(String), priority UInt8) sorted by event_id (deliberately misaligned with the canonical filter on event_ts and the high-cardinality cube GROUP BY). The canonical slow query lives at /workspace/query.sql; the agent optimizes the storage / indexing / aggregation layer to satisfy it."
+  },
+  "tags": [
+    "query-optimization",
+    "latency",
+    "clickhouse",
+    "olap",
+    "cube-aggregation",
+    "array-join",
+    "quantile-tdigest",
+    "materialized-view",
+    "aggregating-merge-tree",
+    "projection"
+  ],
+  "baselineMetrics": {
+    "queryLatencyMs": 4000,
+    "storageBytes": 600000000,
+    "costPerQueryUsd": 0.04
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 50,
+    "storageBytes": 700000000,
+    "costPerQueryUsd": 0.001
+  }
+}
