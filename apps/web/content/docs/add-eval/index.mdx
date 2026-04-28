@@ -96,6 +96,12 @@ This generates:
 
 One `harnesses/<harness-id>/` subdirectory is scaffolded per harness you pass to `--harnesses`. The harness-scenario pair owns its prompts (and optionally harness-specific init scripts and install steps).
 
+### Object model
+
+A scenario is a matrix: `1 scenario × N harnesses × 2 personas = 2N evaluations`. The scenario root holds what's shared across all harnesses (`scenario.json`, `supervisord.conf`, `init/`, `assertions/`). Each `harnesses/<harness-id>/` directory is the unit of ownership for its (scenario, harness) pair: it always has `prompts/baseline.md` + `prompts/informed.md`, and may have its own `init/` and `install.sh`.
+
+**Why prompts and init can differ per harness.** Prompts diverge to control whether the agent reaches for a specific tool: the baseline tests whether the agent picks it unprompted, while an informed prompt that names the tool tests how well it *uses* the tool when told to. Different harnesses ship different tools, so informed prompts usually name different tools per harness. Init diverges when harnesses need different starting infrastructure (e.g. a scaffolded Moose project for `olap-for-swe` vs a scaffolded dbt project for `classic-de`) so each harness boots into the state its tools expect.
+
 ### 2b. Complete scenario metadata
 
 The scaffold command creates `scenario.json` and pre-fills `id`, `domain`, `tier`, and `harnesses` from your flags. The CLI reads this file to build the Docker image, select which harnesses and personas to run, and display results. Open it and fill in `title`, `description`, `tasks`, and `tags`:
@@ -193,7 +199,7 @@ For broken/incomplete starts, use init scripts to introduce defects (misconfigur
 
 Seed deterministic data, export connection settings via environment variables, and avoid hidden state that makes runs non-reproducible.
 
-Tools (CLIs, frameworks like Moose or dbt) belong in the harness `installScript` — not in `init/*.sh` — so they're baked into the image once instead of reinstalled every run. See [Creating a Custom Harness](/docs/add-eval/creating-a-custom-harness). For comparison scenarios where starting state differs per harness, put harness-specific seed scripts in `init/<harness-id>/` — they run only when that harness is active.
+Tools (CLIs, frameworks like Moose or dbt) belong in the harness `installScript` — not in `init/*.sh` — so they're baked into the image once instead of reinstalled every run. See [Creating a Custom Harness](/docs/add-eval/creating-a-custom-harness). For comparison scenarios where starting state differs per harness, put harness-specific seed scripts in `harnesses/<harness-id>/init/` — they run only when that harness is active.
 
 For more details, see [Adding Multiple Services](/docs/add-eval/adding-multiple-services).
 

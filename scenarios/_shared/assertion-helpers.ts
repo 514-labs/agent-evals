@@ -1,21 +1,14 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 
-import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
+import {
+  IGNORED_SCAN_DIRS,
+  IGNORED_SCAN_FILENAMES,
+  type AssertionContext,
+  type AssertionResult,
+} from "@dec-bench/eval-core";
 
 const WORKSPACE_ROOT = "/workspace";
-const IGNORED_DIRS = new Set([
-  ".git",
-  ".next",
-  ".turbo",
-  "dist",
-  "build",
-  "coverage",
-  "node_modules",
-  "__pycache__",
-  ".venv",
-  "venv",
-]);
 const TEXT_FILE_EXTENSIONS = new Set([
   ".py",
   ".js",
@@ -39,11 +32,10 @@ const TEXT_FILE_EXTENSIONS = new Set([
   ".conf",
   ".md",
 ]);
-const DOC_PATHS = [
-  join(WORKSPACE_ROOT, "README.md"),
-  join(WORKSPACE_ROOT, "README.txt"),
-  join(WORKSPACE_ROOT, "docs"),
-];
+// Filenames that count as a top-level operator-facing doc.
+const README_FILENAMES = new Set(["readme.md", "readme.txt"]);
+// Directory names that count as an operator-facing docs location.
+const DOCS_DIR_NAMES = new Set(["docs", "doc"]);
 const DEFAULT_CONNECTION_LITERALS = [
   "localhost:5432",
   "localhost:8123",
@@ -108,22 +100,47 @@ export async function scanWorkspaceForHardcodedConnections(options?: {
 }
 
 export async function hasReadmeOrDocs(): Promise<AssertionResult> {
-  const foundPaths = DOC_PATHS.filter((path) => exists(path));
+  // Walk the workspace looking for README.{md,txt} at any depth, or any
+  // file nested under a `docs/`/`doc/` directory. Matches how multi-package
+  // harnesses (Moose, etc.) commonly place their README in a subdirectory
+  // rather than at the workspace root.
+  const foundPaths = new Set<string>();
+  for (const file of collectWorkspaceTextFiles()) {
+    const name = basename(file.relativePath).toLowerCase();
+    if (README_FILENAMES.has(name)) {
+      foundPaths.add(file.relativePath);
+      continue;
+    }
+    const segments = file.relativePath.split("/");
+    if (segments.some((segment) => DOCS_DIR_NAMES.has(segment.toLowerCase()))) {
+      const docsSegmentIndex = segments.findIndex((segment) =>
+        DOCS_DIR_NAMES.has(segment.toLowerCase()),
+      );
+      foundPaths.add(segments.slice(0, docsSegmentIndex + 1).join("/"));
+    }
+  }
+  const paths = Array.from(foundPaths);
   return {
-    passed: foundPaths.length > 0,
+    passed: paths.length > 0,
     message:
-      foundPaths.length > 0
+      paths.length > 0
         ? "Workspace includes operator-facing docs or a README."
         : "Workspace is missing a README or docs directory for operator handoff.",
     details: {
-      foundPaths,
+      foundPaths: paths,
     },
   };
 }
 
-export async function avoidsSelectStarQueries(): Promise<AssertionResult> {
+export async function avoidsSelectStarQueries(options?: {
+  excludePaths?: RegExp[];
+}): Promise<AssertionResult> {
+  const excludePaths = options?.excludePaths ?? [];
   const findings: Array<{ file: string; line: number }> = [];
   for (const file of collectWorkspaceTextFiles()) {
+    if (excludePaths.some((pattern) => pattern.test(file.relativePath))) {
+      continue;
+    }
     const lines = file.content.split(/\r?\n/);
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index] ?? "";
@@ -307,13 +324,16 @@ function collectWorkspaceTextFiles(): WorkspaceTextFile[] {
   const visit = (current: string, relativePrefix = "") => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS.has(entry.name)) {
+        if (IGNORED_SCAN_DIRS.has(entry.name)) {
           continue;
         }
         visit(join(current, entry.name), join(relativePrefix, entry.name));
         continue;
       }
       if (!entry.isFile()) {
+        continue;
+      }
+      if (IGNORED_SCAN_FILENAMES.has(entry.name)) {
         continue;
       }
       const extension = extname(entry.name).toLowerCase();

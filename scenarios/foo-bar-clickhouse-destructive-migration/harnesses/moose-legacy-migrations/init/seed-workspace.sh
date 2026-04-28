@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+# Per-harness init for moose-legacy-migrations. Runs only when this harness
+# is active. Scaffolds a moose project pinned to moose-lib 0.6.521 with
+# features.migrate_with_deltas NOT set (defaults to false → legacy plan.yaml).
+set -euo pipefail
+
+cd /workspace
+moose init migrations_demo typescript-empty
+cd migrations_demo
+
+npm install @514labs/moose-lib@0.6.521
+
+# Bump moose's native-infra startup timeout. The default 120s is too tight
+# for a cold container that is also running `moose init`/npm install and
+# bringing up ClickHouse + Temporal + Redis + Kafka concurrently on a busy
+# host; moose times out before ClickHouse becomes ready and the seed
+# stalls its own wait-for-port loop. 300s matches moose's own
+# troubleshooting-text suggestion.
+if grep -q "^infrastructure_timeout_seconds" moose.config.toml; then
+  sed -i 's|^infrastructure_timeout_seconds.*|infrastructure_timeout_seconds = 300|' moose.config.toml
+elif grep -q "^\[dev\]" moose.config.toml; then
+  sed -i '/^\[dev\]/a infrastructure_timeout_seconds = 300' moose.config.toml
+else
+  printf '\n[dev]\ninfrastructure_timeout_seconds = 300\n' >> moose.config.toml
+fi
+
+grep -qE "^infrastructure_timeout_seconds\s*=\s*300" moose.config.toml || {
+  echo "moose.config.toml: infrastructure_timeout_seconds did not land" >&2
+  cat moose.config.toml >&2
+  exit 1
+}
+
+# Replace the template's default OlapTable with our pre-migration schema.
+cat > app/index.ts <<'EOF'
+import { OlapTable, Key } from "@514labs/moose-lib";
+
+interface Event {
+  event_id: Key<string>;
+  event_ts: Date;
+  event_type: string;
+  user_id: string;
+}
+
+export const events = new OlapTable<Event>("events", {
+  orderByFields: ["event_ts", "event_id"],
+  primaryKeyExpression: "(event_ts, event_id)",
+});
+EOF
+
+# Bring up ClickHouse (18123) + devredis (6379), seed rows, tear down cleanly.
+#
+# moose-lib v0.6.521 has a hardcoded 120s native-infra startup timeout
+# (the `infrastructure_timeout_seconds` config is cosmetic on this
+# version — the error message suggests it but the binary ignores it).
+# On a busy host, moose dev sometimes exits before ClickHouse binds
+# :18123. Retry up to 3 attempts with a full process-group kill and a
+# short settle window between attempts.
+MOOSE_PID=""
+READY=0
+for attempt in 1 2 3; do
+  # Clear stale native-infra state from a prior failed attempt so moose
+  # doesn't trip on its own crash breadcrumbs.
+  rm -f .moose/native_infra/clickhouse/status 2>/dev/null || true
+
+  moose dev --dockerless > /tmp/moose-dev-seed.log 2>&1 &
+  MOOSE_PID=$!
+
+  # Per-attempt: wait up to 180s for ClickHouse on :18123.
+  READY=0
+  for _ in $(seq 1 180); do
+    if curl -fsS --max-time 2 "http://panda:pandapass@localhost:18123/?query=SELECT%201" >/dev/null 2>&1; then
+      READY=1; break
+    fi
+    sleep 1
+  done
+
+  if [[ "${READY}" == "1" ]]; then
+    break
+  fi
+
+  echo "moose dev attempt ${attempt}/3 did not produce ClickHouse on :18123 — retrying" >&2
+  tail -30 /tmp/moose-dev-seed.log >&2
+
+  # Kill the whole moose process group so Temporal/Redis/Kafka children
+  # release ports before the next attempt.
+  MOOSE_PGID=""
+  if [[ -r /proc/$MOOSE_PID/stat ]]; then
+    MOOSE_PGID=$(awk '{print $5}' /proc/$MOOSE_PID/stat 2>/dev/null)
+  fi
+  if [[ -n "$MOOSE_PGID" ]]; then
+    kill -TERM -"$MOOSE_PGID" 2>/dev/null || true
+    sleep 2
+    kill -KILL -"$MOOSE_PGID" 2>/dev/null || true
+  fi
+  wait "$MOOSE_PID" 2>/dev/null || true
+  sleep 5
+done
+
+if [[ "${READY}" != "1" ]]; then
+  echo "moose dev --dockerless did not become ready after 3 attempts" >&2
+  tail -80 /tmp/moose-dev-seed.log >&2
+  kill $MOOSE_PID 2>/dev/null || true
+  exit 1
+fi
+
+# Wait for moose to materialize local.events from the OlapTable<Event>
+# declaration in app/index.ts. ClickHouse being up doesn't mean moose has
+# applied the inframap yet — there's a compile + apply step after.
+TABLE_READY=0
+for _ in $(seq 1 300); do
+  EXISTS=$(curl -fsS -u panda:pandapass \
+    "http://localhost:18123/?query=SELECT+count()+FROM+system.tables+WHERE+database%3D%27local%27+AND+name%3D%27events%27+FORMAT+TSV" \
+    2>/dev/null | tr -d '[:space:]')
+  if [[ "${EXISTS}" == "1" ]]; then
+    TABLE_READY=1
+    break
+  fi
+  sleep 1
+done
+if [[ "${TABLE_READY}" != "1" ]]; then
+  echo "ERROR: moose did not materialize local.events within 300s" >&2
+  tail -120 /tmp/moose-dev-seed.log >&2
+  kill $MOOSE_PID 2>/dev/null || true
+  exit 1
+fi
+
+# Seed 10,000 deterministic rows plus anchor tables. moose already created
+# local.events from the OlapTable<Event> declaration; we INSERT + add two
+# anchor tables assertions read.
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
+INSERT INTO local.events (event_id, event_ts, event_type, user_id)
+SELECT
+  concat('evt_', leftPad(toString(number + 1), 6, '0')),
+  toDateTime('2026-01-01 00:00:00')
+    + toIntervalSecond(cityHash64(number) % (30 * 86400)),
+  ['pv','click','purchase','signup','logout'][(cityHash64(number + 1) % 5) + 1],
+  concat('usr_', leftPad(toString((cityHash64(number + 2) % 500) + 1), 4, '0'))
+FROM numbers(10000);
+EOF
+
+# ClickHouse's HTTP interface accepts ONE statement per request, so each
+# CREATE / INSERT below goes as its own curl call.
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
+CREATE TABLE IF NOT EXISTS local._seed_meta (
+  key String,
+  value String
+) ENGINE = MergeTree ORDER BY key
+EOF
+
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
+INSERT INTO local._seed_meta
+SELECT key, value FROM (
+  SELECT 'total_rows' AS key, toString(count()) AS value FROM local.events
+  UNION ALL
+  SELECT 'count_pv', toString(countIf(event_type = 'pv')) FROM local.events
+  UNION ALL
+  SELECT 'count_click', toString(countIf(event_type = 'click')) FROM local.events
+  UNION ALL
+  SELECT 'count_purchase', toString(countIf(event_type = 'purchase')) FROM local.events
+  UNION ALL
+  SELECT 'count_signup', toString(countIf(event_type = 'signup')) FROM local.events
+  UNION ALL
+  SELECT 'count_logout', toString(countIf(event_type = 'logout')) FROM local.events
+)
+EOF
+
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
+CREATE TABLE IF NOT EXISTS local._seed_spotchecks (
+  event_id String,
+  event_ts DateTime,
+  event_type String,
+  user_id String
+) ENGINE = MergeTree ORDER BY event_id
+EOF
+
+curl -fsS -u panda:pandapass --data-binary @- "http://localhost:18123/" <<'EOF'
+INSERT INTO local._seed_spotchecks
+SELECT event_id, event_ts, event_type, user_id
+FROM local.events
+WHERE event_id IN ('evt_000001', 'evt_002500', 'evt_005000', 'evt_007500', 'evt_010000')
+EOF
+
+# Clean teardown of moose dev AND its native-infra children.
+# Plain `kill $MOOSE_PID` only signals the moose parent; Temporal/ClickHouse/
+# devredis/devkafka spawned by moose stay running and hold ports 8080, 18123,
+# 6379 etc. That forces the agent to manually kill stragglers before its own
+# `moose dev` can bind those ports. Kill the whole process group to cascade.
+# /proc/<PID>/stat field 5 is the process group ID. Avoids a `ps` dependency
+# (procps isn't installed in docker/base/Dockerfile), and the file missing
+# just means the moose parent already died — guard with a readability test
+# so the assignment doesn't fail under set -o pipefail.
+MOOSE_PGID=""
+if [[ -r /proc/$MOOSE_PID/stat ]]; then
+  MOOSE_PGID=$(awk '{print $5}' /proc/$MOOSE_PID/stat 2>/dev/null)
+fi
+if [[ -n "$MOOSE_PGID" ]]; then
+  kill -TERM -"$MOOSE_PGID" 2>/dev/null || true
+  # Give graceful shutdown up to 8s before escalating to SIGKILL.
+  for _ in $(seq 1 8); do
+    if ! kill -0 "$MOOSE_PID" 2>/dev/null; then break; fi
+    sleep 1
+  done
+  kill -KILL -"$MOOSE_PGID" 2>/dev/null || true
+fi
+wait "$MOOSE_PID" 2>/dev/null || true
+
+# Belt-and-suspenders: wait for the OS to release known moose ports.
+# Uses pure bash /dev/tcp probe — no fuser/lsof dependency.
+port_bound() {
+  (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null && { exec 3<&-; exec 3>&-; return 0; }
+  return 1
+}
+STILL_BOUND=""
+for _ in $(seq 1 15); do
+  STILL_BOUND=""
+  for port in 18123 19000 9000 6379 7233 8080 9092 4000; do
+    if port_bound "$port"; then STILL_BOUND="$port"; break; fi
+  done
+  [[ -z "$STILL_BOUND" ]] && break
+  sleep 1
+done
+
+rm -f .moose/native_infra/clickhouse/status 2>/dev/null || true
+
+# Fail loud if teardown was incomplete. The agent must walk into a cold
+# environment — leaving stragglers would silently change the starting
+# contract for downstream runs.
+if [[ -n "$STILL_BOUND" ]]; then
+  echo "ERROR: moose port $STILL_BOUND still bound after teardown" >&2
+  exit 1
+fi
+if kill -0 "$MOOSE_PID" 2>/dev/null; then
+  echo "ERROR: moose parent PID $MOOSE_PID still running after teardown" >&2
+  exit 1
+fi
+
+echo "seed-workspace.sh (moose-legacy-migrations): moose dev torn down"

@@ -25,30 +25,12 @@ import type {
 } from "./types.js";
 import { createEvalOutput } from "./output.js";
 import { computeScore } from "./score.js";
+import { IGNORED_SCAN_DIRS, IGNORED_SCAN_FILENAMES } from "./workspace-scan.js";
 
 const GATES: GateName[] = ["functional", "correct", "robust", "performant", "production"];
 const PASS_THRESHOLD = 0.8;
 const DEFAULT_WORKSPACE_ROOT = "/workspace";
 const MAX_TEXT_FILE_BYTES = 512_000;
-const IGNORED_SCAN_DIRS = new Set([
-  ".git",
-  ".next",
-  ".turbo",
-  ".moose",
-  "dist",
-  "build",
-  "coverage",
-  "node_modules",
-  "__pycache__",
-  ".venv",
-  "venv",
-]);
-const IGNORED_SCAN_FILES = new Set([
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "moose.config.toml",
-]);
 const SECRET_PATTERNS: Array<{ kind: string; regex: RegExp }> = [
   { kind: "anthropic_api_key", regex: /\bsk-ant-[A-Za-z0-9_-]{16,}\b/g },
   { kind: "openai_api_key", regex: /\bsk-(?:proj-|live-|test-)?[A-Za-z0-9_-]{20,}\b/g },
@@ -1417,7 +1399,7 @@ function listWorkspaceFiles(root: string): string[] {
         continue;
       }
 
-      if (IGNORED_SCAN_FILES.has(entry.name)) {
+      if (IGNORED_SCAN_FILENAMES.has(entry.name)) {
         continue;
       }
 
