@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Shared functions and constants used by the dec-bench container scripts.
-# Sourced by docker/base/entrypoint.sh.
+# Shared functions and constants for the dec-bench container scripts.
+# Sourced by run-agent.sh and run-evaluator.sh.
 
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 SESSION_LOG_PATH="${SESSION_LOG_PATH:-${OUTPUT_DIR}/session.log}"
@@ -11,6 +11,11 @@ AGENT_RAW_PATH="${AGENT_RAW_PATH:-${OUTPUT_DIR}/agent-raw.json}"
 TRACE_PATH="${TRACE_PATH:-${OUTPUT_DIR}/agent-trace.json}"
 SESSION_JSONL_PATH="${SESSION_JSONL_PATH:-${OUTPUT_DIR}/session.jsonl}"
 ASSERTION_LOG_PATH="${ASSERTION_LOG_PATH:-${OUTPUT_DIR}/assertion-log.json}"
+
+# State files used to carry agent-phase results into the evaluator phase
+# (env vars do not survive across separate `docker exec` invocations).
+AGENT_EXIT_CODE_PATH="${OUTPUT_DIR}/.agent-exit-code"
+WALL_CLOCK_PATH="${OUTPUT_DIR}/.wall-clock-seconds"
 
 AGENT_STDOUT_START="__DEC_BENCH_AGENT_STDOUT_START__"
 AGENT_STDOUT_END="__DEC_BENCH_AGENT_STDOUT_END__"
@@ -202,12 +207,15 @@ ensure_clickhouse_for_assertions() {
       break
     fi
   done
-  # Broader search if not found in known paths
+  # Broader search if not found in known paths. The find calls can return
+  # non-zero on permission errors deep in /proc, /sys, etc.; we don't care —
+  # `|| true` keeps `set -euo pipefail` from aborting the whole evaluator
+  # phase when ClickHouse simply isn't running and there's nothing to find.
   if [[ -z "${data_dir}" ]]; then
     local found
-    found="$(find / -maxdepth 8 -type d -name 'data' -path '*native_infra/clickhouse*' 2>/dev/null | head -1)"
+    found="$(find / -maxdepth 8 -type d -name 'data' -path '*native_infra/clickhouse*' 2>/dev/null | head -1 || true)"
     if [[ -z "${found}" ]]; then
-      found="$(find / -maxdepth 6 -type d -name 'data' -path '*clickhouse*' ! -path '/proc/*' ! -path '/sys/*' 2>/dev/null | head -1)"
+      found="$(find / -maxdepth 6 -type d -name 'data' -path '*clickhouse*' ! -path '/proc/*' ! -path '/sys/*' 2>/dev/null | head -1 || true)"
     fi
     if [[ -n "${found}" ]]; then
       data_dir="$(dirname "${found}")"

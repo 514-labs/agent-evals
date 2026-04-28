@@ -78,6 +78,8 @@ RUN mkdir -p /node_modules/@dec-bench \
 WORKDIR /
 COPY docker/base/lib.sh /opt/dec-bench/lib.sh
 COPY docker/base/entrypoint.sh /opt/dec-bench/entrypoint.sh
-RUN chmod +x /opt/dec-bench/entrypoint.sh
+COPY docker/base/run-agent.sh /opt/dec-bench/run-agent.sh
+COPY docker/base/run-evaluator.sh /opt/dec-bench/run-evaluator.sh
+RUN chmod +x /opt/dec-bench/entrypoint.sh /opt/dec-bench/run-agent.sh /opt/dec-bench/run-evaluator.sh
 
 ENTRYPOINT ["/opt/dec-bench/entrypoint.sh"]
