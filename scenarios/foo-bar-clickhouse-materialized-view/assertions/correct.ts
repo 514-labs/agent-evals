@@ -1,5 +1,7 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { hasColumn } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
@@ -25,14 +27,10 @@ export async function event_count_matches_source(ctx: AssertionContext): Promise
 }
 
 export async function has_event_count_column(ctx: AssertionContext): Promise<AssertionResult> {
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    "SELECT name FROM system.columns WHERE database = 'analytics' AND table = 'daily_event_summary' AND name = 'event_count'",
-  );
-  const passed = rows.length === 1;
+  const passed = await hasColumn(ctx, "analytics", "daily_event_summary", "event_count");
   return {
     passed,
     message: passed ? "event_count column exists." : "event_count column missing.",
-    details: { columnCount: rows.length },
+    details: {},
   };
 }

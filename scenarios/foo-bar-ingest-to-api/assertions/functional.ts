@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findProductEventsTable } from "../../_shared/assertion-helpers";
+import { findProductEventsTable, probeEgress } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -37,24 +37,20 @@ export async function events_table_has_rows(ctx: AssertionContext): Promise<Asse
   };
 }
 
-export async function api_server_responds(): Promise<AssertionResult> {
-  for (const port of [3000, 4000, 8080]) {
-    try {
-      const response = await fetch(`http://localhost:${port}/api/top-products`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      if (response.ok || response.status < 500) {
-        return {
-          passed: true,
-          message: `API server responded on port ${port} (status ${response.status}).`,
-          details: { port, status: response.status },
-        };
-      }
-    } catch {}
+export async function api_server_responds(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await probeEgress(ctx, "top-products", {
+    paths: ["/api/top-products", "/api/topProducts"],
+  });
+  if (result) {
+    return {
+      passed: true,
+      message: `API server responded at ${result.url} (status ${result.response.status}).`,
+      details: { url: result.url, status: result.response.status },
+    };
   }
   return {
     passed: false,
-    message: "API server did not respond on ports 3000, 4000, or 8080.",
+    message: "API server did not respond via EGRESS_URL_TOP_PRODUCTS or fallback ports.",
     details: {},
   };
 }

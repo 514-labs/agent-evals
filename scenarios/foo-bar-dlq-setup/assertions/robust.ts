@@ -1,18 +1,10 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { avoidsSelectStarQueries, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
-
-async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
-  const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
-  return (await (result as any).json()) as T[];
-}
+import { avoidsSelectStarQueries, describeTable, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 
 export async function dlq_schema_has_error_column(ctx: AssertionContext): Promise<AssertionResult> {
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    "SELECT name FROM system.columns WHERE database = 'analytics' AND table = 'dlq_events'",
-  );
-  const names = rows.map((r) => r.name.toLowerCase());
+  const cols = await describeTable(ctx, "analytics", "dlq_events");
+  const names = cols.map((c) => c.name.toLowerCase());
   const hasError = names.some((n) => n.includes("error"));
   return {
     passed: hasError,

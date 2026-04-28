@@ -1,20 +1,18 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
+import { hasColumn } from "../../_shared/assertion-helpers";
+
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
 export async function region_column_exists(ctx: AssertionContext): Promise<AssertionResult> {
-  const rows = await queryRows<{ name: string }>(
-    ctx,
-    "SELECT name FROM system.columns WHERE database = 'analytics' AND table = 'events' AND name = 'region'",
-  );
-  const passed = rows.length === 1;
+  const passed = await hasColumn(ctx, "analytics", "events", "region");
   return {
     passed,
     message: passed ? "Region column exists." : "Region column missing.",
-    details: { columnCount: rows.length },
+    details: {},
   };
 }
 

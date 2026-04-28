@@ -1,6 +1,6 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findProductEventsTable } from "../../_shared/assertion-helpers";
+import { findProductEventsTable, probeEgress, probeIngest } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
@@ -37,63 +37,48 @@ export async function events_table_has_rows(ctx: AssertionContext): Promise<Asse
   };
 }
 
-export async function api_server_responds(): Promise<AssertionResult> {
-  for (const port of [3000, 4000, 8080]) {
-    try {
-      const response = await fetch(`http://localhost:${port}/api/top-products`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      if (response.ok || response.status < 500) {
-        return {
-          passed: true,
-          message: `API server responded on port ${port}.`,
-          details: { port, status: response.status },
-        };
-      }
-    } catch {
-      // Try next port
-    }
+export async function api_server_responds(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await probeEgress(ctx, "top-products", {
+    paths: ["/api/top-products", "/api/topProducts", "/top-products"],
+  });
+  if (result) {
+    return {
+      passed: true,
+      message: `API server responded at ${result.url} (status ${result.response.status}).`,
+      details: { url: result.url, status: result.response.status },
+    };
   }
   return {
     passed: false,
-    message: "API server did not respond on ports 3000, 4000, or 8080.",
+    message: "API server did not respond via EGRESS_URL_TOP_PRODUCTS or fallback ports.",
     details: {},
   };
 }
 
-export async function http_ingest_endpoint_exists(): Promise<AssertionResult> {
-  const paths = ["/ingest/events", "/ingest/ProductEvent", "/ingest", "/events"];
-  for (const port of [3000, 4000, 8080]) {
-    for (const path of paths) {
-      try {
-        const response = await fetch(`http://localhost:${port}${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event_id: "probe_event",
-            event_ts: "2026-01-15T16:00:00Z",
-            user_id: "probe_user",
-            product_id: "probe_product",
-            event_type: "view",
-            properties: {},
-          }),
-          signal: AbortSignal.timeout(2000),
-        });
-        if (response.status < 500) {
-          return {
-            passed: true,
-            message: `Ingest endpoint responded at ${port}${path} (status ${response.status}).`,
-            details: { port, path, status: response.status },
-          };
-        }
-      } catch {
-        // Try next
-      }
-    }
+export async function http_ingest_endpoint_exists(ctx: AssertionContext): Promise<AssertionResult> {
+  const body = JSON.stringify({
+    event_id: "probe_event",
+    event_ts: "2026-01-15T16:00:00Z",
+    user_id: "probe_user",
+    product_id: "probe_product",
+    event_type: "view",
+    properties: {},
+  });
+  const result = await probeIngest(ctx, {
+    paths: ["/ingest/events", "/ingest/ProductEvent", "/ingest", "/events"],
+    body,
+    timeoutMs: 2000,
+  });
+  if (result) {
+    return {
+      passed: true,
+      message: `Ingest endpoint responded at ${result.url} (status ${result.response.status}).`,
+      details: { url: result.url, status: result.response.status },
+    };
   }
   return {
     passed: false,
-    message: "No HTTP ingest endpoint responded on common ports/paths.",
+    message: "No HTTP ingest endpoint responded via INGEST_URL or fallback ports.",
     details: {},
   };
 }

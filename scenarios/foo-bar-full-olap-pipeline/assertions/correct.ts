@@ -1,27 +1,20 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findProductEventsTable, findTable, resolveColumn } from "../../_shared/assertion-helpers";
+import { fetchEgressJson, findProductEventsTable, findTable, resolveColumn } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
-/** Try an egress API endpoint, return parsed JSON array or null. */
-async function probeApiJson(paths: string[]): Promise<any[] | null> {
-  for (const port of [3000, 4000, 8080]) {
-    for (const p of paths) {
-      try {
-        const response = await fetch(`http://localhost:${port}${p}`, {
-          signal: AbortSignal.timeout(3000),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data)) return data;
-        }
-      } catch {}
-    }
-  }
+/** Try an egress API endpoint (env-first, port-scan fallback); return array or null. */
+async function probeApiJson(
+  ctx: AssertionContext,
+  name: string,
+  paths: string[],
+): Promise<any[] | null> {
+  const result = await fetchEgressJson<unknown>(ctx, name, { paths });
+  if (result && Array.isArray(result.data)) return result.data as any[];
   return null;
 }
 
@@ -52,7 +45,7 @@ export async function all_seed_events_ingested(ctx: AssertionContext): Promise<A
 
 export async function top_products_returns_data(ctx: AssertionContext): Promise<AssertionResult> {
   // Prefer the egress API if it works
-  const apiData = await probeApiJson(["/api/top-products", "/api/topProducts", "/top-products"]);
+  const apiData = await probeApiJson(ctx, "top-products", ["/api/top-products", "/api/topProducts", "/top-products"]);
   if (apiData && apiData.length > 0) {
     return {
       passed: true,
@@ -99,7 +92,7 @@ export async function top_products_returns_data(ctx: AssertionContext): Promise<
 }
 
 export async function funnel_has_three_steps(ctx: AssertionContext): Promise<AssertionResult> {
-  const apiData = await probeApiJson(["/api/funnel", "/api/conversion-funnel", "/funnel"]);
+  const apiData = await probeApiJson(ctx, "funnel", ["/api/funnel", "/api/conversion-funnel", "/funnel"]);
   if (Array.isArray(apiData) && apiData.length >= 3) {
     const steps = apiData.map((row: any) => String(row?.step ?? row?.event_type ?? "").toLowerCase());
     const hasAll = ["view", "cart", "purchase"].every((s) => steps.some((step) => step.includes(s)));
@@ -161,7 +154,7 @@ export async function funnel_has_three_steps(ctx: AssertionContext): Promise<Ass
 export async function funnel_counts_are_monotonic(ctx: AssertionContext): Promise<AssertionResult> {
   const collectCounts = async (): Promise<{ views: number; carts: number; purchases: number; source: string } | null> => {
     // API attempt
-    const apiData = await probeApiJson(["/api/funnel", "/api/conversion-funnel", "/funnel"]);
+    const apiData = await probeApiJson(ctx, "funnel", ["/api/funnel", "/api/conversion-funnel", "/funnel"]);
     if (Array.isArray(apiData) && apiData.length >= 3) {
       const countFor = (name: string) => {
         const row = apiData.find((r: any) => String(r?.step ?? r?.event_type ?? "").toLowerCase().includes(name));
@@ -209,7 +202,7 @@ export async function funnel_counts_are_monotonic(ctx: AssertionContext): Promis
 }
 
 export async function hourly_returns_data(ctx: AssertionContext): Promise<AssertionResult> {
-  const apiData = await probeApiJson(["/api/hourly", "/api/hourly-activity", "/hourly"]);
+  const apiData = await probeApiJson(ctx, "hourly", ["/api/hourly", "/api/hourly-activity", "/hourly"]);
   if (Array.isArray(apiData) && apiData.length > 0) {
     return {
       passed: true,

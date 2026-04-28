@@ -1,25 +1,32 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-export async function metrics_under_200ms(): Promise<AssertionResult> {
+import { probeEgress } from "../../_shared/assertion-helpers";
+
+async function timeEndpoint(
+  ctx: AssertionContext,
+  name: string,
+  paths: string[],
+  label: string,
+): Promise<AssertionResult> {
   const start = Date.now();
-  await fetch("http://localhost:3000/api/metrics");
+  const result = await probeEgress(ctx, name, { paths, timeoutMs: 3000 });
   const elapsed = Date.now() - start;
+  if (!result) {
+    return { passed: false, message: `${label} endpoint unreachable.`, details: { elapsedMs: elapsed } };
+  }
+  await result.response.text();
   const passed = elapsed < 200;
   return {
     passed,
-    message: passed ? "Metrics under 200ms." : `Metrics took ${elapsed}ms.`,
-    details: { elapsedMs: elapsed },
+    message: passed ? `${label} under 200ms.` : `${label} took ${elapsed}ms.`,
+    details: { url: result.url, elapsedMs: elapsed },
   };
 }
 
-export async function breakdown_under_200ms(): Promise<AssertionResult> {
-  const start = Date.now();
-  await fetch("http://localhost:3000/api/breakdown");
-  const elapsed = Date.now() - start;
-  const passed = elapsed < 200;
-  return {
-    passed,
-    message: passed ? "Breakdown under 200ms." : `Breakdown took ${elapsed}ms.`,
-    details: { elapsedMs: elapsed },
-  };
+export async function metrics_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
+  return timeEndpoint(ctx, "metrics", ["/api/metrics"], "Metrics");
+}
+
+export async function breakdown_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
+  return timeEndpoint(ctx, "breakdown", ["/api/breakdown"], "Breakdown");
 }

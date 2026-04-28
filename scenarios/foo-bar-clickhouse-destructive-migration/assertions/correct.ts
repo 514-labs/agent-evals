@@ -32,9 +32,18 @@ const EXPECTED_ORDER_BY = "event_type, event_ts, event_id";
 // the "three separate FAILs for the same root cause" anti-pattern.
 export async function table_schema_matches_target(ctx: AssertionContext): Promise<AssertionResult> {
   const db = eventsDb(ctx);
+  // Tinybird's blue-green deploy can leave the old table visible in
+  // system.tables alongside the new one. Order by most-recently-modified
+  // and take one row so we're reading the live deployment. Atlas and
+  // moose harnesses only ever have one row, so this is also correct for
+  // them.
   const rows = await queryRows<{ engine: string; sorting_key: string }>(
     ctx,
-    `SELECT engine, sorting_key FROM system.tables WHERE database = {db:String} AND name = 'events'`,
+    `SELECT engine, sorting_key
+     FROM system.tables
+     WHERE database = {db:String} AND name = 'events'
+     ORDER BY metadata_modification_time DESC
+     LIMIT 1`,
     { db },
   );
   if (rows.length === 0) {

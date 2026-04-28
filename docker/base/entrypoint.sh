@@ -33,13 +33,28 @@ if [[ "${NETWORK_POLICY:-open}" == "restricted" ]] && [[ -x /opt/dec-bench/agent
 fi
 
 source_scenario_env() {
-  if [[ ! -f /scenario/env.sh ]]; then
-    return 0
-  fi
-  echo "Sourcing scenario env: /scenario/env.sh"
+  # Two-layer env sourcing:
+  #   1. /scenario/env.sh                              — scenario-level defaults
+  #   2. /scenario/harnesses/$EVAL_HARNESS/env.sh      — per-harness overrides
+  #
+  # Both files are sourced twice per run: once before init (when runtime-
+  # discovered files like /workspace/.tb-env don't exist yet) and once after
+  # the agent exits (before assertions). Harness env.sh files MUST be
+  # idempotent across those two passes — guard references to seed-written
+  # files with `if [[ -r <file> ]]; then … else <defaults>; fi`. See
+  # scenarios/foo-bar-clickhouse-destructive-migration/env.sh for the
+  # canonical template.
   set -a
-  # shellcheck source=/dev/null
-  . /scenario/env.sh
+  if [[ -f /scenario/env.sh ]]; then
+    echo "Sourcing scenario env: /scenario/env.sh"
+    # shellcheck source=/dev/null
+    . /scenario/env.sh
+  fi
+  if [[ -n "${EVAL_HARNESS:-}" ]] && [[ -f "/scenario/harnesses/${EVAL_HARNESS}/env.sh" ]]; then
+    echo "Sourcing harness env: /scenario/harnesses/${EVAL_HARNESS}/env.sh"
+    # shellcheck source=/dev/null
+    . "/scenario/harnesses/${EVAL_HARNESS}/env.sh"
+  fi
   set +a
 }
 
@@ -556,6 +571,14 @@ if [[ -f "${TRACE_PATH}" ]]; then
   cat "${TRACE_PATH}"
   echo "${AGENT_TRACE_END}"
 fi
+
+# Re-source scenario env before running assertions so harnesses whose
+# env.sh depends on seed-produced state (e.g. tinybird-forward writes
+# /workspace/.tb-env with the workspace name + admin token that the seed
+# discovers) see the updated exports. The initial source happens before
+# the seed runs, when such files don't exist yet. Re-sourcing is a no-op
+# for harnesses whose env.sh is purely declarative.
+source_scenario_env
 
 ensure_clickhouse_for_assertions
 

@@ -270,6 +270,30 @@ echo "ClickHouse ready at $(date)" >> /tmp/startup.log
 
 `env.sh` is sourced at the start of every lifecycle phase. Work belongs in `supervisord.conf` (readiness) or `init/*.sh` (one-time seeding), not here.
 
+#### Per-harness `env.sh` (comparison scenarios)
+
+When a scenario runs under multiple harnesses whose connection strings or database layouts differ — e.g. Tinybird's `:7182` ClickHouse-compatible interface with workspace-scoped auth vs. a vanilla `:8123` ClickHouse — put harness-specific exports in `harnesses/<harness-id>/env.sh`. The entrypoint sources this file **after** the scenario-level `env.sh`, so harness exports override defaults.
+
+Sourcing order per lifecycle phase:
+1. `/scenario/env.sh` (scenario defaults)
+2. `/scenario/harnesses/$EVAL_HARNESS/env.sh` (harness override, optional)
+
+Both files are sourced **twice** per run: once before init, and once after the agent exits (so assertions see init-written state). Per-harness env.sh files MUST be idempotent across those two passes when they reference files written by init. Guard those reads:
+
+```bash
+if [[ -r /workspace/.tb-env ]]; then
+  source /workspace/.tb-env
+  export CLICKHOUSE_URL="http://${TB_WORKSPACE}:${TB_ADMIN_TOKEN}@localhost:7182"
+  export EVENTS_DATABASE="${TB_WORKSPACE}"
+else
+  # First pass, before init has run — provide defaults.
+  export CLICKHOUSE_URL="http://localhost:7182"
+  export EVENTS_DATABASE="default"
+fi
+```
+
+Reference: `scenarios/foo-bar-mv-access-patterns/harnesses/tinybird-forward/env.sh`.
+
 ## Step 6b: When no built-in harness fits
 
 The three built-in harnesses (`base-rt`, `classic-de`, `olap-for-swe`) live as JSON files at `apps/web/data/harnesses/<id>.json`. They define what gets installed on top of the base image, the network policy, and the tool manifest shown in the audit UI. Pick an existing one when its tool list covers your scenario.
