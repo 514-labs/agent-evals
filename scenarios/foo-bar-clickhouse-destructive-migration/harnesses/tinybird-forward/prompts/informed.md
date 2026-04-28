@@ -4,7 +4,7 @@ You have [Tinybird Forward](https://www.tinybird.co/docs/forward) (`tb` CLI) ava
 
 State of play when you walk in:
 - Pre-seeded Tinybird project at `/workspace/events-project` with the existing schema: `events` data source (`ENGINE_SORTING_KEY "event_ts, event_id"`, 10,000 rows already loaded) plus two anchor data sources `_seed_meta` and `_seed_spotchecks` used by verification.
-- The Tinybird Local container is **stopped** but its named volume (`tinybird-data`) holds all seeded state. Start it with `docker start tb-local` — it'll rebind `localhost:7181` (Tinybird API) and `localhost:7182` (ClickHouse HTTP interface, read-only).
+- The Tinybird Local container is **stopped** but its named volume (in `$TB_VOLUME`) holds all seeded state. Start it with `docker start "$TB_CONTAINER"` — it'll rebind `localhost:7181` (Tinybird API) and `localhost:7182` (ClickHouse HTTP interface, read-only). `$TB_CONTAINER` and `$TB_VOLUME` are exported into your environment (per-run unique so concurrent runs don't collide).
 - Tinybird's ClickHouse interface on :7182 accepts SELECT/DESCRIBE only. For writes use `tb datasource append --file`, `tb datasource append --events`, or `POST http://localhost:7181/v0/events?name=<ds>`. DDL is handled by `tb deploy` against your `.datasource` files.
 
 All 10,000 original rows must survive. The anchor data sources `_seed_meta` and `_seed_spotchecks` must survive too — Tinybird's declarative model treats missing data sources as drops, so keep them declared in your project.
