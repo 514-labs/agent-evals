@@ -81,8 +81,6 @@ async fn fetch_latest() -> Option<String> {
     Some(tag)
 }
 
-/// Fire-and-forget background check. Returns a handle that resolves to the
-/// latest version string if (and only if) it is newer than the running binary.
 pub enum CheckHandle {
     /// Result already known synchronously (cache hit or feature disabled).
     Resolved(Option<String>),
@@ -90,6 +88,12 @@ pub enum CheckHandle {
     Pending(JoinHandle<Option<String>>),
 }
 
+/// Decide synchronously whether we already know the answer (cache hit or
+/// disabled by env var); otherwise spawn a background fetch. The inner
+/// `Option<String>` is the latest version string if (and only if) it is
+/// strictly newer than the running binary.
+///
+/// `force_fresh = true` skips the cache and always hits the network.
 pub fn spawn_check(force_fresh: bool) -> CheckHandle {
     if std::env::var_os("DEC_BENCH_NO_UPDATE_CHECK").is_some() {
         return CheckHandle::Resolved(None);
