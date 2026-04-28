@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 const CURRENT: &str = env!("CARGO_PKG_VERSION");
 const RELEASES_URL: &str =
     "https://api.github.com/repos/514-labs/agent-evals/releases/latest";
-const CACHE_TTL: Duration = Duration::from_secs(6 * 60 * 60);
+const CACHE_TTL: Duration = Duration::from_secs(60 * 60);
 const HTTP_TIMEOUT: Duration = Duration::from_millis(1500);
 
 #[derive(Serialize, Deserialize)]
