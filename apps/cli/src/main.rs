@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;
 
 mod commands;
+mod version_check;
 
 #[derive(Parser)]
 #[command(name = "dec-bench")]
@@ -41,7 +42,9 @@ async fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
-    match cli.command {
+    let version_check = version_check::spawn_check();
+
+    let result = match cli.command {
         Commands::Audit(args) => commands::audit::execute(args).await,
         Commands::Build(args) => commands::build::execute(args).await,
         Commands::Create(args) => commands::create::execute(args).await,
@@ -50,5 +53,9 @@ async fn main() -> Result<()> {
         Commands::Run(args) => commands::run::execute(args).await,
         Commands::List(args) => commands::list::execute(args).await,
         Commands::Results(args) => commands::results::execute(args).await,
-    }
+    };
+
+    version_check::print_if_ready(version_check).await;
+
+    result
 }
