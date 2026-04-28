@@ -428,6 +428,15 @@ async fn run_single(
         }
     }
 
+    // Bind mounts come from the harness's runtime config in
+    // apps/web/data/harnesses/<id>.json. The CLI is harness-agnostic — it
+    // just resolves declared binds (expanding ~ and skipping non-existent
+    // sources by default). Adding a bind to a new harness happens in JSON,
+    // not here.
+    let runtime = load_harness_runtime(&args.harness)
+        .with_context(|| format!("Failed to load runtime config for harness '{}'", args.harness))?;
+    let binds = resolve_harness_binds(&runtime);
+
     docker
         .create_container(
             Some(CreateContainerOptions {
@@ -439,7 +448,10 @@ async fn run_single(
                 env: Some(env),
                 attach_stdout: Some(true),
                 attach_stderr: Some(true),
-                host_config: Some(HostConfig::default()),
+                host_config: Some(HostConfig {
+                    binds: if binds.is_empty() { None } else { Some(binds) },
+                    ..HostConfig::default()
+                }),
                 ..Default::default()
             },
         )
@@ -896,6 +908,90 @@ fn default_harnesses() -> Vec<String> {
     vec!["base-rt".to_string()]
 }
 
+const HARNESS_REGISTRY_DIR: &str = "apps/web/data/harnesses";
+
+#[derive(Debug, Default, Deserialize)]
+struct HarnessRuntime {
+    #[serde(default)]
+    binds: Vec<HarnessBind>,
+}
+
+#[derive(Debug, Deserialize)]
+struct HarnessBind {
+    from: String,
+    to: String,
+    #[serde(default = "default_bind_mode")]
+    mode: String,
+    #[serde(default = "default_if_exists", rename = "ifExists")]
+    if_exists: bool,
+}
+
+fn default_bind_mode() -> String {
+    "ro".to_string()
+}
+
+fn default_if_exists() -> bool {
+    true
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct HarnessManifest {
+    #[serde(default)]
+    runtime: HarnessRuntime,
+}
+
+fn load_harness_runtime(harness_id: &str) -> Result<HarnessRuntime> {
+    let path =
+        match preflight::resolve_repo_path(&format!("{HARNESS_REGISTRY_DIR}/{harness_id}.json")) {
+            Ok(p) => p,
+            Err(_) => return Ok(HarnessRuntime::default()),
+        };
+    if !path.exists() {
+        return Ok(HarnessRuntime::default());
+    }
+    let raw = fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read {}", path.display()))?;
+    let manifest: HarnessManifest = serde_json::from_str(&raw)
+        .with_context(|| format!("Invalid harness JSON: {}", path.display()))?;
+    Ok(manifest.runtime)
+}
+
+fn expand_home(path: &str) -> Option<String> {
+    if let Some(rest) = path.strip_prefix("~/") {
+        std::env::var("HOME").ok().map(|home| format!("{home}/{rest}"))
+    } else if path == "~" {
+        std::env::var("HOME").ok()
+    } else {
+        Some(path.to_string())
+    }
+}
+
+fn resolve_harness_binds(runtime: &HarnessRuntime) -> Vec<String> {
+    let mut binds = Vec::new();
+    for bind in &runtime.binds {
+        let host_path = match expand_home(&bind.from) {
+            Some(p) => p,
+            None => {
+                warn!(from = %bind.from, "skipping bind with ~ but no $HOME set");
+                continue;
+            }
+        };
+        if bind.if_exists && !std::path::Path::new(&host_path).exists() {
+            continue;
+        }
+        if bind.mode != "ro" && bind.mode != "rw" {
+            warn!(
+                mode = %bind.mode,
+                from = %bind.from,
+                "skipping bind: mode must be 'ro' or 'rw'"
+            );
+            continue;
+        }
+        binds.push(format!("{host_path}:{}:{}", bind.to, bind.mode));
+    }
+    binds
+}
+
 const SCENARIO_IMPL_DIR: &str = "scenarios";
 
 fn load_scenarios_with_harnesses() -> Result<Vec<RegistryScenario>> {
@@ -1205,6 +1301,80 @@ mod tests {
             "baseline",
         );
         assert!(not_found.is_none());
+    }
+
+    #[test]
+    fn resolve_harness_binds_skips_missing_sources_by_default() {
+        let runtime = HarnessRuntime {
+            binds: vec![HarnessBind {
+                from: "/definitely/does/not/exist/dec-bench-test".to_string(),
+                to: "/root/x".to_string(),
+                mode: "ro".to_string(),
+                if_exists: true,
+            }],
+        };
+        assert!(resolve_harness_binds(&runtime).is_empty());
+    }
+
+    #[test]
+    fn resolve_harness_binds_includes_existing_sources() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let host_dir = temp.path().to_string_lossy().to_string();
+        let runtime = HarnessRuntime {
+            binds: vec![HarnessBind {
+                from: host_dir.clone(),
+                to: "/root/data".to_string(),
+                mode: "ro".to_string(),
+                if_exists: true,
+            }],
+        };
+        let binds = resolve_harness_binds(&runtime);
+        assert_eq!(binds.len(), 1);
+        assert_eq!(binds[0], format!("{host_dir}:/root/data:ro"));
+    }
+
+    #[test]
+    fn resolve_harness_binds_skips_invalid_mode() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let runtime = HarnessRuntime {
+            binds: vec![HarnessBind {
+                from: temp.path().to_string_lossy().to_string(),
+                to: "/root/x".to_string(),
+                mode: "rwx".to_string(),
+                if_exists: true,
+            }],
+        };
+        assert!(resolve_harness_binds(&runtime).is_empty());
+    }
+
+    #[test]
+    fn resolve_harness_binds_supports_rw() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let host = temp.path().to_string_lossy().to_string();
+        let runtime = HarnessRuntime {
+            binds: vec![HarnessBind {
+                from: host.clone(),
+                to: "/var/run/x.sock".to_string(),
+                mode: "rw".to_string(),
+                if_exists: true,
+            }],
+        };
+        let binds = resolve_harness_binds(&runtime);
+        assert_eq!(binds, vec![format!("{host}:/var/run/x.sock:rw")]);
+    }
+
+    #[test]
+    fn expand_home_expands_tilde_prefix() {
+        std::env::set_var("HOME", "/home/test-user");
+        assert_eq!(
+            expand_home("~/.atlas").as_deref(),
+            Some("/home/test-user/.atlas")
+        );
+        assert_eq!(expand_home("~").as_deref(), Some("/home/test-user"));
+        assert_eq!(
+            expand_home("/abs/path").as_deref(),
+            Some("/abs/path")
+        );
     }
 
     #[test]

@@ -555,6 +555,14 @@ if [[ -f "${TRACE_PATH}" ]]; then
   echo "${AGENT_TRACE_END}"
 fi
 
+# Re-source scenario env before running assertions so harnesses whose
+# env.sh depends on seed-produced state (e.g. tinybird-forward writes
+# /workspace/.tb-env with the workspace name + admin token that the seed
+# discovers) see the updated exports. The initial source happens before
+# the seed runs, when such files don't exist yet. Re-sourcing is a no-op
+# for harnesses whose env.sh is purely declarative.
+source_scenario_env
+
 ensure_clickhouse_for_assertions
 
 tsx /opt/dec-bench/eval-core/src/cli.ts /scenario/assertions > "${RESULT_JSON_PATH}"
