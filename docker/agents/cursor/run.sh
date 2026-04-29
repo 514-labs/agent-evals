@@ -76,6 +76,23 @@ fs.writeFileSync(runMetaPath, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
 
 mkdir -p /workspace
 
+# ── Langfuse hooks (optional) ──────────────────────────────────────
+# When LANGFUSE_SECRET_KEY is set, install cursor-langfuse hooks so
+# the agent session is traced. The hook files are baked into the image
+# at /opt/dec-bench/agent/hooks-langfuse/ (empty for agents without support).
+if [[ -n "${LANGFUSE_SECRET_KEY:-}" ]] \
+   && [[ -f /opt/dec-bench/agent/hooks-langfuse/hooks.json ]]; then
+  WORKSPACE_CURSOR="/workspace/.cursor"
+  mkdir -p "${WORKSPACE_CURSOR}/hooks/lib"
+  cp /opt/dec-bench/agent/hooks-langfuse/hooks.json "${WORKSPACE_CURSOR}/hooks.json"
+  cp /opt/dec-bench/agent/hooks-langfuse/hooks/*.js "${WORKSPACE_CURSOR}/hooks/"
+  cp /opt/dec-bench/agent/hooks-langfuse/hooks/package.json "${WORKSPACE_CURSOR}/hooks/"
+  cp /opt/dec-bench/agent/hooks-langfuse/hooks/package-lock.json "${WORKSPACE_CURSOR}/hooks/" 2>/dev/null || true
+  cp /opt/dec-bench/agent/hooks-langfuse/hooks/lib/*.js "${WORKSPACE_CURSOR}/hooks/lib/"
+  (cd "${WORKSPACE_CURSOR}/hooks" && npm install --omit=dev 2>&1 | tail -3)
+  echo "Langfuse hooks installed at ${WORKSPACE_CURSOR}"
+fi
+
 set +e
 CURSOR_OUTPUT="$(
   CURSOR_API_KEY="${CURSOR_API_KEY}" \

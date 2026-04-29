@@ -112,6 +112,15 @@ EOF
   chmod +x "${NOOP_IPTABLES}"
 fi
 
+AGENT_HOOKS_DIR="${ROOT_DIR}/docker/agents/${AGENT}/hooks-langfuse"
+AGENT_HOOKS_STAGE="${TMP_DIR}/agent-hooks"
+rm -rf "${AGENT_HOOKS_STAGE}"
+if [[ -d "${AGENT_HOOKS_DIR}" ]]; then
+  cp -r "${AGENT_HOOKS_DIR}" "${AGENT_HOOKS_STAGE}"
+else
+  mkdir -p "${AGENT_HOOKS_STAGE}"
+fi
+
 FINAL_TAG="${SCENARIO}.${HARNESS}.${AGENT}.${MODEL}.${VERSION}"
 SCENARIO_TAG="dec-bench-scenario:${SCENARIO}"
 HARNESS_TAG="dec-bench-harness:${SCENARIO}-${HARNESS}"
