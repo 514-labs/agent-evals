@@ -29,7 +29,7 @@ echo "[override:514] replaced $dest and /usr/local/bin/514"
 #
 # To iterate on skill content, point at a branch of 514-labs/agent-skills
 # by changing SKILLS_BRANCH below. Reset to "main" when done.
-SKILLS_BRANCH="add-project-create-skill"
+SKILLS_BRANCH="main"
 init_args=(--agent claude-code --yes)
 if [[ "$SKILLS_BRANCH" != "main" ]]; then
   init_args+=(--branch "$SKILLS_BRANCH")
