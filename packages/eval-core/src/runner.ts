@@ -317,12 +317,19 @@ async function runAssertions(
     try {
       const outcome = await fn(context);
       const passed = Boolean(outcome.passed);
-      results[name] = passed;
+      const skipped = Boolean(outcome.skipped);
+      // Skipped assertions (e.g. LLM-as-judge with no ANTHROPIC_API_KEY) are
+      // logged for visibility but excluded from `results`, so they do not
+      // affect the gate's pass/fail or score.
+      if (!skipped) {
+        results[name] = passed;
+      }
       logs[name] = {
         passed,
         durationMs: Date.now() - started,
         message: outcome.message,
         details: outcome.details,
+        ...(skipped ? { skipped: true } : {}),
       };
     } catch (error) {
       results[name] = false;

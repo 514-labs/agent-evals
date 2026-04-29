@@ -11,6 +11,13 @@ export interface AssertionResult {
   passed: boolean;
   message?: string;
   details?: Record<string, unknown>;
+  /**
+   * When true, the assertion did not actually run (e.g. an LLM-as-judge
+   * skipped because ANTHROPIC_API_KEY was not set). The runner records the
+   * log entry but excludes the result from gate scoring, so non-Anthropic
+   * agents (codex, cursor) are not penalized by judges they cannot run.
+   */
+  skipped?: boolean;
 }
 
 export interface AssertionLog {
@@ -19,6 +26,7 @@ export interface AssertionLog {
   message?: string;
   error?: string;
   details?: Record<string, unknown>;
+  skipped?: boolean;
 }
 
 export interface ProductionThresholds {

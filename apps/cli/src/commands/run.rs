@@ -350,6 +350,15 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
     preflight::check_docker()?;
     let docker = preflight::connect_docker()?;
+    // 514-1358: LLM-as-judge assertions need ANTHROPIC_API_KEY. If it's not
+    // in the environment, the runner skips judges and excludes them from
+    // gate scoring (see judge.ts:missingKeyResult). Warn once so users on
+    // codex / cursor know without having to dig into the assertion log.
+    if std::env::var_os("ANTHROPIC_API_KEY").is_none() {
+        warn!(
+            "ANTHROPIC_API_KEY is not set: LLM-as-judge assertions (per-scenario llmJudge and meta-judges) will be skipped. Gate scoring is unaffected; set the key to enable judge verdicts."
+        );
+    }
     info!(scenario, harness = %args.harness, "Starting eval run");
     run_single(
         &docker,

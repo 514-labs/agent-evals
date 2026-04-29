@@ -350,7 +350,7 @@ Rules:
 
 - Use `llmJudge` only when no deterministic check would work. Most assertions should remain deterministic.
 - Tools are server-side read-only; the judge cannot mutate state.
-- The judge fails closed if `ANTHROPIC_API_KEY` is unset; deterministic assertions in the same gate still run.
+- Without `ANTHROPIC_API_KEY` (codex or cursor agents), the judge **skips** rather than fails. The runner logs the skip and excludes it from gate scoring, so non-Anthropic users are not penalized. Deterministic assertions in the same gate still run normally.
 - Write the rubric like a doc: pass condition first, fail conditions and `categories` second, "be decisive, require evidence" third.
 
 Two cross-scenario **meta-judges** (`agent-did-not-cheat`, `eval-or-product-concerns`) run automatically on every scenario as advisory signals and surface in `meta` of the assertion log without affecting gate scores. Opt out per-scenario in `scenario.json` (`"metaJudges": { "agent-did-not-cheat": false }`) or globally via `EVAL_DISABLE_META_JUDGES=1`. To **add a new meta-judge**, drop a folder under `meta-judges/<id>/`; see [meta-judges/README.md](../../../../meta-judges/README.md).

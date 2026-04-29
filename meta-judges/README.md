@@ -67,6 +67,10 @@ Per scenario, set in `scenarios/<id>/scenario.json`:
 
 Globally for a single run, set `EVAL_DISABLE_META_JUDGES=1` before invoking the eval.
 
+## Without ANTHROPIC_API_KEY
+
+Meta-judges (and per-scenario `llmJudge` assertions) need `ANTHROPIC_API_KEY`. Agents run with codex or cursor often have no Anthropic key set, and that is fine: the runner **skips** the judge with a clear message in the assertion log, and excludes the skip from gate scoring. Non-Anthropic users keep their original deterministic-only score. The CLI prints a one-line warning at run start so users know judges are not firing.
+
 ## Adding a new meta-judge
 
 A meta-judge is a folder; the runtime discovers it automatically. No code change to `eval-core`.

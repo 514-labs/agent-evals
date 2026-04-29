@@ -140,9 +140,14 @@ function missingKeyResult(model: string, samples: number): AssertionResult {
     toolCalls: [],
     error: "missing-api-key",
   };
+  // Skipped, not failed: the runner excludes skipped results from gate
+  // scoring, so non-Anthropic agents (codex, cursor) without
+  // ANTHROPIC_API_KEY are not penalized by judges they cannot run. Set the
+  // key to enable judges; the run continues either way.
   return {
-    passed: false,
-    message: "ANTHROPIC_API_KEY not set; judge skipped.",
+    passed: true,
+    skipped: true,
+    message: "Judge skipped: ANTHROPIC_API_KEY not set. Set it to enable LLM-as-judge assertions.",
     details: { judge: details },
   };
 }

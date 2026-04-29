@@ -36,10 +36,11 @@ function fakeContext(env: Record<string, string | undefined> = {}): AssertionCon
   };
 }
 
-test("missing ANTHROPIC_API_KEY fails closed without throwing", async () => {
+test("missing ANTHROPIC_API_KEY skips without throwing or penalizing", async () => {
   const judge = llmJudge({ rubric: "test" });
   const result = await judge(fakeContext());
-  assert.equal(result.passed, false);
+  // Skipped, not failed: the runner excludes skipped results from scoring.
+  assert.equal(result.skipped, true);
   assert.match(String(result.message), /ANTHROPIC_API_KEY not set/);
   const details = (result.details as { judge: JudgeRunDetails }).judge;
   assert.equal(details.error, "missing-api-key");

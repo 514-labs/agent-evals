@@ -104,12 +104,13 @@ async function runEval(options: {
   }
 }
 
-test("meta-judges run and fail-closed without ANTHROPIC_API_KEY", async () => {
+test("meta-judges skip cleanly without ANTHROPIC_API_KEY (non-Anthropic agents)", async () => {
   const { output, assertionLogs } = await runEval({});
   assert.ok(assertionLogs.meta, "expected meta slot");
   const fakeJudgeLog = assertionLogs.meta?.fake_judge;
   assert.ok(fakeJudgeLog, "expected fake_judge entry under meta");
-  assert.equal(fakeJudgeLog.passed, false);
+  // Skipped, not failed: codex / cursor users are not penalized.
+  assert.equal(fakeJudgeLog.skipped, true);
   assert.match(String(fakeJudgeLog.message), /ANTHROPIC_API_KEY not set/);
   // Meta does NOT affect gate scoring.
   assert.equal(output.normalized_score, 1);
@@ -150,4 +151,60 @@ test("score isolation: with vs without meta-judges, gate scores are identical", 
   assert.equal(withMeta.output.highest_gate, withoutMeta.output.highest_gate);
   assert.equal(withMeta.output.normalized_score, withoutMeta.output.normalized_score);
   assert.deepEqual(withMeta.output.gates, withoutMeta.output.gates);
+});
+
+test("per-scenario judge skipped without ANTHROPIC_API_KEY does not penalize the gate", async () => {
+  // Build a fixture with a per-scenario llmJudge in correct.ts. Because
+  // ANTHROPIC_API_KEY is unset, the judge skips. The gate should pass as
+  // if the judge were never authored, matching pre-LLM-judge behavior for
+  // non-Anthropic agents (codex, cursor).
+  const tmpRoot = mkdtempSync(join(tmpdir(), "judge-skip-"));
+  const assertionsDir = join(tmpRoot, "assertions");
+  mkdirSync(assertionsDir);
+  const workspaceRoot = join(tmpRoot, "workspace");
+  mkdirSync(workspaceRoot);
+  writeFileSync(
+    join(tmpRoot, "scenario.json"),
+    JSON.stringify({ id: "skip-test", tier: "tier-1", infrastructure: { services: [] } }),
+  );
+  writeFileSync(
+    join(assertionsDir, "correct.ts"),
+    `import { llmJudge } from "@dec-bench/eval-core";
+export const judged_quality = llmJudge({
+  rubric: "always pass",
+  inputs: [],
+});
+`,
+  );
+
+  try {
+    const result = await runGateEvaluation({
+      assertionsDir,
+      context: fakeContext({}),
+      processExitCode: 0,
+      workspaceRoot,
+      secretScanRoot: workspaceRoot,
+      scenario: "skip-test",
+      version: "v0",
+      harness: "base-rt",
+      agent: "codex",
+      model: "test",
+      efficiency: { wallClockSeconds: 0, agentSteps: 0, tokensUsed: 0, llmApiCostUsd: 0 },
+      disableMetaJudges: true,
+    });
+
+    const correctGate = result.output.gates.correct;
+    assert.equal(correctGate.passed, true, "gate must pass when only assertion is a skipped judge");
+    // Skipped result must NOT appear in the boolean results map.
+    assert.ok(
+      !("judged_quality" in correctGate.scenario),
+      `judged_quality should be excluded from scenario results, got: ${JSON.stringify(correctGate.scenario)}`,
+    );
+    // But it MUST appear in the assertion log with skipped: true.
+    const log = result.assertionLogs.correct.scenario.judged_quality;
+    assert.ok(log, "judged_quality log entry expected");
+    assert.equal(log.skipped, true);
+  } finally {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  }
 });

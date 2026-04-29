@@ -491,7 +491,7 @@ Rules:
 
 - Default to deterministic. Reach for `llmJudge` only when no deterministic check can be written.
 - Tools are read-only, server-enforced. The judge cannot mutate state.
-- The judge fails closed if `ANTHROPIC_API_KEY` is unset; deterministic assertions in the same gate still run.
+- Without `ANTHROPIC_API_KEY` (e.g. agents run with codex or cursor), the judge **skips** rather than fails: the runner records the skip in the assertion log but excludes it from gate scoring, so non-Anthropic users are not penalized. The CLI emits a one-line warning at run start. Deterministic assertions in the same gate still run normally.
 - Write the rubric like a doc: state the pass condition first, then the failing categories, then how strict to be. Bias toward "pass unless evidence is concrete."
 
 #### Reviewing judge verdicts
