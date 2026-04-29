@@ -15,7 +15,12 @@ async function measureEndpoint(
 }
 
 export async function top_products_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
-  const result = await measureEndpoint(ctx, "top-products", ["/api/top-products", "/api/topProducts"]);
+  const result = await measureEndpoint(ctx, "top-products", [
+    "/api/top-products",
+    "/api/topProducts",
+    "/top-products",
+    "/topProducts",
+  ]);
   if (!result) {
     return { passed: false, message: "Top products endpoint did not respond.", details: {} };
   }
@@ -28,7 +33,12 @@ export async function top_products_under_200ms(ctx: AssertionContext): Promise<A
 }
 
 export async function funnel_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
-  const result = await measureEndpoint(ctx, "funnel", ["/api/funnel", "/api/conversion-funnel"]);
+  const result = await measureEndpoint(ctx, "funnel", [
+    "/api/funnel",
+    "/api/conversion-funnel",
+    "/funnel",
+    "/conversion-funnel",
+  ]);
   if (!result) {
     return { passed: false, message: "Funnel endpoint did not respond.", details: {} };
   }
@@ -41,7 +51,12 @@ export async function funnel_under_200ms(ctx: AssertionContext): Promise<Asserti
 }
 
 export async function hourly_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
-  const result = await measureEndpoint(ctx, "hourly", ["/api/hourly", "/api/hourly-activity"]);
+  const result = await measureEndpoint(ctx, "hourly", [
+    "/api/hourly",
+    "/api/hourly-activity",
+    "/hourly",
+    "/hourly-activity",
+  ]);
   if (!result) {
     return { passed: false, message: "Hourly endpoint did not respond.", details: {} };
   }

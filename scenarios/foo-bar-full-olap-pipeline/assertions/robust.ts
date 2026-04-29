@@ -74,10 +74,23 @@ export async function live_ingest_works(ctx: AssertionContext): Promise<Assertio
 }
 
 export async function api_returns_valid_json(ctx: AssertionContext): Promise<AssertionResult> {
+  // Path lists mirror the broader-tolerance pattern used in functional/correct:
+  // accept both `/api/<name>` (Express/Tinybird convention) and `/<name>`
+  // (Moose Consumption API convention) so an agent's framework choice doesn't
+  // gate this assertion. Order matters — first match wins.
   const endpoints: Array<{ name: string; paths: string[] }> = [
-    { name: "top-products", paths: ["/api/top-products", "/api/topProducts"] },
-    { name: "funnel", paths: ["/api/funnel", "/api/conversion-funnel"] },
-    { name: "hourly", paths: ["/api/hourly", "/api/hourly-activity"] },
+    {
+      name: "top-products",
+      paths: ["/api/top-products", "/api/topProducts", "/top-products", "/topProducts"],
+    },
+    {
+      name: "funnel",
+      paths: ["/api/funnel", "/api/conversion-funnel", "/funnel", "/conversion-funnel"],
+    },
+    {
+      name: "hourly",
+      paths: ["/api/hourly", "/api/hourly-activity", "/hourly", "/hourly-activity"],
+    },
   ];
   const results: Array<{ endpoint: string; validJson: boolean; status?: number; url?: string }> = [];
   for (const { name, paths } of endpoints) {
@@ -99,47 +112,55 @@ export async function api_returns_valid_json(ctx: AssertionContext): Promise<Ass
   };
 }
 
-export async function redpanda_topic_exists(): Promise<AssertionResult> {
-  // Try to reach Redpanda admin on the usual ports (9644) or kafka on 9092
-  // We can't easily list topics without kafka tooling, so just check broker reachability
-  const broker = "localhost:9092";
-  try {
-    // net.TcpStream approach via node fetch won't work for kafka. Use a raw socket.
-    const net = await import("node:net");
-    return await new Promise<AssertionResult>((resolve) => {
+export async function redpanda_topic_exists(ctx: AssertionContext): Promise<AssertionResult> {
+  // Probe a list of broker candidates and pass if any are reachable.
+  // 9092 is the scenario default (set via REDPANDA_BROKER env);
+  // 19092 is moose's `redpanda_config.broker` default in moose.config.toml,
+  // which the moose-initialized harness uses unmodified.
+  const candidates = Array.from(
+    new Set(
+      [ctx.env("REDPANDA_BROKER") ?? "localhost:9092", "localhost:9092", "localhost:19092"].filter(
+        Boolean,
+      ),
+    ),
+  );
+
+  const net = await import("node:net");
+  const tryBroker = (broker: string): Promise<boolean> =>
+    new Promise((resolve) => {
       const [host, portStr] = broker.split(":");
       const port = Number(portStr);
       const socket = new net.Socket();
       const timeout = setTimeout(() => {
         socket.destroy();
-        resolve({
-          passed: false,
-          message: `Redpanda broker ${broker} unreachable.`,
-          details: { broker },
-        });
+        resolve(false);
       }, 2000);
       socket.once("connect", () => {
         clearTimeout(timeout);
         socket.destroy();
-        resolve({
-          passed: true,
-          message: `Redpanda broker reachable at ${broker}.`,
-          details: { broker },
-        });
+        resolve(true);
       });
       socket.once("error", () => {
         clearTimeout(timeout);
-        resolve({
-          passed: false,
-          message: `Redpanda broker ${broker} connection failed.`,
-          details: { broker },
-        });
+        resolve(false);
       });
       socket.connect(port, host);
     });
-  } catch (e) {
-    return { passed: false, message: "Redpanda check failed.", details: { error: String(e) } };
+
+  for (const broker of candidates) {
+    if (await tryBroker(broker)) {
+      return {
+        passed: true,
+        message: `Redpanda broker reachable at ${broker}.`,
+        details: { broker, triedBrokers: candidates },
+      };
+    }
   }
+  return {
+    passed: false,
+    message: `No Redpanda broker reachable. Tried: ${candidates.join(", ")}.`,
+    details: { triedBrokers: candidates },
+  };
 }
 
 export async function no_hardcoded_connection_strings(): Promise<AssertionResult> {

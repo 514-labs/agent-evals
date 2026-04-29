@@ -446,11 +446,19 @@ async function probeApi(
 
   // Fallback: legacy port × path scan. Preserves base-rt / olap-for-swe
   // behavior where agents typically pick :3000.
+  //
+  // Prefer 2xx over 4xx across the candidate list. Otherwise an unrelated
+  // 404 on the first candidate (e.g. an alias path the agent didn't pick)
+  // would short-circuit the loop and mask a 200 on a later alias. Stops
+  // immediately on the first 2xx since we have what we want.
+  let firstNon5xx: ApiProbeResult | null = null;
   for (const url of fallbackUrls) {
     const result = await tryUrl(url, init);
-    if (result) return result;
+    if (!result) continue;
+    if (result.response.ok) return result;
+    if (!firstNon5xx) firstNon5xx = result;
   }
-  return null;
+  return firstNon5xx;
 }
 
 /**
