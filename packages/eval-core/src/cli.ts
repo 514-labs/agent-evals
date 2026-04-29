@@ -63,16 +63,23 @@ async function main(): Promise<void> {
         }
       : undefined;
 
-  const handle = createAssertionContext(process.env);
+  const workspaceRoot = process.env.EVAL_WORKSPACE_ROOT ?? "/workspace";
+  const handle = createAssertionContext(process.env, {
+    sessionLogPath: process.env.EVAL_SESSION_LOG_PATH,
+    promptPath: process.env.EVAL_PROMPT_PATH,
+    workspaceRoot,
+  });
   try {
     const { output, assertionLogs } = await runGateEvaluation({
       assertionsDir,
       context: handle.context,
       processExitCode,
       sessionLogPath: process.env.EVAL_SESSION_LOG_PATH,
-      workspaceRoot: process.env.EVAL_WORKSPACE_ROOT ?? "/workspace",
-      secretScanRoot: process.env.EVAL_SECRET_SCAN_ROOT ?? process.env.EVAL_WORKSPACE_ROOT ?? "/workspace",
+      workspaceRoot,
+      secretScanRoot: process.env.EVAL_SECRET_SCAN_ROOT ?? workspaceRoot,
       idempotentRerunCommand: process.env.EVAL_IDEMPOTENT_RERUN_COMMAND,
+      metaJudgesDir: process.env.EVAL_META_JUDGES_DIR,
+      disableMetaJudges: process.env.EVAL_DISABLE_META_JUDGES === "1",
       scenario: process.env.EVAL_SCENARIO ?? "unknown",
       version: process.env.EVAL_VERSION ?? "0.0.0",
       harness: process.env.EVAL_HARNESS ?? "base-rt",

@@ -41,7 +41,9 @@ export type AssertionLogOutput = Record<
     core: AssertionLogMap;
     scenario: AssertionLogMap;
   }
->;
+> & {
+  meta?: AssertionLogMap;
+};
 
 export interface GateResult {
   passed: boolean;

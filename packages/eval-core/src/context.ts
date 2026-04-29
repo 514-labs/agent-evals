@@ -15,6 +15,9 @@ export interface AssertionContext {
   pg: PgClient;
   clickhouse: ClickHouseClient;
   env: (key: string) => string | undefined;
+  sessionLogPath?: string;
+  promptPath?: string;
+  workspaceRoot?: string;
 }
 
 export interface AssertionContextHandle {
@@ -22,8 +25,15 @@ export interface AssertionContextHandle {
   close: () => Promise<void>;
 }
 
+export interface AssertionContextOptions {
+  sessionLogPath?: string;
+  promptPath?: string;
+  workspaceRoot?: string;
+}
+
 export function createAssertionContext(
   env: NodeJS.ProcessEnv = process.env,
+  options: AssertionContextOptions = {},
 ): AssertionContextHandle {
   const postgresUrl = env.POSTGRES_URL;
   const clickhouseUrl = env.CLICKHOUSE_URL;
@@ -41,6 +51,9 @@ export function createAssertionContext(
         : NOOP_PG,
       clickhouse,
       env: (key: string) => env[key],
+      sessionLogPath: options.sessionLogPath,
+      promptPath: options.promptPath,
+      workspaceRoot: options.workspaceRoot,
     },
     close: async () => {
       if (pgPool) await pgPool.end();

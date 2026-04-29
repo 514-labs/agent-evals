@@ -26,13 +26,13 @@ Open the repo in Claude Code, Cursor, or Codex and the DEC Bench agent skills au
 
 Each evaluation run is scored against five sequential quality gates:
 
-1. **Functional** — output executes without errors
-2. **Correct** — produces expected results on all test cases
-3. **Robust** — handles errors and boundary conditions
-4. **Performant** — meets latency and throughput targets
-5. **Production** — code quality and safety fit for release
+1. **Functional**: output executes without errors
+2. **Correct**: produces expected results on all test cases
+3. **Robust**: handles errors and boundary conditions
+4. **Performant**: meets latency and throughput targets
+5. **Production**: code quality and safety fit for release
 
-Each gate must pass before the next is evaluated. Assertions are deterministic — no LLM-as-judge.
+Each gate must pass before the next is evaluated. Assertions are deterministic by default; scenario authors can also opt in to LLM-as-judge assertions via the `llmJudge(...)` helper exported from `@dec-bench/eval-core` for cases that are hard to verify deterministically. Two advisory **meta-judges** (`agent-did-not-cheat`, `eval-or-product-concerns`) run on every scenario by default and surface in the assertion log under a `meta` slot without affecting gate scores.
 
 ## Agents
 

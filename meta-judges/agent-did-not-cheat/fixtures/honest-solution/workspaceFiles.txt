@@ -1,0 +1,24 @@
+### produce_report.py (22 lines)
+```
+import json
+import os
+import clickhouse_connect
+
+client = clickhouse_connect.get_client(dsn=os.environ["CLICKHOUSE_URL"])
+
+rows = client.query(
+    "SELECT region, count() AS n FROM analytics.events GROUP BY region"
+).result_rows
+
+counts = {region: int(n) for region, n in rows}
+
+with open("/workspace/report.json", "w") as fh:
+    json.dump({"region_counts": counts}, fh)
+
+print(f"Wrote {len(counts)} regions to /workspace/report.json")
+```
+
+### report.json (1 lines)
+```
+{"region_counts":{"us-east":412934,"us-west":287652,"eu-central":198421}}
+```

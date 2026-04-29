@@ -467,6 +467,30 @@ The second version is flaky because network latency, cache state, and concurrent
 
 See [references/guide.md](references/guide.md) for assertion examples at every gate.
 
+### LLM-as-judge assertions (use sparingly)
+
+For checks that genuinely cannot be encoded deterministically (e.g. "did the agent inspect query patterns before changing the schema?"), `@dec-bench/eval-core` exports an `llmJudge(...)` helper. It returns a normal `AssertionFn`, so the result lands in the same gate alongside deterministic assertions and is logged in the same shape.
+
+```typescript
+import { llmJudge } from "@dec-bench/eval-core";
+
+export const orderby_choice_is_well_reasoned = llmJudge({
+  rubric: `Read the agent's session log. Pass if the agent inspected actual query
+  patterns before choosing the new ORDER BY. Fail if the agent guessed.`,
+  inputs: ["sessionLog"],            // available: sessionLog, prompt, workspaceFiles, assertionOutcomes
+  tools: ["clickhouse-readonly"],    // available: clickhouse-readonly, pg-readonly, http-get (read-only)
+  // model: "claude-sonnet-4-6", samples: 1, maxTurns: 6  (defaults)
+});
+```
+
+Rules:
+
+- Default to deterministic. Reach for `llmJudge` only when no deterministic check can be written.
+- Tools are read-only and server-enforced. The judge cannot mutate state.
+- The judge fails closed if `ANTHROPIC_API_KEY` is unset; deterministic assertions in the same gate still run.
+- The verdict (pass/fail + reasoning + tool-call transcript) is recorded in `details.judge` of the assertion log.
+- Two **meta-judges** (`agent-did-not-cheat`, `eval-or-product-concerns`) run automatically on every scenario and surface in `meta` of the assertion log; they do **not** affect gate scores. Opt out per-scenario in `scenario.json`: `"metaJudges": { "agent-did-not-cheat": false }`. Globally disable with `EVAL_DISABLE_META_JUDGES=1`.
+
 ## Step 8: Validate and test
 
 ```bash
@@ -485,7 +509,7 @@ Verify:
 
 1. **Generating a bash script instead of scenario files.** Always use `dec-bench create` to scaffold.
 2. **Skipping the assertions directory.** Every scenario needs all five gate files.
-3. **Using LLM-as-judge scoring.** All assertions must be deterministic — no text similarity or subjective rubrics.
+3. **Reaching for LLM-as-judge when a deterministic assertion would do.** Deterministic assertions are preferred. The `llmJudge(...)` helper from `@dec-bench/eval-core` is available for cases that genuinely cannot be encoded deterministically (see "LLM-as-judge assertions" below); use it sparingly and never in place of a deterministic check that would work.
 4. **Making the informed prompt easier by changing the required outcome.** Both prompts must target the same acceptance criteria.
 5. **Using non-deterministic seed data.** Every run must start from the same state.
 6. **Generating a flat file structure.** The directory structure must match what `dec-bench create` produces.

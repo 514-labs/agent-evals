@@ -26,6 +26,11 @@ import type {
 import { createEvalOutput } from "./output.js";
 import { computeScore } from "./score.js";
 import { IGNORED_SCAN_DIRS, IGNORED_SCAN_FILENAMES } from "./workspace-scan.js";
+import {
+  applyMetaJudgeFilter,
+  discoverMetaJudges,
+} from "./meta-judge-discovery.js";
+import { flattenAssertionOutcomes } from "./judge-inputs.js";
 
 const GATES: GateName[] = ["functional", "correct", "robust", "performant", "production"];
 const PASS_THRESHOLD = 0.8;
@@ -119,6 +124,8 @@ export interface GateRunnerOptions {
   baselineMetrics?: BaselineMetrics;
   referenceMetrics?: ReferenceMetrics;
   observedMetrics?: ObservedMetrics;
+  metaJudgesDir?: string;
+  disableMetaJudges?: boolean;
 }
 
 export async function runGateEvaluation(
@@ -181,6 +188,24 @@ export async function runGateEvaluation(
       highestGate += 1;
     } else {
       blocked = true;
+    }
+  }
+
+  if (options.metaJudgesDir && !options.disableMetaJudges) {
+    const metaJudgeOptOut = loadScenarioMetaJudgesConfig(options.assertionsDir);
+    const discoveredMeta = discoverMetaJudges(options.metaJudgesDir);
+    const activeMeta = applyMetaJudgeFilter(discoveredMeta, {
+      scenarioOptOut: metaJudgeOptOut,
+      globalDisable: false,
+    });
+    if (activeMeta.length > 0) {
+      const outcomes = flattenAssertionOutcomes(assertionLogs);
+      const judgeFns: Record<string, AssertionFn> = {};
+      for (const judge of activeMeta) {
+        judgeFns[judgeIdToAssertionName(judge.id)] = judge.fn(outcomes);
+      }
+      const meta = await runAssertions(judgeFns, options.context);
+      assertionLogs.meta = meta.logs;
     }
   }
 
@@ -552,6 +577,21 @@ interface WorkspaceQualityFile {
 }
 
 type PartialScenarioDefinition = Pick<Scenario, "infrastructure" | "tier" | "productionChecks">;
+
+function loadScenarioMetaJudgesConfig(assertionsDir: string): Record<string, boolean> {
+  const raw = safeRead(join(assertionsDir, "..", "scenario.json"));
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as { metaJudges?: Record<string, boolean> };
+    return parsed.metaJudges ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function judgeIdToAssertionName(id: string): string {
+  return id.replace(/-/g, "_");
+}
 
 function loadScenarioProductionConfig(assertionsDir: string): ScenarioProductionConfig {
   const raw = safeRead(join(assertionsDir, "..", "scenario.json"));
