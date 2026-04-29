@@ -140,7 +140,7 @@ Skills are checked into the repo at [`.claude/skills/`](./.claude/skills) and [`
 
 `dec-bench-local-override` guides contributors through substituting a locally-built artifact (moose-cli, moose-lib, ClickHouse, a Claude skill, etc.) into a scenario image to test changes before a release.
 
-The canonical source for skill content is [`.agents/skills/`](./.agents/skills). The `.claude/skills/dec-bench-*` entries are symlinks into it, so edits to one show up in the other automatically.
+The canonical source for skill content is [`.agents/skills/`](./.agents/skills). After editing a skill, run [`tools/sync-skills.sh`](./tools/sync-skills.sh) to mirror it into `.claude/skills/`.
 
 ## Testing
 
