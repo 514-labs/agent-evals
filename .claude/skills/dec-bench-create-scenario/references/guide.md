@@ -456,16 +456,6 @@ Use it when you need a clean reference for prompt style, assertion granularity, 
 
 ## Skill Distribution
 
-This reference is shared across the DEC Bench skills:
+DEC Bench skills are checked into the repo and auto-load when an agent opens it: Claude Code reads `.claude/skills/` (its docs-sanctioned discovery path), Cursor and Codex read `AGENTS.md` natively. The `.agents/skills/dec-bench-*` entries are symlinks back into `.claude/skills/`, so the `npx skills add 514-labs/agent-evals` external install path keeps working unchanged.
 
-From the repo root:
-
-```bash
-npx skills add . -a claude-code -a cursor -a codex
-```
-
-To list available skills without installing:
-
-```bash
-npx skills add . --list
-```
+Edits to the canonical content under `.claude/skills/<name>/` are visible at both paths automatically. No sync step is required.
