@@ -67,10 +67,15 @@ impl FromStr for Agent {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::all().find(|a| a.slug() == s).ok_or_else(|| {
-            let known = Self::all().map(|a| a.slug()).collect::<Vec<_>>().join(", ");
-            format!("Unknown agent '{s}'. Available agents: {known}")
-        })
+        Self::all()
+            .find(|a| a.slug() == s)
+            .ok_or_else(|| {
+                let known = Self::all()
+                    .map(|a| a.slug())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("Unknown agent '{s}'. Available agents: {known}")
+            })
     }
 }
 
@@ -139,30 +144,21 @@ mod tests {
     #[test]
     fn all_agents_have_nonempty_required_keys() {
         for agent in Agent::all() {
-            assert!(
-                !agent.required_keys().is_empty(),
-                "{agent} has no required keys"
-            );
+            assert!(!agent.required_keys().is_empty(), "{agent} has no required keys");
         }
     }
 
     #[test]
     fn all_agents_have_nonempty_model_prefixes() {
         for agent in Agent::all() {
-            assert!(
-                !agent.model_prefixes().is_empty(),
-                "{agent} has no model prefixes"
-            );
+            assert!(!agent.model_prefixes().is_empty(), "{agent} has no model prefixes");
         }
     }
 
     #[test]
     fn all_agents_have_nonempty_default_models() {
         for agent in Agent::all() {
-            assert!(
-                !agent.default_models().is_empty(),
-                "{agent} has no default models"
-            );
+            assert!(!agent.default_models().is_empty(), "{agent} has no default models");
         }
     }
 

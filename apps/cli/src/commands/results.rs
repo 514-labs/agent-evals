@@ -141,8 +141,8 @@ fn load_results(dir: &Path) -> Result<Vec<ResultEntry>> {
     let mut best_by_base: BTreeMap<String, (u8, ResultEntry)> = BTreeMap::new();
 
     while let Some(current) = stack.pop() {
-        for entry in fs::read_dir(&current)
-            .with_context(|| format!("Failed to read {}", current.display()))?
+        for entry in
+            fs::read_dir(&current).with_context(|| format!("Failed to read {}", current.display()))?
         {
             let entry = entry?;
             let path = entry.path();
@@ -228,11 +228,7 @@ fn is_result_candidate(name: &str) -> bool {
 }
 
 fn candidate_priority(name: &str) -> u8 {
-    if name.ends_with(".json") {
-        2
-    } else {
-        1
-    }
+    if name.ends_with(".json") { 2 } else { 1 }
 }
 
 fn canonical_result_base(file_name: &str) -> String {
@@ -318,10 +314,7 @@ fn collect_artifacts(result_path: &Path) -> ArtifactPaths {
         ),
         infra_stdout: first_existing_path(
             dir,
-            &[
-                format!("{base}.infra.stdout"),
-                format!("{base}.infra.stdout.log"),
-            ],
+            &[format!("{base}.infra.stdout"), format!("{base}.infra.stdout.log")],
             |_| true,
         ),
         stderr: first_existing_path(
@@ -373,16 +366,8 @@ fn print_table(entries: &[ResultEntry]) {
             entry.result.harness.as_deref().unwrap_or("-"),
             entry.result.agent.as_deref().unwrap_or("-"),
             entry.result.model.as_deref().unwrap_or("-"),
-            entry
-                .result
-                .highest_gate
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "-".to_string()),
-            entry
-                .result
-                .normalized_score
-                .map(|v| format!("{v:.2}"))
-                .unwrap_or_else(|| "-".to_string()),
+            entry.result.highest_gate.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string()),
+            entry.result.normalized_score.map(|v| format!("{v:.2}")).unwrap_or_else(|| "-".to_string()),
             entry.file_name
         );
     }
@@ -392,36 +377,19 @@ fn print_detail_table(entry: &ResultEntry) {
     let use_ansi = stdout_supports_ansi();
     println!("{}", "-".repeat(72));
     println!("{}", format_block_heading("Selected run", use_ansi));
-    println!(
-        "Run ID: {}",
-        format_emphasized_value(&entry.run_id, use_ansi)
-    );
-    println!(
-        "Scenario: {}",
-        entry.result.scenario.as_deref().unwrap_or("-")
-    );
-    println!(
-        "Harness: {}",
-        entry.result.harness.as_deref().unwrap_or("-")
-    );
+    println!("Run ID: {}", format_emphasized_value(&entry.run_id, use_ansi));
+    println!("Scenario: {}", entry.result.scenario.as_deref().unwrap_or("-"));
+    println!("Harness: {}", entry.result.harness.as_deref().unwrap_or("-"));
     println!("Agent: {}", entry.result.agent.as_deref().unwrap_or("-"));
     println!("Model: {}", entry.result.model.as_deref().unwrap_or("-"));
-    println!(
-        "Version: {}",
-        entry.result.version.as_deref().unwrap_or("-")
-    );
+    println!("Version: {}", entry.result.version.as_deref().unwrap_or("-"));
     println!(
         "Highest gate: {}",
-        entry
-            .result
-            .highest_gate
-            .map(|v| v.to_string())
-            .unwrap_or_else(|| "-".to_string())
+        entry.result.highest_gate.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string())
     );
     println!(
         "Normalized score: {}",
-        entry
-            .result
+        entry.result
             .normalized_score
             .map(|v| format!("{v:.4}"))
             .unwrap_or_else(|| "-".to_string())
@@ -509,16 +477,8 @@ fn print_csv(entries: &[ResultEntry]) {
             entry.result.agent.as_deref().unwrap_or(""),
             entry.result.model.as_deref().unwrap_or(""),
             entry.result.version.as_deref().unwrap_or(""),
-            entry
-                .result
-                .highest_gate
-                .map(|v| v.to_string())
-                .unwrap_or_default(),
-            entry
-                .result
-                .normalized_score
-                .map(|v| format!("{v:.4}"))
-                .unwrap_or_default()
+            entry.result.highest_gate.map(|v| v.to_string()).unwrap_or_default(),
+            entry.result.normalized_score.map(|v| format!("{v:.4}")).unwrap_or_default()
         );
     }
 }
