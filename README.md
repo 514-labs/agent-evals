@@ -140,7 +140,7 @@ Skills are checked into the repo at [`.claude/skills/`](./.claude/skills) and [`
 
 `dec-bench-local-override` guides contributors through substituting a locally-built artifact (moose-cli, moose-lib, ClickHouse, a Claude skill, etc.) into a scenario image to test changes before a release.
 
-The canonical source for skill content is [`.agents/skills/`](./.agents/skills). After editing a skill, run [`tools/sync-skills.sh`](./tools/sync-skills.sh) to mirror it into `.claude/skills/`.
+The canonical source for skill content is [`.claude/skills/`](./.claude/skills) (Claude Code's docs-sanctioned discovery path). The `.agents/skills/dec-bench-*` entries are symlinks back into it, so the `npx skills add 514-labs/agent-evals` external install path keeps working without a separate copy.
 
 ## Testing
 

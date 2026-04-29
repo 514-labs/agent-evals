@@ -25,7 +25,7 @@ If the user wants to "get started", "run a scenario", or "test their setup", wal
 
 If anything in steps 1-3 is missing, tell the user exactly what to fix and stop. Do not continue with a broken setup.
 
-For the full quickstart skill, see `.claude/skills/dec-bench-quickstart/SKILL.md` (or `.agents/skills/dec-bench-quickstart/SKILL.md`).
+For the full quickstart skill, see `.claude/skills/dec-bench-quickstart/SKILL.md`.
 
 ## Scenario object model (read this before touching scenarios)
 
@@ -64,16 +64,16 @@ Skills are checked into this repo. They auto-load when a user opens the repo wit
 
 | User intent | Skill | Path |
 |-------------|-------|------|
-| "Get started", "install", "set up", "first run" | `dec-bench-quickstart` | `.agents/skills/dec-bench-quickstart/SKILL.md` |
-| "Run scenario", "run eval", "benchmark", "compare agents" | `dec-bench-run` | `.agents/skills/dec-bench-run/SKILL.md` |
-| "Create scenario", "new scenario", "add eval", "write a benchmark for" | `dec-bench-create-scenario` | `.agents/skills/dec-bench-create-scenario/SKILL.md` |
-| "Test a local moose-cli / ClickHouse / skill build before release" | `dec-bench-local-override` | `.agents/skills/dec-bench-local-override/SKILL.md` |
+| "Get started", "install", "set up", "first run" | `dec-bench-quickstart` | `.claude/skills/dec-bench-quickstart/SKILL.md` |
+| "Run scenario", "run eval", "benchmark", "compare agents" | `dec-bench-run` | `.claude/skills/dec-bench-run/SKILL.md` |
+| "Create scenario", "new scenario", "add eval", "write a benchmark for" | `dec-bench-create-scenario` | `.claude/skills/dec-bench-create-scenario/SKILL.md` |
+| "Test a local moose-cli / ClickHouse / skill build before release" | `dec-bench-local-override` | `.claude/skills/dec-bench-local-override/SKILL.md` |
 
-**Claude Code** auto-loads from `.claude/skills/` (mirrors of the same content kept in sync via `tools/sync-skills.sh`).
+**Claude Code** auto-loads from `.claude/skills/` (its docs-sanctioned discovery path).
 
 **Codex and Cursor** read this `AGENTS.md` natively. When the user's intent matches a row above, read the linked `SKILL.md` and follow it.
 
-If you edit any file under `.agents/skills/dec-bench-*`, run `tools/sync-skills.sh` to refresh `.claude/skills/`. The script is idempotent.
+The canonical content lives under `.claude/skills/dec-bench-*/`. The `.agents/skills/dec-bench-*` entries are symlinks pointing at it, so `npx skills add 514-labs/agent-evals` keeps working unchanged for external installs. Edit `.claude/skills/<name>/` and the change shows up at both paths.
 
 ## Linear Defaults
 
