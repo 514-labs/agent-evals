@@ -52,10 +52,7 @@ fn create_then_registry_add_scenario_generates_registry_entry() {
     });
     fs::write(
         &scenario_json_path,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&updated).expect("json")
-        ),
+        format!("{}\n", serde_json::to_string_pretty(&updated).expect("json")),
     )
     .expect("write scenario json");
 

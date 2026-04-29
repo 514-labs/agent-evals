@@ -83,19 +83,15 @@ fn results_command_outputs_json_for_result_files() {
         .arg("--format")
         .arg("json");
 
-    cmd.assert().success().stdout(predicate::str::contains(
-        "\"scenario\": \"ecommerce-pipeline-recovery\"",
-    ));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("\"scenario\": \"ecommerce-pipeline-recovery\""));
 }
 
 #[test]
 fn results_command_latest_prints_artifact_paths() {
     let temp = tempdir().expect("temp dir");
-    write_result_fixture(
-        temp.path(),
-        "foo-bar-csv-ingest",
-        "foo-bar-csv-ingest-1770000000",
-    );
+    write_result_fixture(temp.path(), "foo-bar-csv-ingest", "foo-bar-csv-ingest-1770000000");
     fs::write(
         temp.path().join("foo-bar-csv-ingest-1770000000.trace.json"),
         "{}\n",
@@ -113,9 +109,7 @@ fn results_command_latest_prints_artifact_paths() {
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains(
-            "Run ID: foo-bar-csv-ingest-1770000000",
-        ))
+        .stdout(predicate::str::contains("Run ID: foo-bar-csv-ingest-1770000000"))
         .stdout(predicate::str::contains("stdout:"))
         .stdout(predicate::str::contains("trace:"));
 }
@@ -155,9 +149,9 @@ fn run_command_requires_scenario_when_not_matrix() {
     let mut cmd = Command::cargo_bin("dec-bench").expect("binary");
     cmd.current_dir(repo_root()).arg("run");
 
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "--scenario is required unless --matrix is enabled",
-    ));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("--scenario is required unless --matrix is enabled"));
 }
 
 #[test]
@@ -248,11 +242,7 @@ fn validate_command_accepts_existing_scenario_with_registry_inputs() {
 fn audit_export_command_writes_manifest_for_target_run() {
     let results_dir = tempdir().expect("results dir");
     let audits_dir = tempdir().expect("audits dir");
-    write_result_fixture(
-        results_dir.path(),
-        "foo-bar-csv-ingest",
-        "foo-bar-csv-ingest-run1",
-    );
+    write_result_fixture(results_dir.path(), "foo-bar-csv-ingest", "foo-bar-csv-ingest-run1");
 
     let mut cmd = Command::cargo_bin("dec-bench").expect("binary");
     cmd.current_dir(repo_root())
@@ -271,21 +261,19 @@ fn audit_export_command_writes_manifest_for_target_run() {
         .success()
         .stdout(predicate::str::contains("Exported manifest:"));
 
-    assert!(audits_dir
-        .path()
-        .join("foo-bar-csv-ingest/foo-bar-csv-ingest-run1/manifest.json")
-        .exists());
+    assert!(
+        audits_dir
+            .path()
+            .join("foo-bar-csv-ingest/foo-bar-csv-ingest-run1/manifest.json")
+            .exists()
+    );
 }
 
 #[test]
 fn audit_open_dry_run_prints_target_url() {
     let results_dir = tempdir().expect("results dir");
     let audits_dir = tempdir().expect("audits dir");
-    write_result_fixture(
-        results_dir.path(),
-        "foo-bar-csv-ingest",
-        "foo-bar-csv-ingest-run2",
-    );
+    write_result_fixture(results_dir.path(), "foo-bar-csv-ingest", "foo-bar-csv-ingest-run2");
 
     let mut cmd = Command::cargo_bin("dec-bench").expect("binary");
     cmd.current_dir(repo_root())
@@ -306,9 +294,7 @@ fn audit_open_dry_run_prints_target_url() {
         .stdout(predicate::str::contains(
             "Audit URL: http://localhost:3000/audit/foo-bar-csv-ingest/foo-bar-csv-ingest-run2",
         ))
-        .stdout(predicate::str::contains(
-            "Dry run: skipping web server startup and browser launch.",
-        ));
+        .stdout(predicate::str::contains("Dry run: skipping web server startup and browser launch."));
 }
 
 #[test]
