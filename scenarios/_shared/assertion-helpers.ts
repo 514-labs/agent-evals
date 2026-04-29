@@ -391,6 +391,7 @@ export interface WarmupRetryResult {
   body: string;
   attempts: number;
   totalElapsedMs: number;
+  lastAttemptElapsedMs: number;
 }
 
 function isTransientResponse(status: number, body: string): boolean {
@@ -418,15 +419,18 @@ export async function fetchWithWarmupRetry(
   let lastStatus = 0;
   let lastBody = "";
   let lastError: string | null = null;
+  let lastAttemptElapsedMs = 0;
 
   while (true) {
     attempt += 1;
+    const attemptStarted = Date.now();
     try {
       const res = await fetch(url, {
         ...(init ?? {}),
         signal: AbortSignal.timeout(perAttemptTimeoutMs),
       });
       const body = await res.text();
+      lastAttemptElapsedMs = Date.now() - attemptStarted;
       lastStatus = res.status;
       lastBody = body;
       if (!isTransientResponse(res.status, body)) {
@@ -435,9 +439,11 @@ export async function fetchWithWarmupRetry(
           body,
           attempts: attempt,
           totalElapsedMs: Date.now() - started,
+          lastAttemptElapsedMs,
         };
       }
     } catch (err) {
+      lastAttemptElapsedMs = Date.now() - attemptStarted;
       lastError = (err as Error).message;
     }
 
@@ -455,6 +461,7 @@ export async function fetchWithWarmupRetry(
         body: lastBody,
         attempts: attempt,
         totalElapsedMs: Date.now() - started,
+        lastAttemptElapsedMs,
       };
     }
 

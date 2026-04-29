@@ -1,6 +1,8 @@
-Stand up a small HTTP service somewhere that satisfies the user need in
-`/data/user-need.md` — events go in, aggregated counts come out, with a health
-endpoint for monitoring.
+Stand up a healthy production deployment that ingests events and serves
+aggregated counts. The user wants to track events with `primaryKey` (string),
+`timestamp` (Unix seconds), and optional `optionalText` fields — events go in
+via an HTTP POST, aggregated counts come out via an HTTP GET, and a health
+endpoint exposes liveness for monitoring.
 
 This is the control-group harness. The container has Python, Node.js, and CLI
 access to ClickHouse, Redpanda, and Postgres locally, but **no managed-platform
@@ -40,9 +42,10 @@ Scenario contracts:
 4. `<url><health>` must return 200. The gate doesn't care about the body
    shape on this harness — it just probes liveness.
 
-5. Leave a note in `/workspace/README.md` recording the project name
-   (`$DEPLOY_PROJECT_NAME`) and the deployed URL, so the on-call can find
-   what you created.
+5. Leave a note in `/workspace/README.md` recording the project name you
+   chose and the deployed URL, so the on-call can find what you created.
+   Stand up a new deployment for this scenario — don't reuse some other
+   service that already exists.
 
 Don't commit any API keys or hosting credentials into a workspace file —
 the production gate scans for them. Assertions probe the URL independently

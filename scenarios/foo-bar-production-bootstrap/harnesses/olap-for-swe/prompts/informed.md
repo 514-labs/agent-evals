@@ -1,5 +1,8 @@
-Stand up a healthy production deployment on Boreal that ingests events and
-serves an aggregated read path matching the user need in `/data/user-need.md`.
+Stand up a healthy production deployment on 514 Hosting that ingests events and
+serves an aggregated read path. The user wants to track events with
+`primaryKey` (string), `timestamp` (Unix seconds), and optional `optionalText`
+fields, with an ingest endpoint, an aggregated-counts endpoint, and a health
+endpoint for monitoring.
 
 The `514` CLI is installed and authenticated against the eval org — env vars
 in your shell point it at the right backend, so don't pass `--api-url` or any
@@ -9,9 +12,11 @@ auth flags. The template is pinned: deploy `$DEPLOY_TEMPLATE`
 
 Scenario contracts:
 
-1. Create the project with `--name "$DEPLOY_PROJECT_NAME" --template "$DEPLOY_TEMPLATE"`.
-   Time budget for it to be serving traffic: `DEPLOY_HEALTHY_TIMEOUT_SECONDS`
-   (default 600s).
+1. Create a *new* project with `514 project create --name <your-name> --template "$DEPLOY_TEMPLATE"`.
+   Pick any unique, descriptive name — do **not** `514 project list` and reuse
+   an existing project, even if one looks like it would do the job. The
+   scenario is bootstrapping from scratch. Time budget for it to be serving
+   traffic: `DEPLOY_HEALTHY_TIMEOUT_SECONDS` (default 600s).
 
 2. Write the deployed base URL to `/workspace/.deployed-url`. The assertion
    runner reads this file to probe the URL independently — if it's missing or
@@ -26,9 +31,9 @@ Scenario contracts:
    BarAggregatedMV transform is async; allow a few seconds and retry if
    needed.
 
-4. Leave a note in `/workspace/README.md` recording the project name
-   (`$DEPLOY_PROJECT_NAME`), the template (`$DEPLOY_TEMPLATE`), and the
-   deployed URL, so the on-call can find what you created.
+4. Leave a note in `/workspace/README.md` recording the project name you
+   chose, the template (`$DEPLOY_TEMPLATE`), and the deployed URL, so the
+   on-call can find what you created.
 
 Don't commit `HOSTING_CLI_API_KEY` or any other secret into a workspace file —
 the production gate scans for them. The deployed URL must be reachable from

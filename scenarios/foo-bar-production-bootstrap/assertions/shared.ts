@@ -28,7 +28,6 @@ export interface ResolvedEndpoints {
   productionUrlPattern: RegExp;
   readmeTemplateRequired: boolean;
   deployTemplate: string | null;
-  deployProjectName: string | null;
 }
 
 interface EndpointOverlay {
@@ -119,7 +118,6 @@ export function resolveEndpoints(): ResolvedEndpoints {
 
   const readmeTemplateRequired = (process.env.EVAL_README_TEMPLATE_REQUIRED ?? "0") === "1";
   const deployTemplate = process.env.DEPLOY_TEMPLATE?.trim() || null;
-  const deployProjectName = process.env.DEPLOY_PROJECT_NAME?.trim() || null;
 
   return {
     base: trimSlash(base),
@@ -130,7 +128,6 @@ export function resolveEndpoints(): ResolvedEndpoints {
     productionUrlPattern,
     readmeTemplateRequired,
     deployTemplate,
-    deployProjectName,
   };
 }
 

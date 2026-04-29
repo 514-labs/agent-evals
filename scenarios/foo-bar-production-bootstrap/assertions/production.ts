@@ -26,41 +26,26 @@ export async function readme_records_deployment(): Promise<AssertionResult> {
   }
 
   const endpoints = tryResolveEndpoints();
-  // `EVAL_README_TEMPLATE_REQUIRED` is the harness's signal that the deploy
-  // is bound to a predetermined project name + template (the olap-for-swe
-  // case). When it's `1` we hold the README to the full contract. When it's
-  // `0` (e.g. base-rt — agent picks its own stack) we only require the URL.
+  // The agent picks its own project name; we don't pin one in env. The
+  // README still has to record the deployed URL (so an on-call can find it)
+  // and, when the harness pins a template, the template id (so we can tell
+  // an agent that deployed a different template). The URL hostname is the
+  // project name — requiring the URL implicitly requires the name.
   const templateRequired = endpoints?.readmeTemplateRequired ?? false;
   const expectedTemplate = endpoints?.deployTemplate ?? null;
-  const expectedProjectName = endpoints?.deployProjectName ?? null;
   const productionPatternSource = endpoints?.productionUrlPattern.source
     ?? "^https?://[^\\s)]+";
 
-  // Extract URLs from the README text and require at least one to match the
-  // harness's production-URL contract.
   const urlMatches = content.match(/https?:\/\/[^\s)\]]+/gi) ?? [];
   const productionRegex = new RegExp(productionPatternSource, "i");
   const hasUrl = urlMatches.some((u) => productionRegex.test(u));
 
-  // Project name + template are only checked when the harness pins them.
-  // Prefer the exact assigned `DEPLOY_PROJECT_NAME` (catches the
-  // "reuse a pre-existing project" leak) and fall back to the
-  // `eval-bootstrap-` family prefix if it's somehow unset.
-  const projectNameRegex = expectedProjectName
-    ? new RegExp(escapeRegex(expectedProjectName), "i")
-    : /eval-bootstrap-/i;
-  const hasProjectName = templateRequired
-    ? projectNameRegex.test(content)
-    : true;
   const hasTemplate = templateRequired && expectedTemplate
     ? new RegExp(escapeRegex(expectedTemplate), "i").test(content)
     : true;
 
-  const passed = hasProjectName && hasTemplate && hasUrl;
+  const passed = hasTemplate && hasUrl;
   const missing = [
-    templateRequired && !hasProjectName
-      ? `project name (${expectedProjectName ?? "eval-bootstrap-..."})`
-      : null,
     templateRequired && !hasTemplate
       ? `template id (${expectedTemplate ?? "<unset>"})`
       : null,
@@ -70,16 +55,14 @@ export async function readme_records_deployment(): Promise<AssertionResult> {
     passed,
     message: passed
       ? templateRequired
-        ? "README records project name, template, and deployed URL."
+        ? "README records template and deployed URL."
         : "README records a deployed URL matching the harness contract."
       : `README is missing: ${missing.join(", ")}.`,
     details: {
-      hasProjectName,
       hasTemplate,
       hasUrl,
       templateRequired,
       expectedTemplate,
-      expectedProjectName,
     },
   };
 }

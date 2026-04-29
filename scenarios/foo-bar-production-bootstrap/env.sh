@@ -16,10 +16,6 @@
 
 # ---------- Common across harnesses ----------
 
-# Per-run unique project name so parallel runs don't collide.
-export RUN_ID="${RUN_ID:-$(date +%s)}"
-export DEPLOY_PROJECT_NAME="eval-bootstrap-${RUN_ID}"
-
 # How long the agent has to reach a healthy deployment.
 export DEPLOY_HEALTHY_TIMEOUT_SECONDS="${DEPLOY_HEALTHY_TIMEOUT_SECONDS:-600}"
 
