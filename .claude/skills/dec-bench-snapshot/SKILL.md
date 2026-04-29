@@ -335,10 +335,6 @@ Set the `estimate` field to match (1=XS, 2=S, 3=M, 5=L, 8=XL).
 
 Moose-feedback sub-issues file against the **Moose** Linear team, not Evals; everything else stays on Evals (with parent linkage preserved).
 
-## Step 7: Status update
-
-If the user has a project that hosts this work (e.g. on Fiveonefour: "AXP 0.1 Research Preview"), post a short status update there pointing at the snapshot issue. Three lines max: what landed, what's open, link to snapshot + GCS tarball URL.
-
 ## Common mistakes
 
 - **Using "DEC Bench" or "DecBench" in Linear titles or labels.** Use AXP. Repo paths still say `dec-bench` — that's correct in code references.
