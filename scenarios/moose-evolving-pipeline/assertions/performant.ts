@@ -1,52 +1,31 @@
-import type { AssertionResult } from "@dec-bench/eval-core";
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-async function medianLatency(url: string, runs: number = 3): Promise<number> {
-  const timings: number[] = [];
-  for (let i = 0; i < runs; i++) {
-    const start = Date.now();
-    await fetch(url, { signal: AbortSignal.timeout(5000) });
-    timings.push(Date.now() - start);
-  }
-  timings.sort((a, b) => a - b);
-  return timings[Math.floor(timings.length / 2)];
-}
+import { probeEgress } from "../../_shared/assertion-helpers";
 
-async function findApiPort(): Promise<number | null> {
-  for (const port of [3000, 4000, 8080]) {
-    try {
-      const res = await fetch(`http://localhost:${port}/api/top-products`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      if (res.ok) return port;
-    } catch {}
+async function timeEgress(
+  ctx: AssertionContext,
+  name: string,
+  paths: string[],
+  label: string,
+): Promise<AssertionResult> {
+  const start = Date.now();
+  const result = await probeEgress(ctx, name, { paths, timeoutMs: 2000 });
+  const elapsed = Date.now() - start;
+  if (!result) {
+    return { passed: false, message: `${label} endpoint unreachable.`, details: { elapsedMs: elapsed } };
   }
-  return null;
-}
-
-export async function top_products_under_200ms(): Promise<AssertionResult> {
-  const port = await findApiPort();
-  if (!port) {
-    return { passed: false, message: "API server not reachable.", details: {} };
-  }
-  const median = await medianLatency(`http://localhost:${port}/api/top-products`);
-  const passed = median < 200;
+  const passed = elapsed < 200;
   return {
     passed,
-    message: passed ? `Top products median ${median}ms (< 200ms).` : `Top products median ${median}ms (>= 200ms).`,
-    details: { medianMs: median, port },
+    message: passed ? `${label} under 200ms (${elapsed}ms).` : `${label} took ${elapsed}ms (>= 200ms).`,
+    details: { url: result.url, elapsedMs: elapsed },
   };
 }
 
-export async function revenue_by_region_under_200ms(): Promise<AssertionResult> {
-  const port = await findApiPort();
-  if (!port) {
-    return { passed: false, message: "API server not reachable.", details: {} };
-  }
-  const median = await medianLatency(`http://localhost:${port}/api/revenue-by-region`);
-  const passed = median < 200;
-  return {
-    passed,
-    message: passed ? `Revenue by region median ${median}ms (< 200ms).` : `Revenue by region median ${median}ms (>= 200ms).`,
-    details: { medianMs: median, port },
-  };
+export async function top_products_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
+  return timeEgress(ctx, "top-products", ["/api/top-products"], "Top products");
+}
+
+export async function revenue_by_region_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
+  return timeEgress(ctx, "revenue-by-region", ["/api/revenue-by-region"], "Revenue by region");
 }
