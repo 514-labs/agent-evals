@@ -87,6 +87,10 @@ The canonical content lives under `.claude/skills/dec-bench-*/`. The `.agents/sk
 - Estimates use T-shirt sizes (XS=1, S=2, M=3, L=5, XL=8) set on the Linear `estimate` field, not in the description body.
 - The Out of Scope section is required on every issue. Do not skip it.
 
+## Assertions
+
+Assertions are deterministic by default. For checks that cannot be encoded deterministically, use the `llmJudge(...)` helper from `@dec-bench/eval-core` inside `scenarios/<id>/assertions/<gate>.ts`. It returns a standard `AssertionFn` and lands in the same `output/assertion-log.json`. Two cross-scenario **meta-judges** under `meta-judges/` run on every scenario as advisory signals (do not affect gate scores) and land in the `meta` slot of the assertion log. See [meta-judges/README.md](meta-judges/README.md) for the authoring loop and the `dec-bench-create-scenario` skill for per-scenario UX and verdict-review queries.
+
 ## Global Skills
 
 These are available via the `ai-dev-skills` plugin:

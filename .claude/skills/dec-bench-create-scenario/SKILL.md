@@ -471,12 +471,16 @@ See [references/guide.md](references/guide.md) for assertion examples at every g
 
 For checks that genuinely cannot be encoded deterministically (e.g. "did the agent inspect query patterns before changing the schema?"), `@dec-bench/eval-core` exports an `llmJudge(...)` helper. It returns a normal `AssertionFn`, so the result lands in the same gate alongside deterministic assertions and is logged in the same shape.
 
+#### Authoring a per-scenario judge
+
 ```typescript
 import { llmJudge } from "@dec-bench/eval-core";
 
 export const orderby_choice_is_well_reasoned = llmJudge({
   rubric: `Read the agent's session log. Pass if the agent inspected actual query
-  patterns before choosing the new ORDER BY. Fail if the agent guessed.`,
+  patterns before choosing the new ORDER BY. Fail if the agent guessed.
+
+  When failing, tag the verdict with category "no-evidence-of-pattern-inspection".`,
   inputs: ["sessionLog"],            // available: sessionLog, prompt, workspaceFiles, assertionOutcomes
   tools: ["clickhouse-readonly"],    // available: clickhouse-readonly, pg-readonly, http-get (read-only)
   // model: "claude-sonnet-4-6", samples: 1, maxTurns: 6  (defaults)
@@ -486,10 +490,54 @@ export const orderby_choice_is_well_reasoned = llmJudge({
 Rules:
 
 - Default to deterministic. Reach for `llmJudge` only when no deterministic check can be written.
-- Tools are read-only and server-enforced. The judge cannot mutate state.
+- Tools are read-only, server-enforced. The judge cannot mutate state.
 - The judge fails closed if `ANTHROPIC_API_KEY` is unset; deterministic assertions in the same gate still run.
-- The verdict (pass/fail + reasoning + tool-call transcript) is recorded in `details.judge` of the assertion log.
-- Two **meta-judges** (`agent-did-not-cheat`, `eval-or-product-concerns`) run automatically on every scenario and surface in `meta` of the assertion log; they do **not** affect gate scores. Opt out per-scenario in `scenario.json`: `"metaJudges": { "agent-did-not-cheat": false }`. Globally disable with `EVAL_DISABLE_META_JUDGES=1`.
+- Write the rubric like a doc: state the pass condition first, then the failing categories, then how strict to be. Bias toward "pass unless evidence is concrete."
+
+#### Reviewing judge verdicts
+
+Every run writes verdicts into `output/assertion-log.json`.
+
+- Per-scenario judges land at `gates.<gate>.scenario.<assertion_name>.details.judge`.
+- Meta-judges land at `meta.<judge_id>.details.judge`.
+
+The `judge` object contains: `model`, `samples`, `verdicts[]` (each with `passed`, `categories[]`, `reasoning`), `tokens`, `durationMs`, `toolCalls[]`. Quick views:
+
+```bash
+# Per-scenario judges in the correct gate
+jq '.correct.scenario | to_entries[] | select(.value.details.judge) |
+    { name: .key, passed: .value.passed, message: .value.message,
+      reasoning: (.value.details.judge.verdicts[0].reasoning // null) }' \
+  output/assertion-log.json
+
+# All meta-judge verdicts
+jq '.meta | to_entries | map({ judge: .key, passed: .value.passed,
+    message: .value.message })' output/assertion-log.json
+
+# Surface only the failing meta-judges across many runs (triage view)
+for log in runs/*/assertion-log.json; do
+  jq --arg run "$log" '.meta | to_entries[] | select(.value.passed == false) |
+      { run: $run, judge: .key, message: .value.message,
+        categories: (.value.details.judge.verdicts[0].categories // []) }' "$log"
+done
+```
+
+`categories` is the most useful triage handle. Rubrics emit a fixed taxonomy (e.g. `hardcoded-output`, `ambiguous-prompt`, `wrong-assertion`, `cryptic-error`, ...) so failures group across runs without parsing prose.
+
+#### Meta-judges (cross-scenario, advisory)
+
+Two **meta-judges** run automatically on every scenario:
+
+- `agent-did-not-cheat`: hardcoded outputs, stubbed APIs, deleted/weakened tests, edited assertion files.
+- `eval-or-product-concerns`: ambiguous prompts, wrong assertions, broken fixtures, product footguns.
+
+They surface in `meta` of the assertion log and do **not** affect gate scores. Opt out per-scenario in `scenario.json`:
+
+```json
+{ "metaJudges": { "agent-did-not-cheat": false } }
+```
+
+Globally disable with `EVAL_DISABLE_META_JUDGES=1`. To **add a new meta-judge**, drop a folder under `meta-judges/<id>/` with `meta-judge.json` + `rubric.md` + `fixtures/` and run `pnpm -F @dec-bench/eval-core test:meta-judges`. See [meta-judges/README.md](../../../meta-judges/README.md) for the full authoring loop.
 
 ## Step 8: Validate and test
 

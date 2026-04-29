@@ -127,6 +127,17 @@ Every scenario runs against real databases, not mocks:
 
 **Add a scenario:** `dec-bench create --name my-eval --domain ugc --tier tier-1`, then define the prompt and assertions. Open the repo in Claude Code, Cursor, or Codex and the `dec-bench-create-scenario` skill walks through the rest. Worked scenarios live in [`examples/`](./examples).
 
+**Add an LLM-as-judge assertion (per scenario):** in `scenarios/<id>/assertions/<gate>.ts`, export the result of `llmJudge({ rubric, inputs, tools })` from `@dec-bench/eval-core`. See [scenarios/foo-bar-clickhouse-orderby-optimization/assertions/correct.ts](scenarios/foo-bar-clickhouse-orderby-optimization/assertions/correct.ts) for a worked example, and the LLM-as-judge section in the `dec-bench-create-scenario` skill for the full UX.
+
+**Add a meta-judge (cross-scenario):** drop a folder under `meta-judges/<id>/` with `meta-judge.json` + `rubric.md` + `fixtures/`. See [meta-judges/README.md](meta-judges/README.md).
+
+**Reviewing judge verdicts:** every run writes verdicts (pass/fail, reasoning, tool-call transcript, token usage) into `output/assertion-log.json`. Per-scenario judges land at `gates.<gate>.scenario.<name>.details.judge`; meta-judges land at `meta.<judge_id>.details.judge`. Quick inspection:
+
+```bash
+jq '.meta'                                                         output/assertion-log.json   # meta-judge verdicts
+jq '.correct.scenario | to_entries[] | select(.value.details.judge)' output/assertion-log.json # per-scenario judges in the correct gate
+```
+
 ## Agent Skills
 
 Skills are checked into the repo at [`.claude/skills/`](./.claude/skills) and [`.agents/skills/`](./.agents/skills) and auto-load when you open the repo with Claude Code, Cursor, or Codex. No install step.
