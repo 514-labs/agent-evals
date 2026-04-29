@@ -72,6 +72,28 @@ dec-bench results --run-id <run-id>
 
 This prints gate scores, normalized score, and paths to all artifacts (stdout, trace, assertion log, session JSONL).
 
+The assertion log (`output/assertion-log.json`) carries deterministic outcomes plus any LLM-as-judge verdicts. Quick views:
+
+```bash
+# Meta-judge verdicts (advisory: do not affect gate scores)
+jq '.meta | to_entries | map({ judge: .key, passed: .value.passed,
+    message: .value.message })' output/assertion-log.json
+
+# Per-scenario judges in the correct gate
+jq '.correct.scenario | to_entries[] | select(.value.details.judge) |
+    { name: .key, passed: .value.passed, message: .value.message }' \
+  output/assertion-log.json
+
+# Triage: failing meta-judges across many runs grouped by category
+for log in runs/*/assertion-log.json; do
+  jq --arg run "$log" '.meta | to_entries[] | select(.value.passed == false) |
+      { run: $run, judge: .key,
+        categories: (.value.details.judge.verdicts[0].categories // []) }' "$log"
+done
+```
+
+The meta slot surfaces the `agent-did-not-cheat` and `eval-or-product-concerns` judges automatically; see [meta-judges/README.md](../../../meta-judges/README.md). Per-scenario judges are authored inline by scenario authors via the `dec-bench-create-scenario` skill.
+
 ## Open the audit UI
 
 ```bash

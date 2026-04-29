@@ -517,10 +517,19 @@ async fn run_single(
         );
     }
 
+    // 514-1358: Optional meta-judges directory. If present on host, the CLI
+    // copies it into the container so advisory meta-judges (cheat detection,
+    // eval/product concerns) can run during the evaluator phase. Absent is
+    // a soft no-op; the runner skips meta entirely without the env var.
+    let meta_judges_src = preflight::resolve_repo_path("meta-judges")
+        .ok()
+        .filter(|path| path.exists());
+
     let docker_for_run = docker.clone();
     let container_name_for_run = container_name.clone();
     let assertions_src_for_run = assertions_src.clone();
     let eval_core_src_for_run = eval_core_src.clone();
+    let meta_judges_src_for_run = meta_judges_src.clone();
 
     let run_container = async move {
         let (mut stdout_buffer, mut stderr_buffer, agent_phase_exit) = exec_phase(
@@ -540,6 +549,9 @@ async fn run_single(
 
         copy_assertions_into_container(&container_name_for_run, &assertions_src_for_run).await?;
         copy_eval_core_src_into_container(&container_name_for_run, &eval_core_src_for_run).await?;
+        if let Some(meta_judges_src) = meta_judges_src_for_run.as_ref() {
+            copy_meta_judges_into_container(&container_name_for_run, meta_judges_src).await?;
+        }
 
         let (eval_stdout, eval_stderr, exit_code) = exec_phase(
             &docker_for_run,
@@ -841,6 +853,26 @@ async fn copy_eval_core_src_into_container(
         eval_core_src,
         "/opt/dec-bench/eval-core/src",
         "eval-core/src",
+    )
+    .await
+}
+
+/// 514-1358: Copy the host-side meta-judges directory into the running
+/// container at `/opt/dec-bench/meta-judges/`. The base image has no
+/// meta-judges baked in (rubrics must not be visible to the agent during
+/// phase 1, since the cheat-detector's rubric tells the agent how to game
+/// it). The CLI populates the directory here before the evaluator phase
+/// runs, and `run-evaluator.sh` exports `EVAL_META_JUDGES_DIR` so the
+/// runner discovers it.
+async fn copy_meta_judges_into_container(
+    container_name: &str,
+    meta_judges_src: &Path,
+) -> Result<()> {
+    cp_dir_into_container(
+        container_name,
+        meta_judges_src,
+        "/opt/dec-bench/meta-judges",
+        "meta-judges",
     )
     .await
 }

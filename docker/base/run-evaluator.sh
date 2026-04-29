@@ -80,6 +80,27 @@ if [[ -f "${RUN_META_PATH}" ]]; then
   export EVAL_RUN_METADATA_JSON="$(cat "${RUN_META_PATH}")"
 fi
 
+# 514-1358: Surface the meta-judges directory if the CLI copied one in
+# (see apps/cli/src/commands/run.rs::copy_meta_judges_into_container).
+# The runner skips meta-judges silently when this is unset.
+if [[ -d /opt/dec-bench/meta-judges ]]; then
+  export EVAL_META_JUDGES_DIR="/opt/dec-bench/meta-judges"
+fi
+
+# 514-1358: Extract the prompt path from run metadata so per-scenario and
+# meta judges that opt into the "prompt" input can read the prompt file.
+if [[ -n "${EVAL_RUN_METADATA_JSON:-}" && "${EVAL_RUN_METADATA_JSON}" != "{}" ]]; then
+  prompt_path="$(node -e '
+try {
+  const parsed = JSON.parse(process.argv[1] || "{}");
+  process.stdout.write(typeof parsed.promptPath === "string" ? parsed.promptPath : "");
+} catch { process.stdout.write(""); }
+' "${EVAL_RUN_METADATA_JSON}")"
+  if [[ -n "${prompt_path}" && -f "${prompt_path}" ]]; then
+    export EVAL_PROMPT_PATH="${prompt_path}"
+  fi
+fi
+
 # Re-source scenario env before running assertions so harnesses whose
 # env.sh depends on seed-produced state (e.g. tinybird-forward writes
 # /workspace/.tb-env with the workspace name + admin token that the seed

@@ -326,7 +326,34 @@ Assertion heuristics:
 - Keep helper functions local to the file.
 - Prefer explicit evidence in `details`.
 - Use side effects only when the gate is specifically testing rerun or recovery behavior.
-- Do not score with text similarity or human-style rubric judgments.
+- Default to deterministic. Do not score with brittle text similarity, hand-rolled rubric strings, or anything that drifts run to run.
+
+### LLM-as-judge example
+
+For checks that genuinely cannot be encoded deterministically (e.g. "did the agent justify its choice from observed evidence?"), `@dec-bench/eval-core` exports `llmJudge(...)`. It returns a normal `AssertionFn`, so the result lands in the same gate alongside deterministic assertions and is logged in the same shape under `details.judge`.
+
+```ts
+import { llmJudge } from "@dec-bench/eval-core";
+
+export const orderby_choice_is_well_reasoned = llmJudge({
+  rubric: `Read the agent's session log. Pass if the agent inspected actual
+  query patterns before choosing the new ORDER BY. Fail if the agent guessed.
+
+  When failing, tag the verdict with category "no-evidence-of-pattern-inspection".`,
+  inputs: ["sessionLog"],            // available: sessionLog, prompt, workspaceFiles, assertionOutcomes
+  tools: ["clickhouse-readonly"],    // optional: clickhouse-readonly, pg-readonly, http-get (server-side read-only)
+  // model: "claude-sonnet-4-6", samples: 1, maxTurns: 6 (defaults)
+});
+```
+
+Rules:
+
+- Use `llmJudge` only when no deterministic check would work. Most assertions should remain deterministic.
+- Tools are server-side read-only; the judge cannot mutate state.
+- The judge fails closed if `ANTHROPIC_API_KEY` is unset; deterministic assertions in the same gate still run.
+- Write the rubric like a doc: pass condition first, fail conditions and `categories` second, "be decisive, require evidence" third.
+
+Two cross-scenario **meta-judges** (`agent-did-not-cheat`, `eval-or-product-concerns`) run automatically on every scenario as advisory signals and surface in `meta` of the assertion log without affecting gate scores. Opt out per-scenario in `scenario.json` (`"metaJudges": { "agent-did-not-cheat": false }`) or globally via `EVAL_DISABLE_META_JUDGES=1`. To **add a new meta-judge**, drop a folder under `meta-judges/<id>/`; see [meta-judges/README.md](../../../../meta-judges/README.md).
 
 ## Harness Selection
 
