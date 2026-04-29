@@ -27,13 +27,28 @@ async function timeEgress(
 }
 
 export async function top_products_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
-  return timeEgress(ctx, "top-products", ["/api/top-products", "/api/topProducts"], "Top products");
+  return timeEgress(
+    ctx,
+    "top-products",
+    ["/api/top-products", "/api/topProducts", "/top-products", "/topProducts"],
+    "Top products",
+  );
 }
 
 export async function funnel_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
-  return timeEgress(ctx, "funnel", ["/api/funnel", "/api/conversion-funnel"], "Funnel");
+  return timeEgress(
+    ctx,
+    "funnel",
+    ["/api/funnel", "/api/conversion-funnel", "/funnel", "/conversion-funnel"],
+    "Funnel",
+  );
 }
 
 export async function hourly_under_200ms(ctx: AssertionContext): Promise<AssertionResult> {
-  return timeEgress(ctx, "hourly", ["/api/hourly", "/api/hourly-activity"], "Hourly");
+  return timeEgress(
+    ctx,
+    "hourly",
+    ["/api/hourly", "/api/hourly-activity", "/hourly", "/hourly-activity"],
+    "Hourly",
+  );
 }

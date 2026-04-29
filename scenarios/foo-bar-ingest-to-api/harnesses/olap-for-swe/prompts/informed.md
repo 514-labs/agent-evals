@@ -4,6 +4,6 @@ Set up a Moose project with `moose init --template typescript-empty` and run `mo
 
 1. Extract the events from Postgres and load them into ClickHouse through Moose
 2. Create pre-aggregated views for: top products by purchase count with revenue, a conversion funnel (views → carts → purchases), and hourly activity breakdown
-3. Stand up an HTTP API on port 3000 with three endpoints: `/api/top-products`, `/api/funnel`, `/api/hourly` — each returning JSON from the aggregated data
+3. Stand up three egress JSON endpoints — top-products, funnel, and hourly activity — each returning JSON from the aggregated data.
 
 Revenue comes from the `properties` JSONB column's `price` field on purchase events. Verify all three endpoints return valid JSON.

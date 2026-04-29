@@ -13,7 +13,7 @@ Build an end-to-end streaming analytics pipeline.
    - `analytics.top_products`: `product_id`, `view_count`, `cart_count`, `purchase_count`, `revenue` (sum of price on purchases). Ordered by `purchase_count DESC`.
    - `analytics.conversion_funnel`: `step` (view/cart/purchase), `unique_users`, `total_events`. One row per step.
    - `analytics.hourly_activity`: `hour` (DateTime), `event_type`, `event_count`. Ordered by `hour`.
-5. **Egress API** (port 3000): three endpoints, each responding under 200ms. Pick any URL paths you like — the assertions accept both `/<name>` and `/api/<name>` for each:
+5. **Egress API** (port 3000): three endpoints, each responding under 200ms:
    - top-products → JSON array from `analytics.top_products` (limit 10)
    - funnel → JSON array from `analytics.conversion_funnel`
    - hourly → JSON array from `analytics.hourly_activity`

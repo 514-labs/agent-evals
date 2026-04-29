@@ -49,7 +49,7 @@ export async function event_types_preserved(ctx: AssertionContext): Promise<Asse
 
 export async function top_products_returns_data(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await fetchEgressJson<unknown[]>(ctx, "top-products", {
-    paths: ["/api/top-products", "/api/topProducts"],
+    paths: ["/api/top-products", "/api/topProducts", "/top-products", "/topProducts"],
   });
   const data = result?.data;
   const passed = Array.isArray(data) && data.length > 0;
@@ -62,7 +62,7 @@ export async function top_products_returns_data(ctx: AssertionContext): Promise<
 
 export async function funnel_has_three_steps(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await fetchEgressJson<unknown[]>(ctx, "funnel", {
-    paths: ["/api/funnel", "/api/conversion-funnel"],
+    paths: ["/api/funnel", "/api/conversion-funnel", "/funnel", "/conversion-funnel"],
   });
   const data = result?.data;
   if (!Array.isArray(data) || data.length < 3) {
@@ -83,7 +83,7 @@ export async function funnel_has_three_steps(ctx: AssertionContext): Promise<Ass
 
 export async function funnel_counts_are_monotonic(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await fetchEgressJson<unknown[]>(ctx, "funnel", {
-    paths: ["/api/funnel", "/api/conversion-funnel"],
+    paths: ["/api/funnel", "/api/conversion-funnel", "/funnel", "/conversion-funnel"],
   });
   const data = result?.data;
   if (!Array.isArray(data) || data.length < 3) {
@@ -113,7 +113,7 @@ export async function funnel_counts_are_monotonic(ctx: AssertionContext): Promis
 
 export async function hourly_returns_data(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await fetchEgressJson<unknown[]>(ctx, "hourly", {
-    paths: ["/api/hourly", "/api/hourly-activity"],
+    paths: ["/api/hourly", "/api/hourly-activity", "/hourly", "/hourly-activity"],
   });
   const data = result?.data;
   const passed = Array.isArray(data) && data.length > 0;
@@ -131,7 +131,7 @@ export async function revenue_checksum(ctx: AssertionContext): Promise<Assertion
   const pgTotal = Number(pgResult.rows[0]?.total ?? 0);
 
   const result = await fetchEgressJson<unknown[]>(ctx, "top-products", {
-    paths: ["/api/top-products", "/api/topProducts"],
+    paths: ["/api/top-products", "/api/topProducts", "/top-products", "/topProducts"],
   });
   const data = result?.data;
   if (!Array.isArray(data)) {

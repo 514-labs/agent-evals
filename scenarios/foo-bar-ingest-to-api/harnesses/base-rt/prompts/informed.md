@@ -9,9 +9,7 @@ Build an end-to-end ingest-to-API pipeline:
 
 Revenue comes from `properties->>'price'` on purchase events (cast to Float64, default 0).
 
-**Step 3 — API**: Stand up an HTTP server on port 3000 (Node.js, Python, or any language) with:
-- `GET /api/top-products` → JSON array from `analytics.top_products` (limit 10)
-- `GET /api/funnel` → JSON array from `analytics.conversion_funnel`
-- `GET /api/hourly` → JSON array from `analytics.hourly_activity`
-
-Each endpoint must query ClickHouse and return valid JSON. Responses should complete under 200ms.
+**Step 3 — API**: Stand up an HTTP server on port 3000 (Node.js, Python, or any language) with three egress JSON endpoints — each querying ClickHouse and returning valid JSON in under 200ms:
+- top-products → JSON array from `analytics.top_products` (limit 10)
+- funnel → JSON array from `analytics.conversion_funnel`
+- hourly → JSON array from `analytics.hourly_activity`

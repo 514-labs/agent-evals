@@ -4,7 +4,7 @@ import { fetchEgressJson, probeEgress } from "../../_shared/assertion-helpers";
 
 export async function api_returns_valid_json_content_type(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await probeEgress(ctx, "top-products", {
-    paths: ["/api/top-products", "/api/topProducts"],
+    paths: ["/api/top-products", "/api/topProducts", "/top-products", "/topProducts"],
   });
   if (!result) {
     return { passed: false, message: "Top products endpoint unreachable.", details: {} };
@@ -39,7 +39,7 @@ export async function api_handles_unknown_route(ctx: AssertionContext): Promise<
 
 export async function no_duplicate_products_in_top(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await fetchEgressJson<unknown[]>(ctx, "top-products", {
-    paths: ["/api/top-products", "/api/topProducts"],
+    paths: ["/api/top-products", "/api/topProducts", "/top-products", "/topProducts"],
   });
   const data = result?.data;
   if (!Array.isArray(data)) {

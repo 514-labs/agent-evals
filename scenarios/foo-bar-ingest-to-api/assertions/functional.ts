@@ -39,7 +39,7 @@ export async function events_table_has_rows(ctx: AssertionContext): Promise<Asse
 
 export async function api_server_responds(ctx: AssertionContext): Promise<AssertionResult> {
   const result = await probeEgress(ctx, "top-products", {
-    paths: ["/api/top-products", "/api/topProducts"],
+    paths: ["/api/top-products", "/api/topProducts", "/top-products", "/topProducts"],
   });
   if (result) {
     return {
