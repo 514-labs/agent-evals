@@ -6,9 +6,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context, Result};
 use bollard::container::{
-    Config, CreateContainerOptions, KillContainerOptions, LogOutput, LogsOptions,
-    RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
+    Config, CreateContainerOptions, KillContainerOptions, LogOutput, RemoveContainerOptions,
+    StartContainerOptions,
 };
+use bollard::exec::{CreateExecOptions, StartExecOptions, StartExecResults};
 use bollard::models::HostConfig;
 use bollard::Docker;
 use clap::Args;
@@ -485,55 +486,58 @@ async fn run_single(
         None
     };
 
-    let container_name_clone = container_name.clone();
-    let docker_clone = docker.clone();
-
-    let run_container = async {
-        let mut log_stream = docker_clone.logs::<String>(
-            &container_name_clone,
-            Some(LogsOptions {
-                follow: true,
-                stdout: true,
-                stderr: true,
-                timestamps: false,
-                tail: "all".to_string(),
-                ..Default::default()
-            }),
+    // 514-1419: Drive the run in two phases so /scenario/assertions/ is never
+    // visible to the agent. Phase 1 runs the agent with no assertion files on
+    // disk; we then docker-cp them in; phase 2 runs the evaluator. The agent's
+    // exit code is preserved by run-evaluator.sh and surfaced as phase 2's
+    // exit code.
+    let assertions_src = preflight::resolve_repo_path(&format!(
+        "scenarios/{scenario_id}/assertions"
+    ))
+    .with_context(|| {
+        format!(
+            "Could not locate assertions directory for scenario '{scenario_id}' — expected scenarios/{scenario_id}/assertions to exist on host."
+        )
+    })?;
+    if !assertions_src.exists() {
+        bail!(
+            "Assertions directory missing: {} — the host source must exist for two-phase orchestration.",
+            assertions_src.display()
         );
+    }
 
-        let mut stdout_buffer = String::new();
-        let mut stderr_buffer = String::new();
-        while let Some(message) = log_stream.next().await {
-            match message? {
-                LogOutput::StdOut { message } => {
-                    let text = String::from_utf8_lossy(&message).to_string();
-                    print!("{text}");
-                    stdout_buffer.push_str(&text);
-                }
-                LogOutput::StdErr { message } => {
-                    let text = String::from_utf8_lossy(&message).to_string();
-                    eprint!("{text}");
-                    stderr_buffer.push_str(&text);
-                }
-                LogOutput::StdIn { message } | LogOutput::Console { message } => {
-                    let text = String::from_utf8_lossy(&message).to_string();
-                    print!("{text}");
-                    stdout_buffer.push_str(&text);
-                }
-            }
+    let docker_for_run = docker.clone();
+    let container_name_for_run = container_name.clone();
+    let assertions_src_for_run = assertions_src.clone();
+
+    let run_container = async move {
+        let (mut stdout_buffer, mut stderr_buffer, agent_phase_exit) = exec_phase(
+            &docker_for_run,
+            &container_name_for_run,
+            "/opt/dec-bench/run-agent.sh",
+            "agent",
+        )
+        .await?;
+
+        if agent_phase_exit != 0 {
+            warn!(
+                exit_code = agent_phase_exit,
+                "run-agent.sh exited non-zero — proceeding to evaluator phase anyway"
+            );
         }
 
-        let mut wait_stream = docker_clone.wait_container(
-            &container_name_clone,
-            Some(WaitContainerOptions {
-                condition: "not-running".to_string(),
-            }),
-        );
-        let mut exit_code = 1_i64;
-        if let Some(result) = wait_stream.next().await {
-            let status = result?;
-            exit_code = status.status_code;
-        }
+        copy_assertions_into_container(&container_name_for_run, &assertions_src_for_run).await?;
+
+        let (eval_stdout, eval_stderr, exit_code) = exec_phase(
+            &docker_for_run,
+            &container_name_for_run,
+            "/opt/dec-bench/run-evaluator.sh",
+            "evaluator",
+        )
+        .await?;
+
+        stdout_buffer.push_str(&eval_stdout);
+        stderr_buffer.push_str(&eval_stderr);
 
         Ok::<(String, String, i64), anyhow::Error>((stdout_buffer, stderr_buffer, exit_code))
     };
@@ -731,6 +735,104 @@ async fn run_single(
     println!("  dec-bench results --run-id {}", run_id);
     println!("  dec-bench audit open --scenario {} --run-id {}  # requires pnpm install", scenario_id, run_id);
 
+    Ok(())
+}
+
+/// Run a single phase script inside the container via `docker exec` and stream
+/// its stdout/stderr through to the local terminal while also accumulating it
+/// into buffers (so marker blocks can be parsed afterwards). Returns the exec
+/// process's exit code via `inspect_exec`.
+async fn exec_phase(
+    docker: &Docker,
+    container_name: &str,
+    cmd: &str,
+    label: &str,
+) -> Result<(String, String, i64)> {
+    let exec = docker
+        .create_exec(
+            container_name,
+            CreateExecOptions::<String> {
+                cmd: Some(vec![cmd.to_string()]),
+                attach_stdout: Some(true),
+                attach_stderr: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .with_context(|| format!("Failed to create {label} exec on '{container_name}'"))?;
+
+    let start_result = docker
+        .start_exec(&exec.id, None::<StartExecOptions>)
+        .await
+        .with_context(|| format!("Failed to start {label} exec on '{container_name}'"))?;
+
+    let mut stdout_buffer = String::new();
+    let mut stderr_buffer = String::new();
+
+    if let StartExecResults::Attached { mut output, .. } = start_result {
+        while let Some(message) = output.next().await {
+            match message? {
+                LogOutput::StdOut { message } => {
+                    let text = String::from_utf8_lossy(&message).to_string();
+                    print!("{text}");
+                    stdout_buffer.push_str(&text);
+                }
+                LogOutput::StdErr { message } => {
+                    let text = String::from_utf8_lossy(&message).to_string();
+                    eprint!("{text}");
+                    stderr_buffer.push_str(&text);
+                }
+                LogOutput::StdIn { message } | LogOutput::Console { message } => {
+                    let text = String::from_utf8_lossy(&message).to_string();
+                    print!("{text}");
+                    stdout_buffer.push_str(&text);
+                }
+            }
+        }
+    }
+
+    let inspect = docker
+        .inspect_exec(&exec.id)
+        .await
+        .with_context(|| format!("Failed to inspect {label} exec on '{container_name}'"))?;
+    let exit_code = inspect.exit_code.unwrap_or(1);
+
+    Ok((stdout_buffer, stderr_buffer, exit_code))
+}
+
+/// Copy the host-side assertions directory into the running container at
+/// `/scenario/assertions/`. Shells out to `docker cp` (already a runtime
+/// dependency) — bollard's tar-archive upload would require either a new
+/// crate dep or hand-rolling tar serialization for marginal benefit.
+async fn copy_assertions_into_container(container_name: &str, assertions_src: &Path) -> Result<()> {
+    let mkdir = tokio::process::Command::new("docker")
+        .args(["exec", container_name, "mkdir", "-p", "/scenario/assertions"])
+        .status()
+        .await
+        .context("Failed to spawn 'docker exec mkdir' for assertions target")?;
+    if !mkdir.success() {
+        bail!(
+            "docker exec mkdir /scenario/assertions failed in container '{}'",
+            container_name
+        );
+    }
+
+    // The trailing /. asks docker cp to copy the *contents* of the source
+    // directory into the destination, not the directory itself.
+    let src_arg = format!("{}/.", assertions_src.display());
+    let dest_arg = format!("{container_name}:/scenario/assertions/");
+    let cp = tokio::process::Command::new("docker")
+        .args(["cp", &src_arg, &dest_arg])
+        .status()
+        .await
+        .context("Failed to spawn 'docker cp' for assertions")?;
+    if !cp.success() {
+        bail!(
+            "docker cp '{}' '{}' failed",
+            src_arg,
+            dest_arg
+        );
+    }
     Ok(())
 }
 
