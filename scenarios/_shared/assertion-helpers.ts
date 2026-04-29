@@ -366,6 +366,102 @@ export async function findProductEventsTable(ctx: AssertionContext): Promise<Tab
   return findTable(ctx, { concepts: ["product", "event"] });
 }
 
+// --- Warmup-tolerant fetch ---
+//
+// Hosting can flap for a few minutes. Retry those + 502/503/504 + connection errors so a one-
+// second flap doesn't fail an otherwise-correct deploy.
+
+const TRANSIENT_WARMUP_BODY = /fault filter abort/i;
+const TRANSIENT_PROXY_STATUSES = new Set([502, 503, 504]);
+const MIN_WARMUP_INTERVAL_MS = 250;
+
+const sleepMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+export interface WarmupRetryOptions {
+  /** Total budget across all attempts (default 60s). */
+  totalTimeoutMs?: number;
+  /** Pause between attempts (default 1s, floor 250ms). */
+  intervalMs?: number;
+  /** Per-attempt timeout (default 10s). */
+  perAttemptTimeoutMs?: number;
+}
+
+export interface WarmupRetryResult {
+  status: number;
+  body: string;
+  attempts: number;
+  totalElapsedMs: number;
+}
+
+function isTransientResponse(status: number, body: string): boolean {
+  if (TRANSIENT_PROXY_STATUSES.has(status)) return true;
+  if (status === 404 && TRANSIENT_WARMUP_BODY.test(body)) return true;
+  return false;
+}
+
+/**
+ * Retries on transient warmup errors. Returns the first non-transient
+ * response (which the caller still has to interpret — it may be a real
+ * 4xx/5xx). Throws only if no response was ever received in the budget.
+ */
+export async function fetchWithWarmupRetry(
+  url: string,
+  init: RequestInit | undefined,
+  opts: WarmupRetryOptions = {},
+): Promise<WarmupRetryResult> {
+  const totalTimeoutMs = opts.totalTimeoutMs ?? 60_000;
+  const intervalMs = Math.max(opts.intervalMs ?? 1_000, MIN_WARMUP_INTERVAL_MS);
+  const perAttemptTimeoutMs = opts.perAttemptTimeoutMs ?? 10_000;
+  const started = Date.now();
+
+  let attempt = 0;
+  let lastStatus = 0;
+  let lastBody = "";
+  let lastError: string | null = null;
+
+  while (true) {
+    attempt += 1;
+    try {
+      const res = await fetch(url, {
+        ...(init ?? {}),
+        signal: AbortSignal.timeout(perAttemptTimeoutMs),
+      });
+      const body = await res.text();
+      lastStatus = res.status;
+      lastBody = body;
+      if (!isTransientResponse(res.status, body)) {
+        return {
+          status: res.status,
+          body,
+          attempts: attempt,
+          totalElapsedMs: Date.now() - started,
+        };
+      }
+    } catch (err) {
+      lastError = (err as Error).message;
+    }
+
+    if (Date.now() - started + intervalMs >= totalTimeoutMs) {
+      // Budget exhausted. Return the last response if we got one; throw
+      // if we never reached the server.
+      if (lastStatus === 0) {
+        throw new Error(
+          lastError ??
+            `${url} unreachable: no response after ${attempt} attempts`,
+        );
+      }
+      return {
+        status: lastStatus,
+        body: lastBody,
+        attempts: attempt,
+        totalElapsedMs: Date.now() - started,
+      };
+    }
+
+    await sleepMs(intervalMs);
+  }
+}
+
 // --- API probing (port-flexible) ---
 
 export interface ApiProbeResult {

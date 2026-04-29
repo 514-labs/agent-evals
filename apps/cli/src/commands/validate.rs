@@ -40,8 +40,10 @@ const REQUIRED_FILES: [&str; 6] = [
 ];
 
 const PRODUCTION_ASSERTION: &str = "assertions/production.ts";
-const SCAFFOLD_NAIVE_PROMPT: &str = "Describe the task in plain language. No tool names, no implementation hints.";
-const SCAFFOLD_SAVVY_PROMPT: &str = "Describe the task with specific tools, targets, and technical constraints";
+const SCAFFOLD_NAIVE_PROMPT: &str =
+    "Describe the task in plain language. No tool names, no implementation hints.";
+const SCAFFOLD_SAVVY_PROMPT: &str =
+    "Describe the task with specific tools, targets, and technical constraints";
 
 #[derive(Args, Clone, Debug)]
 pub struct ValidateArgs {
@@ -140,7 +142,10 @@ fn validate_at_dir(scenario_dir: &Path, args: &ValidateArgs) -> Result<Validatio
         }
         match path.parent() {
             Some(parent) => path = parent,
-            None => bail!("Could not locate repository root from {}", scenario_dir.display()),
+            None => bail!(
+                "Could not locate repository root from {}",
+                scenario_dir.display()
+            ),
         }
     };
     validate_with_repo_root(&repo_root, scenario_dir, args)
@@ -163,7 +168,10 @@ fn validate_with_repo_root(
     for rel in REQUIRED_FILES {
         let path = scenario_dir.join(rel);
         if !path.exists() {
-            errors.push(format!("Missing required scenario file: {}", path.display()));
+            errors.push(format!(
+                "Missing required scenario file: {}",
+                path.display()
+            ));
         }
     }
     let production_assertion_path = scenario_dir.join(PRODUCTION_ASSERTION);
@@ -216,19 +224,17 @@ fn validate_with_repo_root(
                 ));
             }
             if task.category.as_deref().unwrap_or("").trim().is_empty() {
-                errors.push(format!("Task {} is missing a non-empty `category`.", idx + 1));
+                errors.push(format!(
+                    "Task {} is missing a non-empty `category`.",
+                    idx + 1
+                ));
             }
         }
     }
 
     // Each declared harness must own its prompts at harnesses/{harness}/prompts/.
     for harness in &scenario.harnesses {
-        validate_harness_prompts(
-            scenario_dir,
-            harness,
-            &mut errors,
-            &mut warnings,
-        );
+        validate_harness_prompts(scenario_dir, harness, &mut errors, &mut warnings);
     }
 
     validate_assertion_file(
@@ -258,11 +264,7 @@ fn validate_with_repo_root(
     );
 
     validate_supervisord(&scenario_dir.join("supervisord.conf"), &mut warnings);
-    validate_init_dir(
-        &scenario_dir.join("init"),
-        &mut errors,
-        &mut warnings,
-    );
+    validate_init_dir(&scenario_dir.join("init"), &mut errors, &mut warnings);
     validate_harnesses_dir(
         &scenario_dir.join("harnesses"),
         &scenario.harnesses,
@@ -272,12 +274,8 @@ fn validate_with_repo_root(
         validate_harness(repo_root, harness, &mut warnings);
     }
 
-    let registry_ready = validate_registry_inputs(
-        &scenario,
-        args,
-        errors.as_mut(),
-        warnings.as_mut(),
-    )?;
+    let registry_ready =
+        validate_registry_inputs(&scenario, args, errors.as_mut(), warnings.as_mut())?;
 
     Ok(ValidationReport {
         scenario_id: scenario.id,
@@ -293,11 +291,7 @@ fn print_table(report: &ValidationReport) {
     let status = if report.passed { "passed" } else { "failed" };
     let registry = if report.registry_ready { "yes" } else { "no" };
 
-    println!(
-        "Validation {} for {}",
-        status,
-        report.scenario_id
-    );
+    println!("Validation {} for {}", status, report.scenario_id);
     println!("Scenario directory: {}", report.scenario_dir);
     println!("Registry ready: {}", registry);
 
@@ -396,11 +390,7 @@ fn validate_supervisord(path: &Path, warnings: &mut Vec<String>) {
     }
 }
 
-fn validate_init_dir(
-    path: &Path,
-    errors: &mut Vec<String>,
-    warnings: &mut Vec<String>,
-) {
+fn validate_init_dir(path: &Path, errors: &mut Vec<String>, warnings: &mut Vec<String>) {
     if !path.is_dir() {
         errors.push(format!("Init directory not found: {}", path.display()));
         return;
@@ -432,7 +422,9 @@ fn validate_harnesses_dir(
         return; // harnesses/ is optional (only needed when per-harness overrides exist)
     }
 
-    let Ok(entries) = fs::read_dir(harnesses_path) else { return };
+    let Ok(entries) = fs::read_dir(harnesses_path) else {
+        return;
+    };
     for entry in entries.filter_map(|e| e.ok()) {
         let entry_path = entry.path();
         if !entry_path.is_dir() {
@@ -553,7 +545,8 @@ mod tests {
         fs::create_dir_all(root.join(".git")).expect("git dir");
         let scenario_dir = root.join("scenarios/test-scenario");
         fs::create_dir_all(scenario_dir.join("assertions")).expect("assertions");
-        fs::create_dir_all(scenario_dir.join("harnesses/base-rt/prompts")).expect("harness prompts");
+        fs::create_dir_all(scenario_dir.join("harnesses/base-rt/prompts"))
+            .expect("harness prompts");
         fs::create_dir_all(scenario_dir.join("init")).expect("init");
         fs::create_dir_all(root.join("apps/web/data/harnesses")).expect("harness dir");
 
@@ -570,20 +563,32 @@ mod tests {
   "infrastructure": {"services": ["clickhouse"]}
 }"#,
         );
-        write_file(&scenario_dir.join("harnesses/base-rt/prompts/baseline.md"), "Do the task.\n");
-        write_file(&scenario_dir.join("harnesses/base-rt/prompts/informed.md"), "Use ClickHouse.\n");
-        write_file(&scenario_dir.join("supervisord.conf"), "[program:clickhouse]\n");
+        write_file(
+            &scenario_dir.join("harnesses/base-rt/prompts/baseline.md"),
+            "Do the task.\n",
+        );
+        write_file(
+            &scenario_dir.join("harnesses/base-rt/prompts/informed.md"),
+            "Use ClickHouse.\n",
+        );
+        write_file(
+            &scenario_dir.join("supervisord.conf"),
+            "[program:clickhouse]\n",
+        );
         write_file(&scenario_dir.join("init/setup.sh"), "#!/usr/bin/env bash\n");
-        for gate in ["functional", "correct", "robust", "performant", "production"] {
+        for gate in [
+            "functional",
+            "correct",
+            "robust",
+            "performant",
+            "production",
+        ] {
             write_file(
                 &scenario_dir.join(format!("assertions/{gate}.ts")),
                 "export async function check() { return true; }\n",
             );
         }
-        write_file(
-            &root.join("apps/web/data/harnesses/base-rt.json"),
-            "{}\n",
-        );
+        write_file(&root.join("apps/web/data/harnesses/base-rt.json"), "{}\n");
     }
 
     #[test]
@@ -650,10 +655,24 @@ mod tests {
   "infrastructure": {"services": ["clickhouse"]}
 }"#,
         );
-        write_file(&temp.path().join("apps/web/data/harnesses/olap-for-swe.json"), "{}\n");
-        write_file(&scenario_dir.join("harnesses/olap-for-swe/prompts/baseline.md"), "Do the task.\n");
-        write_file(&scenario_dir.join("harnesses/olap-for-swe/prompts/informed.md"), "Use Moose.\n");
-        write_file(&scenario_dir.join("harnesses/olap-for-swe/init/seed-workspace.sh"), "#!/usr/bin/env bash\n");
+        write_file(
+            &temp
+                .path()
+                .join("apps/web/data/harnesses/olap-for-swe.json"),
+            "{}\n",
+        );
+        write_file(
+            &scenario_dir.join("harnesses/olap-for-swe/prompts/baseline.md"),
+            "Do the task.\n",
+        );
+        write_file(
+            &scenario_dir.join("harnesses/olap-for-swe/prompts/informed.md"),
+            "Use Moose.\n",
+        );
+        write_file(
+            &scenario_dir.join("harnesses/olap-for-swe/init/seed-workspace.sh"),
+            "#!/usr/bin/env bash\n",
+        );
 
         let args = ValidateArgs {
             scenario: "test-scenario".to_string(),
@@ -666,7 +685,10 @@ mod tests {
         let report = validate_at_dir(&scenario_dir, &args).expect("validate");
 
         assert!(report.passed, "errors: {:?}", report.errors);
-        assert!(!report.warnings.iter().any(|w| w.contains("does not match any harness")));
+        assert!(!report
+            .warnings
+            .iter()
+            .any(|w| w.contains("does not match any harness")));
     }
 
     #[test]
@@ -690,7 +712,10 @@ mod tests {
         let report = validate_at_dir(&scenario_dir, &args).expect("validate");
 
         assert!(!report.passed);
-        assert!(report.errors.iter().any(|e| e.contains("harnesses/base-rt/prompts/informed.md")));
+        assert!(report
+            .errors
+            .iter()
+            .any(|e| e.contains("harnesses/base-rt/prompts/informed.md")));
     }
 
     #[test]
@@ -700,7 +725,10 @@ mod tests {
         let scenario_dir = temp.path().join("scenarios/test-scenario");
 
         // Create a harnesses/ subdir that isn't declared in scenario.json.
-        write_file(&scenario_dir.join("harnesses/not-a-harness/prompts/baseline.md"), "x\n");
+        write_file(
+            &scenario_dir.join("harnesses/not-a-harness/prompts/baseline.md"),
+            "x\n",
+        );
 
         let args = ValidateArgs {
             scenario: "test-scenario".to_string(),
@@ -712,8 +740,14 @@ mod tests {
         };
         let report = validate_at_dir(&scenario_dir, &args).expect("validate");
 
-        assert!(report.passed, "should pass; unknown harness dir is a warning");
-        assert!(report.warnings.iter().any(|w| w.contains("not-a-harness") && w.contains("will never be used")));
+        assert!(
+            report.passed,
+            "should pass; unknown harness dir is a warning"
+        );
+        assert!(report
+            .warnings
+            .iter()
+            .any(|w| w.contains("not-a-harness") && w.contains("will never be used")));
     }
 
     #[test]
@@ -738,7 +772,13 @@ mod tests {
         };
         let report = validate_at_dir(&scenario_dir, &args).expect("validate");
 
-        assert!(report.passed, "placeholder prompt is a warning not an error");
-        assert!(report.warnings.iter().any(|w| w.contains("baseline.md") && w.contains("scaffold placeholder")));
+        assert!(
+            report.passed,
+            "placeholder prompt is a warning not an error"
+        );
+        assert!(report
+            .warnings
+            .iter()
+            .any(|w| w.contains("baseline.md") && w.contains("scaffold placeholder")));
     }
 }

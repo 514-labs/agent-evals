@@ -100,7 +100,12 @@ pub fn resolve_docker_host() -> Option<String> {
     }
 
     let output = Command::new("docker")
-        .args(["context", "inspect", "--format", "{{.Endpoints.docker.Host}}"])
+        .args([
+            "context",
+            "inspect",
+            "--format",
+            "{{.Endpoints.docker.Host}}",
+        ])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .output()
@@ -131,8 +136,9 @@ pub fn connect_docker() -> Result<Docker> {
             );
         }
         if host.starts_with("tcp://") || host.starts_with("http://") {
-            return Docker::connect_with_http(&host, 120, API_DEFAULT_VERSION)
-                .context(format!("Failed to connect to Docker at '{host}' (from context)"));
+            return Docker::connect_with_http(&host, 120, API_DEFAULT_VERSION).context(format!(
+                "Failed to connect to Docker at '{host}' (from context)"
+            ));
         }
         tracing::warn!(
             "Docker context returned unrecognized host '{}'; falling back to defaults",
@@ -204,10 +210,7 @@ pub async fn validate_agent_model_keys(pairs: &[(Agent, &str)]) -> Result<()> {
     // Bail early with structural errors before making network calls.
     if !errors.is_empty() {
         errors.dedup();
-        bail!(
-            "Preflight validation failed:\n\n{}",
-            format_errors(&errors)
-        );
+        bail!("Preflight validation failed:\n\n{}", format_errors(&errors));
     }
 
     // 3. Validate keys against their provider APIs (in parallel).
@@ -275,13 +278,11 @@ async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<()
 
     match request.send().await {
         Ok(resp) if resp.status().is_success() => Ok(()),
-        Ok(resp) if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 => {
-            Err(format!(
-                "{key_name} is set but invalid — got HTTP {} from {url}. \
+        Ok(resp) if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 => Err(format!(
+            "{key_name} is set but invalid — got HTTP {} from {url}. \
                  Check that the key is correct and has not expired.",
-                resp.status()
-            ))
-        }
+            resp.status()
+        )),
         Ok(resp) => {
             tracing::warn!(
                 "{key_name} validation returned HTTP {} from {url} — skipping check",
@@ -299,7 +300,6 @@ async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<()
         }
     }
 }
-
 
 pub fn check_node() -> Result<()> {
     let status = Command::new("node")

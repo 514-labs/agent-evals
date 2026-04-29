@@ -20,7 +20,11 @@ pub struct CreateArgs {
     pub tier: Tier,
 
     /// Evaluation harnesses (comma-separated, e.g. base-rt,olap-for-swe)
-    #[arg(long, default_value = "base-rt,classic-de,olap-for-swe", value_delimiter = ',')]
+    #[arg(
+        long,
+        default_value = "base-rt,classic-de,olap-for-swe",
+        value_delimiter = ','
+    )]
     pub harnesses: Vec<String>,
 
     /// Scenarios root directory
@@ -128,7 +132,10 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
          ; Add additional services below\n",
     )?;
 
-    write_file(&root.join("init/postgres-setup.sql"), "-- Schema and seed data for Postgres\n")?;
+    write_file(
+        &root.join("init/postgres-setup.sql"),
+        "-- Schema and seed data for Postgres\n",
+    )?;
 
     // When 2+ harnesses are declared, scaffold per-harness init subdirs inside harnesses/.
     // harnesses/{harness}/init/ runs only when that harness is active;
@@ -150,7 +157,13 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
         }
     }
 
-    let gate_names = ["functional", "correct", "robust", "performant", "production"];
+    let gate_names = [
+        "functional",
+        "correct",
+        "robust",
+        "performant",
+        "production",
+    ];
     for gate in &gate_names {
         write_file(
             &root.join(format!("assertions/{gate}.ts")),
@@ -200,8 +213,12 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     println!("init lets each harness boot into the state its tools expect.");
     println!();
     println!("Next steps:");
-    println!("  1. Fill in harnesses/<harness-id>/prompts/baseline.md and informed.md for each harness");
-    println!("  2. Add seed data: shared in init/, harness-specific in harnesses/<harness-id>/init/");
+    println!(
+        "  1. Fill in harnesses/<harness-id>/prompts/baseline.md and informed.md for each harness"
+    );
+    println!(
+        "  2. Add seed data: shared in init/, harness-specific in harnesses/<harness-id>/init/"
+    );
     println!("  3. Write gate assertions in assertions/");
     println!("  4. Complete scenario.json metadata (including lede: \"In this scenario, an agent must...\")");
     println!("  5. Validate the scenario:");
@@ -213,7 +230,10 @@ pub async fn execute(args: CreateArgs) -> Result<()> {
     println!("  8. Inspect the latest run:");
     println!("     dec-bench results --latest --scenario {}", args.name);
     println!("  9. Open the audit UI for a run:");
-    println!("     dec-bench audit open --scenario {} --run-id <run-id>", args.name);
+    println!(
+        "     dec-bench audit open --scenario {} --run-id <run-id>",
+        args.name
+    );
 
     Ok(())
 }
@@ -229,9 +249,7 @@ fn print_tree(root: &Path) -> Result<()> {
 }
 
 fn print_children(dir: &Path, prefix: &str, rel: &str) -> Result<()> {
-    let mut entries: Vec<_> = fs::read_dir(dir)?
-        .filter_map(|e| e.ok())
-        .collect();
+    let mut entries: Vec<_> = fs::read_dir(dir)?.filter_map(|e| e.ok()).collect();
     entries.sort_by_key(|e| e.file_name());
 
     let total = entries.len();
@@ -240,8 +258,16 @@ fn print_children(dir: &Path, prefix: &str, rel: &str) -> Result<()> {
         let path = entry.path();
         let fname = entry.file_name().to_string_lossy().to_string();
         let conn = if last { "└── " } else { "├── " };
-        let child_rel = if rel.is_empty() { fname.clone() } else { format!("{rel}/{fname}") };
-        let display = if path.is_dir() { format!("{fname}/") } else { fname.clone() };
+        let child_rel = if rel.is_empty() {
+            fname.clone()
+        } else {
+            format!("{rel}/{fname}")
+        };
+        let display = if path.is_dir() {
+            format!("{fname}/")
+        } else {
+            fname.clone()
+        };
         let line = format!("{prefix}{conn}{display}");
 
         if let Some(note) = annotate(&child_rel) {
@@ -299,7 +325,11 @@ mod tests {
             name: "sample-scenario".to_string(),
             domain: Domain::Ugc,
             tier: Tier::Tier1,
-            harnesses: vec!["base-rt".to_string(), "classic-de".to_string(), "olap-for-swe".to_string()],
+            harnesses: vec![
+                "base-rt".to_string(),
+                "classic-de".to_string(),
+                "olap-for-swe".to_string(),
+            ],
             dir: temp.path().to_path_buf(),
         };
 
@@ -317,24 +347,40 @@ mod tests {
 
         // Each harness gets its own prompts/ under harnesses/<harness-id>/prompts/.
         for harness in &["base-rt", "classic-de", "olap-for-swe"] {
-            assert!(root.join(format!("harnesses/{harness}/prompts/baseline.md")).exists(),
-                "missing harnesses/{harness}/prompts/baseline.md");
-            assert!(root.join(format!("harnesses/{harness}/prompts/informed.md")).exists(),
-                "missing harnesses/{harness}/prompts/informed.md");
+            assert!(
+                root.join(format!("harnesses/{harness}/prompts/baseline.md"))
+                    .exists(),
+                "missing harnesses/{harness}/prompts/baseline.md"
+            );
+            assert!(
+                root.join(format!("harnesses/{harness}/prompts/informed.md"))
+                    .exists(),
+                "missing harnesses/{harness}/prompts/informed.md"
+            );
         }
 
         // No flat prompts/ at scenario root.
-        assert!(!root.join("prompts").exists(), "flat prompts/ should not exist");
+        assert!(
+            !root.join("prompts").exists(),
+            "flat prompts/ should not exist"
+        );
 
         // scenario.json must not contain personaPrompts.
         let scenario_json: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(root.join("scenario.json")).unwrap()).unwrap();
-        assert!(scenario_json.get("personaPrompts").is_none(), "personaPrompts must not be present");
+            serde_json::from_str(&std::fs::read_to_string(root.join("scenario.json")).unwrap())
+                .unwrap();
+        assert!(
+            scenario_json.get("personaPrompts").is_none(),
+            "personaPrompts must not be present"
+        );
 
         // 3 harnesses declared -> per-harness init subdirs scaffolded under harnesses/.
         for harness in &["base-rt", "classic-de", "olap-for-swe"] {
-            assert!(root.join(format!("harnesses/{harness}/init/seed-workspace.sh")).exists(),
-                "missing harnesses/{harness}/init/seed-workspace.sh");
+            assert!(
+                root.join(format!("harnesses/{harness}/init/seed-workspace.sh"))
+                    .exists(),
+                "missing harnesses/{harness}/init/seed-workspace.sh"
+            );
         }
     }
 
@@ -357,7 +403,9 @@ mod tests {
         assert!(root.join("harnesses/base-rt/prompts/baseline.md").exists());
         assert!(root.join("harnesses/base-rt/prompts/informed.md").exists());
         // Single-harness: no per-harness init subdir (no comparison needed).
-        assert!(!root.join("harnesses/base-rt/init").exists(),
-            "single-harness scenarios should NOT get a per-harness init subdir");
+        assert!(
+            !root.join("harnesses/base-rt/init").exists(),
+            "single-harness scenarios should NOT get a per-harness init subdir"
+        );
     }
 }

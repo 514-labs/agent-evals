@@ -1,5 +1,4 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
-
 import { tryResolveEndpoints } from "./shared";
 
 const RESPONSE_TIME_BUDGET_MS = 2_000;

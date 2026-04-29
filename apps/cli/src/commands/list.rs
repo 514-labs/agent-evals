@@ -38,18 +38,22 @@ pub async fn execute(args: ListArgs) -> Result<()> {
     let filtered: Vec<_> = scenarios
         .iter()
         .filter(|scenario| {
-            args.tier
-                .as_ref()
-                .is_none_or(|tier| scenario.tier == *tier)
+            args.tier.as_ref().is_none_or(|tier| scenario.tier == *tier)
                 && args
                     .domain
                     .as_ref()
                     .is_none_or(|domain| scenario.domain == *domain)
                 && args.category.as_ref().is_none_or(|category| {
-                    scenario.task_categories.iter().any(|entry| entry == category)
+                    scenario
+                        .task_categories
+                        .iter()
+                        .any(|entry| entry == category)
                 })
                 && args.competency.as_ref().is_none_or(|competency| {
-                    scenario.competencies.iter().any(|entry| entry == competency)
+                    scenario
+                        .competencies
+                        .iter()
+                        .any(|entry| entry == competency)
                 })
         })
         .collect();

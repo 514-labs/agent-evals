@@ -126,14 +126,19 @@ async fn open(args: OpenArgs) -> Result<()> {
         overwrite: args.overwrite,
     };
     let plan = run_export(&export_args)?;
-    let url = format!("http://localhost:{}/audit/{}/{}", args.port, args.scenario, args.run_id);
+    let url = format!(
+        "http://localhost:{}/audit/{}/{}",
+        args.port, args.scenario, args.run_id
+    );
     let url_path = format!("/audit/{}/{}", args.scenario, args.run_id);
 
-    println!("Audit manifest: {}", plan
-        .manifest_path
-        .as_ref()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|| "unknown".to_string()));
+    println!(
+        "Audit manifest: {}",
+        plan.manifest_path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+    );
     println!("Audit URL: {}", url);
 
     if args.dry_run {
@@ -248,7 +253,11 @@ fn run_export(args: &ExportArgs) -> Result<ExportPlan> {
 
 fn resolve_results_dir(repo_root: &Path, input: &str) -> Result<PathBuf> {
     let raw = PathBuf::from(input);
-    let resolved = if raw.is_absolute() { raw } else { repo_root.join(raw) };
+    let resolved = if raw.is_absolute() {
+        raw
+    } else {
+        repo_root.join(raw)
+    };
     Ok(resolved)
 }
 
@@ -324,7 +333,12 @@ fn probe_http_status(port: u16, path: &str) -> Option<u16> {
     Some(status)
 }
 
-fn start_web_server(web_dir: &Path, audits_dir: &Path, results_dir: &Path, port: u16) -> Result<StartedWebServer> {
+fn start_web_server(
+    web_dir: &Path,
+    audits_dir: &Path,
+    results_dir: &Path,
+    port: u16,
+) -> Result<StartedWebServer> {
     let log_path = std::env::temp_dir().join(format!("dec-bench-audit-{}.log", unix_timestamp()));
     let stdout_log = File::create(&log_path)
         .with_context(|| format!("Failed to create audit startup log {}", log_path.display()))?;

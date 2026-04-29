@@ -36,10 +36,14 @@ I need:
 Get me a production URL where this works.
 EOF
 
-cat > /data/test_event.json <<'EOF'
+# Use "now" so post-deploy verification that filters/buckets by today's UTC
+# date (e.g. dayOfMonth) actually finds the row.
+SMOKE_EVENT_TIMESTAMP="$(date -u +%s)"
+
+cat > /data/test_event.json <<EOF
 {
   "primaryKey": "smoke-bootstrap-001",
-  "timestamp": 1745870400,
+  "timestamp": ${SMOKE_EVENT_TIMESTAMP},
   "optionalText": "dec-bench production-bootstrap smoke event"
 }
 EOF

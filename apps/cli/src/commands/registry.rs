@@ -260,8 +260,11 @@ fn add_scenario(args: AddArgs) -> Result<()> {
         "tags": tags,
     });
 
-    fs::write(&output_path, format!("{}\n", serde_json::to_string_pretty(&entry)?))
-        .with_context(|| format!("Failed to write {}", output_path.display()))?;
+    fs::write(
+        &output_path,
+        format!("{}\n", serde_json::to_string_pretty(&entry)?),
+    )
+    .with_context(|| format!("Failed to write {}", output_path.display()))?;
 
     println!("Created scenario registry entry: {}", output_path.display());
     println!("Available competencies:");
@@ -270,7 +273,10 @@ fn add_scenario(args: AddArgs) -> Result<()> {
     println!("  {}", FEATURE_SLUGS.join(", "));
     println!();
     println!("Next step:");
-    println!("  dec-bench registry publish --id {}", entry["id"].as_str().unwrap_or(""));
+    println!(
+        "  dec-bench registry publish --id {}",
+        entry["id"].as_str().unwrap_or("")
+    );
 
     Ok(())
 }
@@ -316,8 +322,11 @@ fn add_harness(args: AddArgs) -> Result<()> {
         "allowlistedEndpoints": allowlisted_endpoints,
     });
 
-    fs::write(&output_path, format!("{}\n", serde_json::to_string_pretty(&entry)?))
-        .with_context(|| format!("Failed to write {}", output_path.display()))?;
+    fs::write(
+        &output_path,
+        format!("{}\n", serde_json::to_string_pretty(&entry)?),
+    )
+    .with_context(|| format!("Failed to write {}", output_path.display()))?;
 
     println!("Created harness registry entry: {}", output_path.display());
     println!();
@@ -335,8 +344,10 @@ fn execute_publish(args: PublishArgs) -> Result<()> {
     run_checked("gh", &["--version"])?;
     run_checked("gh", &["auth", "status"])?;
 
-    let scenario_file = preflight::resolve_repo_path(&format!("{SCENARIO_OUTPUT_DIR}/{}.json", args.id))?;
-    let harness_file = preflight::resolve_repo_path(&format!("{HARNESS_OUTPUT_DIR}/{}.json", args.id))?;
+    let scenario_file =
+        preflight::resolve_repo_path(&format!("{SCENARIO_OUTPUT_DIR}/{}.json", args.id))?;
+    let harness_file =
+        preflight::resolve_repo_path(&format!("{HARNESS_OUTPUT_DIR}/{}.json", args.id))?;
 
     let mut files_to_stage: Vec<PathBuf> = vec![];
     let mut entry_kind = "entry";
@@ -470,7 +481,10 @@ fn validate_allowed(label: &str, values: &[String], allowed: &[&str]) -> Result<
 fn validate_starting_state(value: &str) -> Result<()> {
     match value {
         "broken" | "greenfield" => Ok(()),
-        _ => bail!("Invalid --starting-state '{}'. Expected broken or greenfield", value),
+        _ => bail!(
+            "Invalid --starting-state '{}'. Expected broken or greenfield",
+            value
+        ),
     }
 }
 
@@ -561,7 +575,9 @@ mod tests {
             id: Some("test-harness".to_string()),
             title: Some("Test Harness".to_string()),
             description: Some("Harness for tests".to_string()),
-            install_script: Some("pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0".to_string()),
+            install_script: Some(
+                "pip3 install --no-cache-dir dbt-core==1.10.19 dbt-postgres==1.10.0".to_string(),
+            ),
             network_policy: NetworkPolicy::Restricted,
             allowlisted_endpoints: Some("pypi.org,registry.npmjs.org".to_string()),
         };

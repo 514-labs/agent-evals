@@ -1,5 +1,5 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
-
+import { fetchWithWarmupRetry } from "../../_shared/assertion-helpers";
 import { tryResolveEndpoints } from "./shared";
 
 interface ProbeResult {
@@ -17,14 +17,14 @@ export async function all_three_canonical_paths_respond(
   const probes: ProbeResult[] = [];
 
   try {
-    const res = await fetch(endpoints.healthUrl);
+    const res = await fetchWithWarmupRetry(endpoints.healthUrl, undefined);
     probes.push({ path: endpoints.healthUrl, status: res.status, ok: res.status === 200 });
   } catch (err) {
     probes.push({ path: endpoints.healthUrl, status: (err as Error).message, ok: false });
   }
 
   try {
-    const res = await fetch(endpoints.ingestUrl, {
+    const res = await fetchWithWarmupRetry(endpoints.ingestUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -41,7 +41,7 @@ export async function all_three_canonical_paths_respond(
   }
 
   try {
-    const res = await fetch(endpoints.queryUrl);
+    const res = await fetchWithWarmupRetry(endpoints.queryUrl, undefined);
     probes.push({ path: endpoints.queryUrl, status: res.status, ok: res.status === 200 });
   } catch (err) {
     probes.push({ path: endpoints.queryUrl, status: (err as Error).message, ok: false });

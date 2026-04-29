@@ -188,10 +188,8 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         };
 
         // Validate all agent/model/key combos upfront before any Docker work.
-        let pairs: Vec<(Agent, &str)> = agent_models
-            .iter()
-            .map(|(a, m)| (*a, m.as_str()))
-            .collect();
+        let pairs: Vec<(Agent, &str)> =
+            agent_models.iter().map(|(a, m)| (*a, m.as_str())).collect();
         preflight::validate_agent_model_keys(&pairs).await?;
 
         preflight::check_docker()?;
@@ -270,7 +268,13 @@ pub async fn execute(args: RunArgs) -> Result<()> {
             for (i, job) in jobs.iter().enumerate() {
                 println!(
                     "[{}/{}] scenario={} harness={} persona={:?} agent={} model={}",
-                    i + 1, total, job.scenario_id, job.harness, job.persona, job.agent, job.model
+                    i + 1,
+                    total,
+                    job.scenario_id,
+                    job.harness,
+                    job.persona,
+                    job.agent,
+                    job.model
                 );
             }
             return Ok(());
@@ -444,8 +448,12 @@ async fn run_single(
     // just resolves declared binds (expanding ~ and skipping non-existent
     // sources by default). Adding a bind to a new harness happens in JSON,
     // not here.
-    let runtime = load_harness_runtime(&args.harness)
-        .with_context(|| format!("Failed to load runtime config for harness '{}'", args.harness))?;
+    let runtime = load_harness_runtime(&args.harness).with_context(|| {
+        format!(
+            "Failed to load runtime config for harness '{}'",
+            args.harness
+        )
+    })?;
     let binds = resolve_harness_binds(&runtime);
 
     docker
@@ -499,6 +507,12 @@ async fn run_single(
     // scorer source on disk; we then docker-cp both in; phase 2 runs the
     // evaluator. The agent's exit code is preserved by run-evaluator.sh and
     // surfaced as phase 2's exit code.
+    //
+    // stdout/stderr are streamed into shared Arc<Mutex<String>> buffers
+    // (rather than locally-owned Strings inside the future) so that if the
+    // outer `tokio::time::timeout` cancels the run mid-phase, we still keep
+    // whatever the agent emitted up to that point and can produce a
+    // structured `result.json` annotated with `terminal_reason`.
     let assertions_src = preflight::resolve_repo_path(&format!(
         "scenarios/{scenario_id}/assertions"
     ))
@@ -524,17 +538,24 @@ async fn run_single(
         );
     }
 
+    let stdout_buf: Arc<std::sync::Mutex<String>> = Arc::new(std::sync::Mutex::new(String::new()));
+    let stderr_buf: Arc<std::sync::Mutex<String>> = Arc::new(std::sync::Mutex::new(String::new()));
+
     let docker_for_run = docker.clone();
     let container_name_for_run = container_name.clone();
     let assertions_src_for_run = assertions_src.clone();
     let eval_core_src_for_run = eval_core_src.clone();
+    let stdout_buf_for_run = stdout_buf.clone();
+    let stderr_buf_for_run = stderr_buf.clone();
 
     let run_container = async move {
-        let (mut stdout_buffer, mut stderr_buffer, agent_phase_exit) = exec_phase(
+        let agent_phase_exit = exec_phase(
             &docker_for_run,
             &container_name_for_run,
             "/opt/dec-bench/run-agent.sh",
             "agent",
+            &stdout_buf_for_run,
+            &stderr_buf_for_run,
         )
         .await?;
 
@@ -548,54 +569,56 @@ async fn run_single(
         copy_assertions_into_container(&container_name_for_run, &assertions_src_for_run).await?;
         copy_eval_core_src_into_container(&container_name_for_run, &eval_core_src_for_run).await?;
 
-        let (eval_stdout, eval_stderr, exit_code) = exec_phase(
+        let exit_code = exec_phase(
             &docker_for_run,
             &container_name_for_run,
             "/opt/dec-bench/run-evaluator.sh",
             "evaluator",
+            &stdout_buf_for_run,
+            &stderr_buf_for_run,
         )
         .await?;
 
-        stdout_buffer.push_str(&eval_stdout);
-        stderr_buffer.push_str(&eval_stderr);
-
-        Ok::<(String, String, i64), anyhow::Error>((stdout_buffer, stderr_buffer, exit_code))
+        Ok::<i64, anyhow::Error>(exit_code)
     };
 
-    let (stdout_buffer, stderr_buffer, exit_code) = if let Some(duration) = timeout_duration {
-        match tokio::time::timeout(duration, run_container).await {
-            Ok(result) => result?,
-            Err(_) => {
-                warn!(
-                    scenario_id,
-                    "Run timed out after {} minutes — killing container",
-                    args.timeout
-                );
-                let _ = docker
-                    .kill_container(
-                        &container_name,
-                        Some(KillContainerOptions { signal: "SIGKILL" }),
+    let (exit_code, terminal_reason): (i64, Option<String>) =
+        if let Some(duration) = timeout_duration {
+            match tokio::time::timeout(duration, run_container).await {
+                Ok(Ok(code)) => (code, None),
+                Ok(Err(err)) => {
+                    warn!(scenario_id, "Run errored: {err}");
+                    (-1, Some(format!("error: {err}")))
+                }
+                Err(_) => {
+                    warn!(
+                        scenario_id,
+                        "Run timed out after {} minutes — killing container", args.timeout
+                    );
+                    let _ = docker
+                        .kill_container(
+                            &container_name,
+                            Some(KillContainerOptions { signal: "SIGKILL" }),
+                        )
+                        .await;
+                    (
+                        -1,
+                        Some(format!("timeout: exceeded {} minutes", args.timeout)),
                     )
-                    .await;
-                let _ = docker
-                    .remove_container(
-                        &container_name,
-                        Some(RemoveContainerOptions {
-                            force: true,
-                            ..Default::default()
-                        }),
-                    )
-                    .await;
-                bail!(
-                    "Run timed out after {} minutes for scenario '{}'",
-                    args.timeout,
-                    scenario_id
-                );
+                }
             }
-        }
-    } else {
-        run_container.await?
-    };
+        } else {
+            match run_container.await {
+                Ok(code) => (code, None),
+                Err(err) => {
+                    warn!(scenario_id, "Run errored: {err}");
+                    (-1, Some(format!("error: {err}")))
+                }
+            }
+        };
+
+    let stdout_buffer = std::mem::take(&mut *stdout_buf.lock().unwrap());
+    let stderr_buffer = std::mem::take(&mut *stderr_buf.lock().unwrap());
 
     let _ = docker
         .remove_container(
@@ -611,10 +634,14 @@ async fn run_single(
     let agent_raw_json = extract_marked_block(&stdout_buffer, AGENT_RAW_START, AGENT_RAW_END);
     let agent_trace_json = extract_marked_block(&stdout_buffer, AGENT_TRACE_START, AGENT_TRACE_END);
     let run_meta_json = extract_marked_block(&stdout_buffer, RUN_META_START, RUN_META_END);
-    let session_jsonl = extract_marked_block(&stdout_buffer, SESSION_JSONL_START, SESSION_JSONL_END);
-    let marked_result_json = extract_marked_block(&stdout_buffer, EVAL_RESULT_START, EVAL_RESULT_END);
-    let assertion_log_json = extract_marked_block(&stdout_buffer, ASSERTION_LOG_START, ASSERTION_LOG_END);
-    let service_logs_json = extract_marked_block(&stdout_buffer, SERVICE_LOGS_START, SERVICE_LOGS_END);
+    let session_jsonl =
+        extract_marked_block(&stdout_buffer, SESSION_JSONL_START, SESSION_JSONL_END);
+    let marked_result_json =
+        extract_marked_block(&stdout_buffer, EVAL_RESULT_START, EVAL_RESULT_END);
+    let assertion_log_json =
+        extract_marked_block(&stdout_buffer, ASSERTION_LOG_START, ASSERTION_LOG_END);
+    let service_logs_json =
+        extract_marked_block(&stdout_buffer, SERVICE_LOGS_START, SERVICE_LOGS_END);
 
     let mut cleaned_stdout = stdout_buffer.clone();
     for (start, end) in [
@@ -633,7 +660,30 @@ async fn run_single(
     let mut result_json = marked_result_json
         .as_deref()
         .and_then(parse_json_value)
-        .unwrap_or_else(|| extract_result_json(&cleaned_stdout, scenario_id, &args.harness, exit_code));
+        .unwrap_or_else(|| {
+            extract_result_json(&cleaned_stdout, scenario_id, &args.harness, exit_code)
+        });
+
+    // For runs that didn't complete normally (timeout, stream error), surface the reason
+    if let Some(reason) = &terminal_reason {
+        if let Some(obj) = result_json.as_object_mut() {
+            obj.insert(
+                "terminal_reason".to_string(),
+                serde_json::Value::String(reason.clone()),
+            );
+            if obj
+                .get("error")
+                .and_then(|v| v.as_str())
+                .is_none_or(str::is_empty)
+            {
+                obj.insert(
+                    "error".to_string(),
+                    serde_json::Value::String(reason.clone()),
+                );
+            }
+        }
+    }
+
     let (output_path, run_id) =
         write_result_file(&args.results_dir, &default_run_id, &mut result_json)?;
 
@@ -667,7 +717,7 @@ async fn run_single(
             &run_meta_path,
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
-            .with_context(|| format!("Failed to write {}", run_meta_path.display()))?;
+        .with_context(|| format!("Failed to write {}", run_meta_path.display()))?;
         written_files.push("run-meta.json");
     }
 
@@ -677,7 +727,7 @@ async fn run_single(
             &raw_path,
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
-            .with_context(|| format!("Failed to write {}", raw_path.display()))?;
+        .with_context(|| format!("Failed to write {}", raw_path.display()))?;
         written_files.push("agent-raw.json");
     }
 
@@ -687,7 +737,7 @@ async fn run_single(
             &trace_path,
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
-            .with_context(|| format!("Failed to write {}", trace_path.display()))?;
+        .with_context(|| format!("Failed to write {}", trace_path.display()))?;
         written_files.push("trace.json");
     }
 
@@ -697,7 +747,7 @@ async fn run_single(
             &session_path,
             ensure_trailing_newline(&sanitize_sensitive_content(&content)),
         )
-            .with_context(|| format!("Failed to write {}", session_path.display()))?;
+        .with_context(|| format!("Failed to write {}", session_path.display()))?;
         written_files.push("session.jsonl");
     }
 
@@ -749,25 +799,44 @@ async fn run_single(
     println!("{}", "-".repeat(72));
     println!("{}", format_block_heading("Run summary", use_ansi));
     println!("Run ID: {}", format_emphasized_value(&run_id, use_ansi));
-    println!("Gate/score: {}", format_gate_and_score_summary(&result_json));
+    println!(
+        "Gate/score: {}",
+        format_gate_and_score_summary(&result_json)
+    );
     println!("Result file: {}", output_path.display());
     println!("{}", format_block_heading("Next steps", use_ansi));
     println!("  dec-bench results --run-id {}", run_id);
-    println!("  dec-bench audit open --scenario {} --run-id {}  # requires pnpm install", scenario_id, run_id);
+    println!(
+        "  dec-bench audit open --scenario {} --run-id {}  # requires pnpm install",
+        scenario_id, run_id
+    );
+
+    // Propagate non-completion reasons after all artifacts are on disk so the matrix
+    // runner still tallies this as Failed=N.
+    if let Some(reason) = terminal_reason {
+        bail!(
+            "Run did not complete normally for scenario '{}': {}",
+            scenario_id,
+            reason
+        );
+    }
 
     Ok(())
 }
 
 /// Run a single phase script inside the container via `docker exec` and stream
 /// its stdout/stderr through to the local terminal while also accumulating it
-/// into buffers (so marker blocks can be parsed afterwards). Returns the exec
-/// process's exit code via `inspect_exec`.
+/// into the supplied shared buffers (so marker blocks can be parsed afterwards
+/// and partial output survives an outer-scope timeout that drops this future).
+/// Returns the exec process's exit code via `inspect_exec`.
 async fn exec_phase(
     docker: &Docker,
     container_name: &str,
     cmd: &str,
     label: &str,
-) -> Result<(String, String, i64)> {
+    stdout_buf: &Arc<std::sync::Mutex<String>>,
+    stderr_buf: &Arc<std::sync::Mutex<String>>,
+) -> Result<i64> {
     let exec = docker
         .create_exec(
             container_name,
@@ -786,26 +855,23 @@ async fn exec_phase(
         .await
         .with_context(|| format!("Failed to start {label} exec on '{container_name}'"))?;
 
-    let mut stdout_buffer = String::new();
-    let mut stderr_buffer = String::new();
-
     if let StartExecResults::Attached { mut output, .. } = start_result {
         while let Some(message) = output.next().await {
             match message? {
                 LogOutput::StdOut { message } => {
                     let text = String::from_utf8_lossy(&message).to_string();
                     print!("{text}");
-                    stdout_buffer.push_str(&text);
+                    stdout_buf.lock().unwrap().push_str(&text);
                 }
                 LogOutput::StdErr { message } => {
                     let text = String::from_utf8_lossy(&message).to_string();
                     eprint!("{text}");
-                    stderr_buffer.push_str(&text);
+                    stderr_buf.lock().unwrap().push_str(&text);
                 }
                 LogOutput::StdIn { message } | LogOutput::Console { message } => {
                     let text = String::from_utf8_lossy(&message).to_string();
                     print!("{text}");
-                    stdout_buffer.push_str(&text);
+                    stdout_buf.lock().unwrap().push_str(&text);
                 }
             }
         }
@@ -817,7 +883,7 @@ async fn exec_phase(
         .with_context(|| format!("Failed to inspect {label} exec on '{container_name}'"))?;
     let exit_code = inspect.exit_code.unwrap_or(1);
 
-    Ok((stdout_buffer, stderr_buffer, exit_code))
+    Ok(exit_code)
 }
 
 /// Copy the host-side assertions directory into the running container at
@@ -867,9 +933,7 @@ async fn cp_dir_into_container(
         .await
         .with_context(|| format!("Failed to spawn 'docker exec mkdir' for {label} target"))?;
     if !mkdir.success() {
-        bail!(
-            "docker exec mkdir {dest_dir} failed in container '{container_name}'"
-        );
+        bail!("docker exec mkdir {dest_dir} failed in container '{container_name}'");
     }
 
     // The trailing /. asks docker cp to copy the *contents* of the source
@@ -882,11 +946,7 @@ async fn cp_dir_into_container(
         .await
         .with_context(|| format!("Failed to spawn 'docker cp' for {label}"))?;
     if !cp.success() {
-        bail!(
-            "docker cp '{}' '{}' failed",
-            src_arg,
-            dest_arg
-        );
+        bail!("docker cp '{}' '{}' failed", src_arg, dest_arg);
     }
     Ok(())
 }
@@ -980,11 +1040,18 @@ fn find_line_marker(buffer: &str, marker: &str, from: usize) -> Option<(usize, u
     None
 }
 
-fn collect_marked_blocks(stdout_buffer: &str, start_marker: &str, end_marker: &str) -> Vec<(usize, usize, String)> {
+fn collect_marked_blocks(
+    stdout_buffer: &str,
+    start_marker: &str,
+    end_marker: &str,
+) -> Vec<(usize, usize, String)> {
     let mut blocks = vec![];
     let mut cursor = 0;
-    while let Some((start_idx, content_start)) = find_line_marker(stdout_buffer, start_marker, cursor) {
-        let Some((end_idx, block_end)) = find_line_marker(stdout_buffer, end_marker, content_start) else {
+    while let Some((start_idx, content_start)) =
+        find_line_marker(stdout_buffer, start_marker, cursor)
+    {
+        let Some((end_idx, block_end)) = find_line_marker(stdout_buffer, end_marker, content_start)
+        else {
             break;
         };
         let content = stdout_buffer[content_start..end_idx]
@@ -997,7 +1064,11 @@ fn collect_marked_blocks(stdout_buffer: &str, start_marker: &str, end_marker: &s
     blocks
 }
 
-fn extract_marked_block(stdout_buffer: &str, start_marker: &str, end_marker: &str) -> Option<String> {
+fn extract_marked_block(
+    stdout_buffer: &str,
+    start_marker: &str,
+    end_marker: &str,
+) -> Option<String> {
     let blocks = collect_marked_blocks(stdout_buffer, start_marker, end_marker);
     blocks.last().map(|(_, _, content)| content.clone())
 }
@@ -1037,7 +1108,11 @@ fn sanitize_sensitive_content(content: &str) -> String {
     sanitized
 }
 
-fn write_result_file(results_dir: &str, default_run_id: &str, value: &mut serde_json::Value) -> Result<(PathBuf, String)> {
+fn write_result_file(
+    results_dir: &str,
+    default_run_id: &str,
+    value: &mut serde_json::Value,
+) -> Result<(PathBuf, String)> {
     let dir = PathBuf::from(results_dir);
     fs::create_dir_all(&dir).with_context(|| format!("Failed to create {}", dir.display()))?;
     let run_id = value
@@ -1047,7 +1122,10 @@ fn write_result_file(results_dir: &str, default_run_id: &str, value: &mut serde_
         .map(|raw| raw.trim().to_string())
         .unwrap_or_else(|| default_run_id.to_string());
     if let Some(object) = value.as_object_mut() {
-        object.insert("run_id".to_string(), serde_json::Value::String(run_id.clone()));
+        object.insert(
+            "run_id".to_string(),
+            serde_json::Value::String(run_id.clone()),
+        );
     }
     let filename = format!("{}.json", run_id);
     let output_path = dir.join(filename);
@@ -1109,8 +1187,8 @@ fn load_harness_runtime(harness_id: &str) -> Result<HarnessRuntime> {
     if !path.exists() {
         return Ok(HarnessRuntime::default());
     }
-    let raw = fs::read_to_string(&path)
-        .with_context(|| format!("Failed to read {}", path.display()))?;
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
     let manifest: HarnessManifest = serde_json::from_str(&raw)
         .with_context(|| format!("Invalid harness JSON: {}", path.display()))?;
     Ok(manifest.runtime)
@@ -1118,7 +1196,9 @@ fn load_harness_runtime(harness_id: &str) -> Result<HarnessRuntime> {
 
 fn expand_home(path: &str) -> Option<String> {
     if let Some(rest) = path.strip_prefix("~/") {
-        std::env::var("HOME").ok().map(|home| format!("{home}/{rest}"))
+        std::env::var("HOME")
+            .ok()
+            .map(|home| format!("{home}/{rest}"))
     } else if path == "~" {
         std::env::var("HOME").ok()
     } else {
@@ -1248,7 +1328,14 @@ fn build_matrix_jobs(
     jobs
 }
 
-fn has_existing_result(results_dir: &str, scenario: &str, agent: &str, model: &str, harness: &str, persona: &str) -> Option<String> {
+fn has_existing_result(
+    results_dir: &str,
+    scenario: &str,
+    agent: &str,
+    model: &str,
+    harness: &str,
+    persona: &str,
+) -> Option<String> {
     let dir = Path::new(results_dir);
     let prefix = format!("{}-{}-{}-{}-{}-", scenario, agent, model, harness, persona);
 
@@ -1381,7 +1468,10 @@ mod tests {
         assert_eq!(parsed["scenario"], "scenario-a");
         assert_eq!(parsed["harness"], "classic-de");
         assert_eq!(parsed["container_exit_code"], 17);
-        assert!(parsed["error"].as_str().unwrap_or("").contains("No structured JSON"));
+        assert!(parsed["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("No structured JSON"));
     }
 
     #[test]
@@ -1419,13 +1509,15 @@ mod tests {
     fn has_existing_result_finds_matching_file() {
         let temp = tempfile::tempdir().expect("temp dir");
         fs::write(
-            temp.path().join("foo-bar-test-codex-gpt-5.4-base-rt-baseline-no-plan-123.json"),
+            temp.path()
+                .join("foo-bar-test-codex-gpt-5.4-base-rt-baseline-no-plan-123.json"),
             "{}\n",
         )
         .expect("write file");
         // Sidecar files should not match
         fs::write(
-            temp.path().join("foo-bar-test-codex-gpt-5.4-base-rt-baseline-no-plan-123.trace.json"),
+            temp.path()
+                .join("foo-bar-test-codex-gpt-5.4-base-rt-baseline-no-plan-123.trace.json"),
             "{}\n",
         )
         .expect("write file");
@@ -1439,7 +1531,9 @@ mod tests {
             "baseline",
         );
         assert!(found.is_some());
-        assert!(found.unwrap().contains("foo-bar-test-codex-gpt-5.4-base-rt-baseline"));
+        assert!(found
+            .unwrap()
+            .contains("foo-bar-test-codex-gpt-5.4-base-rt-baseline"));
 
         // Different persona should not match
         let not_found_persona = has_existing_result(
@@ -1531,10 +1625,7 @@ mod tests {
             Some("/home/test-user/.atlas")
         );
         assert_eq!(expand_home("~").as_deref(), Some("/home/test-user"));
-        assert_eq!(
-            expand_home("/abs/path").as_deref(),
-            Some("/abs/path")
-        );
+        assert_eq!(expand_home("/abs/path").as_deref(), Some("/abs/path"));
     }
 
     #[test]
@@ -1609,7 +1700,10 @@ mod tests {
     }
 
     fn agent_pair(agent: &str, model: &str) -> (Agent, String) {
-        (agent.parse().expect("valid agent slug in test"), model.to_string())
+        (
+            agent.parse().expect("valid agent slug in test"),
+            model.to_string(),
+        )
     }
 
     #[test]
@@ -1697,14 +1791,7 @@ mod tests {
             agent_pair("codex", "gpt-5"),
         ];
         // No persona filter → both personas
-        let jobs = build_matrix_jobs(
-            &scenarios,
-            &agents,
-            None,
-            None,
-            &None,
-            &PlanMode::NoPlan,
-        );
+        let jobs = build_matrix_jobs(&scenarios, &agents, None, None, &None, &PlanMode::NoPlan);
         // s1: 2 harnesses × 2 personas × 2 agents = 8
         // s2: 1 harness × 2 personas × 2 agents = 4
         assert_eq!(jobs.len(), 12);
@@ -1717,9 +1804,8 @@ mod tests {
         std::env::set_var("ANTHROPIC_API_KEY", temp_key);
         std::env::set_var("OPENAI_API_KEY", temp_openai);
 
-        let sample = format!(
-            "ANTHROPIC_API_KEY={temp_key}\nCODEX_API_KEY={temp_openai}\nplain text"
-        );
+        let sample =
+            format!("ANTHROPIC_API_KEY={temp_key}\nCODEX_API_KEY={temp_openai}\nplain text");
         let sanitized = sanitize_sensitive_content(&sample);
 
         assert!(sanitized.contains("ANTHROPIC_API_KEY=[redacted]"));

@@ -1,8 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
-
 import type { AssertionResult } from "@dec-bench/eval-core";
-
 import { hasReadmeOrDocs, scanWorkspaceForHardcodedConnections } from "../../_shared/assertion-helpers";
 import { tryResolveEndpoints } from "./shared";
 

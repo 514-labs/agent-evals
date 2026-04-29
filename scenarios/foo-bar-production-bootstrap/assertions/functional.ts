@@ -1,5 +1,5 @@
-import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
-
+import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core"
+import { fetchWithWarmupRetry } from "../../_shared/assertion-helpers";
 import { readDeployedUrl, tryResolveEndpoints } from "./shared";
 
 const REQUIRED_HEALTHY_COMPONENTS_MOOSE = [
@@ -35,44 +35,53 @@ export async function runtime_is_healthy(_ctx: AssertionContext): Promise<Assert
     return { passed: false, message: "No deployed URL recorded.", details: {} };
   }
   const healthUrl = endpoints.healthUrl;
-  let status: number | null = null;
+  let result;
   try {
-    const res = await fetch(healthUrl);
-    status = res.status;
-    if (res.status !== 200) {
-      const text = await res.text();
-      return {
-        passed: false,
-        message: `${healthUrl} returned ${res.status}: ${text.slice(0, 200)}`,
-        details: { status, body: text.slice(0, 200) },
-      };
-    }
-
-    if (endpoints.healthCheck === "moose") {
-      const body = (await res.json()) as { healthy?: unknown; unhealthy?: unknown };
-      const healthy = Array.isArray(body.healthy) ? (body.healthy as string[]) : [];
-      const unhealthy = Array.isArray(body.unhealthy) ? (body.unhealthy as string[]) : [];
-      const missing = REQUIRED_HEALTHY_COMPONENTS_MOOSE.filter((c) => !healthy.includes(c));
-      const passed = unhealthy.length === 0 && missing.length === 0;
-      return {
-        passed,
-        message: passed
-          ? `Runtime healthy. Components: ${healthy.join(", ")}`
-          : `Runtime not healthy. unhealthy=[${unhealthy.join(",")}] missing-required=[${missing.join(",")}]`,
-        details: { healthy, unhealthy, missing, mode: "moose" },
-      };
-    }
-
-    return {
-      passed: true,
-      message: `Health endpoint at ${healthUrl} responded 200.`,
-      details: { status, mode: "http-200" },
-    };
+    result = await fetchWithWarmupRetry(healthUrl, undefined);
   } catch (err) {
     return {
       passed: false,
       message: `${healthUrl} unreachable: ${(err as Error).message}`,
-      details: { status, error: (err as Error).message },
+      details: { status: null, error: (err as Error).message },
     };
   }
+
+  const { status, body, attempts } = result;
+  if (status !== 200) {
+    return {
+      passed: false,
+      message: `${healthUrl} returned ${status} after ${attempts} attempt(s): ${body.slice(0, 200)}`,
+      details: { status, body: body.slice(0, 200), attempts },
+    };
+  }
+
+  if (endpoints.healthCheck === "moose") {
+    let parsed: { healthy?: unknown; unhealthy?: unknown };
+    try {
+      parsed = JSON.parse(body) as { healthy?: unknown; unhealthy?: unknown };
+    } catch {
+      return {
+        passed: false,
+        message: `${healthUrl} returned 200 but body was not JSON: ${body.slice(0, 200)}`,
+        details: { status, body: body.slice(0, 200), attempts },
+      };
+    }
+    const healthy = Array.isArray(parsed.healthy) ? (parsed.healthy as string[]) : [];
+    const unhealthy = Array.isArray(parsed.unhealthy) ? (parsed.unhealthy as string[]) : [];
+    const missing = REQUIRED_HEALTHY_COMPONENTS_MOOSE.filter((c) => !healthy.includes(c));
+    const passed = unhealthy.length === 0 && missing.length === 0;
+    return {
+      passed,
+      message: passed
+        ? `Runtime healthy. Components: ${healthy.join(", ")}`
+        : `Runtime not healthy. unhealthy=[${unhealthy.join(",")}] missing-required=[${missing.join(",")}]`,
+      details: { healthy, unhealthy, missing, mode: "moose", attempts },
+    };
+  }
+
+  return {
+    passed: true,
+    message: `Health endpoint at ${healthUrl} responded 200.`,
+    details: { status, mode: "http-200", attempts },
+  };
 }

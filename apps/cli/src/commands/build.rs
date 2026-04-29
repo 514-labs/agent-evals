@@ -85,7 +85,11 @@ pub async fn execute(args: BuildArgs) -> Result<()> {
 
     println!(
         "Building scenario={} harness={} agent={} model={} version={}",
-        args.scenario, args.harness, args.agent.slug(), args.model, args.version
+        args.scenario,
+        args.harness,
+        args.agent.slug(),
+        args.model,
+        args.version
     );
 
     let output = Command::new(&plan.script_path)
@@ -161,7 +165,11 @@ fn build_plan_at_repo_root(repo_root: &Path, args: &BuildArgs) -> Result<BuildPl
 
     let image_tag = format!(
         "{}.{}.{}.{}.{}",
-        args.scenario, args.harness, args.agent.slug(), args.model, args.version
+        args.scenario,
+        args.harness,
+        args.agent.slug(),
+        args.model,
+        args.version
     );
 
     let mut command_args = vec![
@@ -284,8 +292,7 @@ fn stage_overrides(plan: &BuildPlan) -> Result<()> {
 }
 
 fn copy_path(src: &Path, dest: &Path) -> Result<()> {
-    let meta = fs::metadata(src)
-        .with_context(|| format!("Failed to stat {}", src.display()))?;
+    let meta = fs::metadata(src).with_context(|| format!("Failed to stat {}", src.display()))?;
     if meta.is_dir() {
         copy_dir_recursive(src, dest)
     } else {
@@ -340,11 +347,7 @@ mod tests {
         fs::create_dir_all(path.join("apps/web/data/harnesses")).expect("harness dir");
         fs::create_dir_all(path.join("docker/agents/claude-code")).expect("agent dir");
         fs::write(path.join("docker/build.sh"), "#!/usr/bin/env bash\n").expect("build script");
-        fs::write(
-            path.join("apps/web/data/harnesses/base-rt.json"),
-            "{}\n",
-        )
-        .expect("harness json");
+        fs::write(path.join("apps/web/data/harnesses/base-rt.json"), "{}\n").expect("harness json");
         fs::write(
             path.join("docker/agents/claude-code/run.sh"),
             "#!/usr/bin/env bash\n",

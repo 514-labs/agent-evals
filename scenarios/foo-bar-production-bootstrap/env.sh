@@ -7,7 +7,7 @@
 # depends on the harness:
 #
 #   olap-for-swe — 514 CLI is installed and authed; agent should deploy the
-#                  pinned `typescript-express` template to Boreal. Endpoints
+#                  pinned `typescript-express` template. Endpoints
 #                  are template-fixed (/ingest/Foo, /api/bar, /health).
 #
 #   base-rt      — control group. No platform tooling, no auth seeded. Agent
@@ -36,16 +36,16 @@ export ENDPOINTS_FILE="${ENDPOINTS_FILE:-/workspace/.endpoints.json}"
 
 case "${EVAL_HARNESS:-}" in
   olap-for-swe)
-    # The 514 CLI is installed and authenticated against Boreal via
+    # The 514 CLI is installed and authenticated via
     # harnesses/olap-for-swe/init/setup-514-auth.sh. Template is pinned for
     # this scenario — picking the right template is a separate concern.
     # typescript-express was chosen because:
-    #   - prebuilt Boreal image is published and verified deployable
+    #   - prebuilt image is published and verified deployable
     #   - exposes /health, /ingest/Foo, /api/bar as auth-free routes the
     #     assertions can probe independently of any WebApp/admin gating.
     export DEPLOY_TEMPLATE="${DEPLOY_TEMPLATE:-typescript-express}"
 
-    # Real Boreal deploys live at https://<project>.boreal.cloud. Anything
+    # Real deploys live at https://<project>.boreal.cloud. Anything
     # else (localhost, raw IPs, http://, *.vercel.app) is a mock or a dev
     # tunnel and shouldn't pass the gate.
     export EVAL_PRODUCTION_URL_PATTERN='^https://[a-z0-9][a-z0-9.-]*\.boreal\.cloud(/|$)'

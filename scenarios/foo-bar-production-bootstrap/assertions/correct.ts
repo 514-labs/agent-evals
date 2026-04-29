@@ -1,5 +1,5 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
-
+import { fetchWithWarmupRetry } from "../../_shared/assertion-helpers";
 import { tryResolveEndpoints } from "./shared";
 
 const PROPAGATION_TIMEOUT_MS = 90_000;
@@ -84,14 +84,16 @@ export async function ingest_lands_in_aggregate(
 
   let ingestStatus: number;
   let ingestBody: string;
+  let ingestAttempts: number;
   try {
-    const res = await fetch(endpoints.ingestUrl, {
+    const res = await fetchWithWarmupRetry(endpoints.ingestUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(probe),
     });
     ingestStatus = res.status;
-    ingestBody = (await res.text()).trim();
+    ingestBody = res.body.trim();
+    ingestAttempts = res.attempts;
   } catch (err) {
     return {
       passed: false,
@@ -102,8 +104,8 @@ export async function ingest_lands_in_aggregate(
   if (ingestStatus < 200 || ingestStatus >= 300) {
     return {
       passed: false,
-      message: `POST ${endpoints.ingestUrl} did not accept the probe (status=${ingestStatus} body=${ingestBody.slice(0, 120)}).`,
-      details: { stage: "ingest", status: ingestStatus, body: ingestBody.slice(0, 200), probe },
+      message: `POST ${endpoints.ingestUrl} did not accept the probe (status=${ingestStatus} body=${ingestBody.slice(0, 120)}) after ${ingestAttempts} attempt(s).`,
+      details: { stage: "ingest", status: ingestStatus, body: ingestBody.slice(0, 200), probe, attempts: ingestAttempts },
     };
   }
 
