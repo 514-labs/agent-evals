@@ -1,24 +1,10 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findEventsTable, findTable, resolveColumn } from "../../_shared/assertion-helpers";
+import { fetchEgressJson, findEventsTable, findTable, resolveColumn } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
-}
-
-async function fetchJsonAnyPort(paths: string[]): Promise<any | null> {
-  for (const port of [3000, 4000, 8080]) {
-    for (const p of paths) {
-      try {
-        const res = await fetch(`http://localhost:${port}${p}`, {
-          signal: AbortSignal.timeout(3000),
-        });
-        if (res.ok) return await res.json();
-      } catch {}
-    }
-  }
-  return null;
 }
 
 export async function all_100_events_loaded(ctx: AssertionContext): Promise<AssertionResult> {
@@ -107,8 +93,9 @@ export async function daily_revenue_includes_region(ctx: AssertionContext): Prom
   };
 }
 
-export async function top_products_returns_correct_order(): Promise<AssertionResult> {
-  const data = await fetchJsonAnyPort(["/api/top-products?limit=3"]);
+export async function top_products_returns_correct_order(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await fetchEgressJson<any[]>(ctx, "top-products", { paths: ["/api/top-products?limit=3"] });
+  const data = result?.data ?? null;
   if (!Array.isArray(data) || data.length < 3) {
     return {
       passed: false,
@@ -157,7 +144,8 @@ export async function revenue_by_region_sums_match(ctx: AssertionContext): Promi
     chByRegion[row.region] = Number(row.total);
   }
 
-  const apiData = await fetchJsonAnyPort(["/api/revenue-by-region"]);
+  const apiResult = await fetchEgressJson<any[]>(ctx, "revenue-by-region", { paths: ["/api/revenue-by-region"] });
+  const apiData = apiResult?.data ?? null;
   if (!Array.isArray(apiData) || apiData.length === 0) {
     return { passed: false, message: "Revenue-by-region API returned empty or invalid data.", details: { chByRegion } };
   }

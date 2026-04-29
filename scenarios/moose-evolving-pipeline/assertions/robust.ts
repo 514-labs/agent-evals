@@ -1,53 +1,43 @@
 import type { AssertionContext, AssertionResult } from "@dec-bench/eval-core";
 
-import { findEventsTable } from "../../_shared/assertion-helpers";
+import { fetchEgressJson, findEventsTable } from "../../_shared/assertion-helpers";
 
 async function queryRows<T>(ctx: AssertionContext, sql: string): Promise<T[]> {
   const result = await ctx.clickhouse.query({ query: sql, format: "JSONEachRow" });
   return (await (result as any).json()) as T[];
 }
 
-async function fetchJsonAnyPort(paths: string[]): Promise<{ data: any; port: number } | null> {
-  for (const port of [3000, 4000, 8080]) {
-    for (const p of paths) {
-      try {
-        const res = await fetch(`http://localhost:${port}${p}`, {
-          signal: AbortSignal.timeout(3000),
-        });
-        if (res.ok) return { data: await res.json(), port };
-      } catch {}
-    }
-  }
-  return null;
-}
-
-export async function api_handles_missing_limit_param(): Promise<AssertionResult> {
-  const result = await fetchJsonAnyPort(["/api/top-products"]);
+export async function api_handles_missing_limit_param(ctx: AssertionContext): Promise<AssertionResult> {
+  const result = await fetchEgressJson<any[]>(ctx, "top-products", { paths: ["/api/top-products"] });
   if (!result) {
     return { passed: false, message: "Top products API unreachable.", details: {} };
   }
-  const passed = Array.isArray(result.data) && result.data.length > 0 && result.data.length <= 10;
+  const data = result.data;
+  const passed = Array.isArray(data) && data.length > 0 && data.length <= 10;
   return {
     passed,
     message: passed
-      ? `Top products without limit returns ${result.data.length} items (default applied).`
-      : `Expected 1-10 items without limit param, got ${Array.isArray(result.data) ? result.data.length : "non-array"}.`,
-    details: { count: Array.isArray(result.data) ? result.data.length : 0, port: result.port },
+      ? `Top products without limit returns ${data.length} items (default applied).`
+      : `Expected 1-10 items without limit param, got ${Array.isArray(data) ? data.length : "non-array"}.`,
+    details: { count: Array.isArray(data) ? data.length : 0, url: result.url },
   };
 }
 
-export async function api_returns_valid_json(): Promise<AssertionResult> {
-  const endpoints = ["/api/top-products", "/api/revenue-by-region"];
+export async function api_returns_valid_json(ctx: AssertionContext): Promise<AssertionResult> {
+  const endpoints: Array<{ name: string; path: string }> = [
+    { name: "top-products", path: "/api/top-products" },
+    { name: "revenue-by-region", path: "/api/revenue-by-region" },
+  ];
   const failures: string[] = [];
 
-  for (const endpoint of endpoints) {
-    const result = await fetchJsonAnyPort([endpoint]);
+  for (const { name, path } of endpoints) {
+    const result = await fetchEgressJson<unknown>(ctx, name, { paths: [path] });
     if (!result) {
-      failures.push(`${endpoint}: unreachable`);
+      failures.push(`${path}: unreachable`);
       continue;
     }
     if (!Array.isArray(result.data)) {
-      failures.push(`${endpoint}: not a JSON array`);
+      failures.push(`${path}: not a JSON array`);
     }
   }
 
