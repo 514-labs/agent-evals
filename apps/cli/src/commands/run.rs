@@ -486,11 +486,12 @@ async fn run_single(
         None
     };
 
-    // 514-1419: Drive the run in two phases so /scenario/assertions/ is never
-    // visible to the agent. Phase 1 runs the agent with no assertion files on
-    // disk; we then docker-cp them in; phase 2 runs the evaluator. The agent's
-    // exit code is preserved by run-evaluator.sh and surfaced as phase 2's
-    // exit code.
+    // 514-1419 / 514-1425: Drive the run in two phases so neither
+    // /scenario/assertions/ nor /opt/dec-bench/eval-core/src/ is visible to
+    // the agent. Phase 1 runs the agent with no assertion files and no
+    // scorer source on disk; we then docker-cp both in; phase 2 runs the
+    // evaluator. The agent's exit code is preserved by run-evaluator.sh and
+    // surfaced as phase 2's exit code.
     let assertions_src = preflight::resolve_repo_path(&format!(
         "scenarios/{scenario_id}/assertions"
     ))
@@ -506,9 +507,20 @@ async fn run_single(
         );
     }
 
+    let eval_core_src = preflight::resolve_repo_path("packages/eval-core/src").with_context(|| {
+        "Could not locate packages/eval-core/src — expected the assertion runner source to exist on host.".to_string()
+    })?;
+    if !eval_core_src.exists() {
+        bail!(
+            "eval-core source missing: {} — the host source must exist for two-phase orchestration.",
+            eval_core_src.display()
+        );
+    }
+
     let docker_for_run = docker.clone();
     let container_name_for_run = container_name.clone();
     let assertions_src_for_run = assertions_src.clone();
+    let eval_core_src_for_run = eval_core_src.clone();
 
     let run_container = async move {
         let (mut stdout_buffer, mut stderr_buffer, agent_phase_exit) = exec_phase(
@@ -527,6 +539,7 @@ async fn run_single(
         }
 
         copy_assertions_into_container(&container_name_for_run, &assertions_src_for_run).await?;
+        copy_eval_core_src_into_container(&container_name_for_run, &eval_core_src_for_run).await?;
 
         let (eval_stdout, eval_stderr, exit_code) = exec_phase(
             &docker_for_run,
@@ -805,27 +818,62 @@ async fn exec_phase(
 /// dependency) — bollard's tar-archive upload would require either a new
 /// crate dep or hand-rolling tar serialization for marginal benefit.
 async fn copy_assertions_into_container(container_name: &str, assertions_src: &Path) -> Result<()> {
+    cp_dir_into_container(
+        container_name,
+        assertions_src,
+        "/scenario/assertions",
+        "assertions",
+    )
+    .await
+}
+
+/// 514-1425: Copy the host-side eval-core source into the running container
+/// at `/opt/dec-bench/eval-core/src/`. The base image installs the eval-core
+/// `package.json` + `node_modules/` at build time but skips `src/`, so the
+/// agent phase has no scorer source on disk. The CLI populates `src/` here
+/// before the evaluator phase runs.
+async fn copy_eval_core_src_into_container(
+    container_name: &str,
+    eval_core_src: &Path,
+) -> Result<()> {
+    cp_dir_into_container(
+        container_name,
+        eval_core_src,
+        "/opt/dec-bench/eval-core/src",
+        "eval-core/src",
+    )
+    .await
+}
+
+/// Shared shell-out helper: ensure `dest_dir` exists in `container_name`,
+/// then `docker cp <src>/. <ct>:<dest_dir>/`. `label` is used in error
+/// messages and should describe what's being copied (e.g. "assertions").
+async fn cp_dir_into_container(
+    container_name: &str,
+    src: &Path,
+    dest_dir: &str,
+    label: &str,
+) -> Result<()> {
     let mkdir = tokio::process::Command::new("docker")
-        .args(["exec", container_name, "mkdir", "-p", "/scenario/assertions"])
+        .args(["exec", container_name, "mkdir", "-p", dest_dir])
         .status()
         .await
-        .context("Failed to spawn 'docker exec mkdir' for assertions target")?;
+        .with_context(|| format!("Failed to spawn 'docker exec mkdir' for {label} target"))?;
     if !mkdir.success() {
         bail!(
-            "docker exec mkdir /scenario/assertions failed in container '{}'",
-            container_name
+            "docker exec mkdir {dest_dir} failed in container '{container_name}'"
         );
     }
 
     // The trailing /. asks docker cp to copy the *contents* of the source
     // directory into the destination, not the directory itself.
-    let src_arg = format!("{}/.", assertions_src.display());
-    let dest_arg = format!("{container_name}:/scenario/assertions/");
+    let src_arg = format!("{}/.", src.display());
+    let dest_arg = format!("{container_name}:{dest_dir}/");
     let cp = tokio::process::Command::new("docker")
         .args(["cp", &src_arg, &dest_arg])
         .status()
         .await
-        .context("Failed to spawn 'docker cp' for assertions")?;
+        .with_context(|| format!("Failed to spawn 'docker cp' for {label}"))?;
     if !cp.success() {
         bail!(
             "docker cp '{}' '{}' failed",
