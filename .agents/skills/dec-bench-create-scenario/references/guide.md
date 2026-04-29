@@ -456,6 +456,4 @@ Use it when you need a clean reference for prompt style, assertion granularity, 
 
 ## Skill Distribution
 
-DEC Bench skills are checked into the repo and auto-load when an agent opens it: Claude Code reads `.claude/skills/`, Cursor and Codex read `AGENTS.md` and `.agents/skills/`. No install command is required for end users.
-
-After editing a skill under `.agents/skills/`, run `tools/sync-skills.sh` from the repo root to mirror the change into `.claude/skills/`.
+DEC Bench skills are checked into the repo and auto-load when an agent opens it: Claude Code reads `.claude/skills/` (entries are symlinks into `.agents/skills/`), Cursor and Codex read `AGENTS.md` and `.agents/skills/` directly. No install command is required for end users, and no sync step is required when authors edit a skill: edits to `.agents/skills/` are visible to Claude Code immediately through the symlinks.

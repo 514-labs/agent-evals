@@ -69,11 +69,9 @@ Skills are checked into this repo. They auto-load when a user opens the repo wit
 | "Create scenario", "new scenario", "add eval", "write a benchmark for" | `dec-bench-create-scenario` | `.agents/skills/dec-bench-create-scenario/SKILL.md` |
 | "Test a local moose-cli / ClickHouse / skill build before release" | `dec-bench-local-override` | `.agents/skills/dec-bench-local-override/SKILL.md` |
 
-**Claude Code** auto-loads from `.claude/skills/` (mirrors of the same content kept in sync via `tools/sync-skills.sh`).
+**Claude Code** auto-loads from `.claude/skills/`. Each `dec-bench-*` entry there is a symlink into `.agents/skills/`, so editing the canonical source under `.agents/skills/` is enough; no sync step.
 
 **Codex and Cursor** read this `AGENTS.md` natively. When the user's intent matches a row above, read the linked `SKILL.md` and follow it.
-
-If you edit any file under `.agents/skills/dec-bench-*`, run `tools/sync-skills.sh` to refresh `.claude/skills/`. The script is idempotent.
 
 ## Linear Defaults
 
