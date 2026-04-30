@@ -430,10 +430,16 @@ fn warn_on_undersized_key_pools(
         if pool_size == 0 || pool_size >= parallel {
             continue;
         }
+        // Anthropic (and OpenAI) rate limits apply at the organization level,
+        // not per key. Multiple keys only buy more capacity if they come from
+        // different organizations. Say so loudly so users don't get a false
+        // sense of safety from setting the plural env var.
         eprintln!(
-            "WARN: running with --parallel {parallel} but only {pool_size} {} key(s) configured. \
-             Expect provider rate-limit errors. \
-             Set {}=<key1>,<key2>,... to spread load across keys.",
+            "WARN: --parallel {parallel} with only {pool_size} {} key(s). \
+             Provider rate limits are per-organization (not per-key), so a single \
+             organization's keys share one pool. \
+             To spread load: set {}=<key1>,<key2>,... with keys from different \
+             organizations, raise your usage tier, or lower --parallel.",
             provider.singular_env(),
             provider.plural_env(),
         );

@@ -19,8 +19,11 @@ If the user wants to "get started", "run a scenario", or "test their setup", wal
 
    For parallel matrix runs (`--parallel > 1`), set the plural form
    (`ANTHROPIC_API_KEYS=key1,key2,...`) so the CLI rotates keys across
-   containers. With one key plus `--parallel > 1` the CLI prints a warning
-   and continues, but the provider will rate-limit you.
+   containers. Note that Anthropic rate limits are **per-organization, not
+   per-key**, so multiple keys only add capacity when they come from
+   different organizations. For more capacity within one organization, raise
+   the usage tier or lower `--parallel`. With one key and `--parallel > 1`
+   the CLI prints a warning and continues.
 4. **Build and run the canonical first scenario**:
    ```bash
    dec-bench build --scenario foo-bar-csv-ingest

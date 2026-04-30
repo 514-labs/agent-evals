@@ -54,15 +54,22 @@ dec-bench run --scenario foo-bar-csv-ingest --agent codex
 To run a matrix in parallel (`--parallel > 1`), set the plural form
 (`ANTHROPIC_API_KEYS` / `OPENAI_API_KEYS` / `CURSOR_API_KEYS`) to a
 comma-separated list. The CLI assigns one key per container in round-robin
-order, so simultaneous runs do not share a single per-key rate limit:
+order:
 
 ```bash
 export ANTHROPIC_API_KEYS=sk-ant-key1,sk-ant-key2
 dec-bench run --matrix --parallel 2
 ```
 
-If only the singular key is set when `--parallel > 1`, the CLI prints a
-warning and proceeds — expect provider rate-limit errors.
+**Important:** [Anthropic rate limits apply per organization](https://docs.anthropic.com/en/api/rate-limits),
+not per key — and the same is true for most major providers. Two keys from
+the same organization share a single rate-limit pool, so multi-key rotation
+only adds real capacity when the keys come from **different** Anthropic
+organizations (e.g., a personal account and a team account).
+
+For more capacity within a single organization, raise your usage tier or
+reduce `--parallel`. If only the singular key is set when `--parallel > 1`,
+the CLI prints a warning and proceeds.
 
 ## Evaluation Harnesses
 
