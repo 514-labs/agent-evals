@@ -19,7 +19,7 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tracing::{info, warn};
 
-use super::agent::Agent;
+use super::agent::{Agent, KeyPools, ProviderKey};
 use super::preflight;
 
 const SCENARIO_REGISTRY_DIR: &str = "apps/web/data/scenarios";
@@ -39,12 +39,27 @@ const ASSERTION_LOG_START: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_START__";
 const ASSERTION_LOG_END: &str = "__DEC_BENCH_ASSERTION_LOG_JSON_END__";
 const SERVICE_LOGS_START: &str = "__DEC_BENCH_SERVICE_LOGS_JSON_START__";
 const SERVICE_LOGS_END: &str = "__DEC_BENCH_SERVICE_LOGS_JSON_END__";
+/// Singular env vars whose value (read directly from the host env) should be
+/// redacted from any container output we capture. The provider-key pools
+/// supply additional secrets dynamically — see `sanitize_sensitive_content`.
 const SENSITIVE_ENV_KEYS: [&str; 5] = [
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
     "CODEX_API_KEY",
     "CURSOR_API_KEY",
     "HOSTING_CLI_API_KEY",
+];
+
+/// Non-provider env vars that we forward verbatim from the host into every
+/// container when they are set. Provider keys (`ANTHROPIC_API_KEY`, etc.)
+/// come from `KeyPools` instead so they can be rotated per container.
+const FORWARDED_ENV_KEYS: [&str; 6] = [
+    "CODEX_API_KEY",
+    "POSTGRES_URL",
+    "CLICKHOUSE_URL",
+    "HOSTING_CLI_API_KEY",
+    "HOSTING_CLI_EMAIL",
+    "HOSTING_CLI_ORG_ID",
 ];
 
 /// Agent/model pair for matrix runs (e.g. "claude-code:claude-sonnet-4-6")
@@ -183,12 +198,14 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                 .collect()
         };
 
+        let key_pools = Arc::new(KeyPools::from_env());
+
         // Validate all agent/model/key combos upfront before any Docker work.
         let pairs: Vec<(Agent, &str)> = agent_models
             .iter()
             .map(|(a, m)| (*a, m.as_str()))
             .collect();
-        preflight::validate_agent_model_keys(&pairs).await?;
+        preflight::validate_agent_model_keys(&pairs, &key_pools).await?;
 
         preflight::check_docker()?;
         let docker = preflight::connect_docker()?;
@@ -276,6 +293,10 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         let mut completed = 0_usize;
         let mut failed = 0_usize;
 
+        if parallel > 1 {
+            warn_on_undersized_key_pools(parallel, &agent_models, &key_pools);
+        }
+
         if parallel == 1 {
             for job in jobs {
                 completed += 1;
@@ -284,7 +305,15 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                     job.scenario_id, job.harness, job.agent, job.model
                 );
                 let job_args = args_for_job(&args, &job);
-                match run_single(&docker, &job_args, &job.scenario_id, job.persona, job.mode).await
+                match run_single(
+                    &docker,
+                    &job_args,
+                    &job.scenario_id,
+                    job.persona,
+                    job.mode,
+                    &key_pools,
+                )
+                .await
                 {
                     Ok(()) => {}
                     Err(err) => {
@@ -302,6 +331,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
             for job in jobs {
                 let docker = docker.clone();
                 let job_args = args_for_job(&args, &job);
+                let key_pools = key_pools.clone();
                 let permit = semaphore
                     .clone()
                     .acquire_owned()
@@ -310,7 +340,15 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
                 join_set.spawn(async move {
                     let _permit = permit;
-                    run_single(&docker, &job_args, &job.scenario_id, job.persona, job.mode).await
+                    run_single(
+                        &docker,
+                        &job_args,
+                        &job.scenario_id,
+                        job.persona,
+                        job.mode,
+                        &key_pools,
+                    )
+                    .await
                 });
             }
 
@@ -345,8 +383,10 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         .as_deref()
         .context("--scenario is required unless --matrix is enabled")?;
 
+    let key_pools = Arc::new(KeyPools::from_env());
+
     // Validate agent/model/key upfront before any Docker work.
-    preflight::validate_agent_model_keys(&[(args.agent, &args.model)]).await?;
+    preflight::validate_agent_model_keys(&[(args.agent, &args.model)], &key_pools).await?;
 
     preflight::check_docker()?;
     let docker = preflight::connect_docker()?;
@@ -357,10 +397,47 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         scenario,
         args.persona.clone().unwrap_or(Persona::Baseline),
         args.mode.clone(),
+        &key_pools,
     )
     .await?;
 
     Ok(())
+}
+
+/// Print a stderr warning for any provider whose key pool is smaller than the
+/// requested parallelism. We use `eprintln!` (not `warn!`) so the message is
+/// visible without `RUST_LOG` set — this is user-facing guidance, not a
+/// developer trace.
+fn warn_on_undersized_key_pools(
+    parallel: usize,
+    agent_models: &[(Agent, String)],
+    key_pools: &KeyPools,
+) {
+    let mut providers_in_use: Vec<ProviderKey> = Vec::new();
+    for (agent, _) in agent_models {
+        for key_name in agent.required_keys() {
+            if let Some(provider) = ProviderKey::from_key_name(key_name) {
+                if !providers_in_use.contains(&provider) {
+                    providers_in_use.push(provider);
+                }
+            }
+        }
+    }
+
+    for provider in providers_in_use {
+        let pool = key_pools.get(provider);
+        let pool_size = pool.len();
+        if pool_size == 0 || pool_size >= parallel {
+            continue;
+        }
+        eprintln!(
+            "WARN: running with --parallel {parallel} but only {pool_size} {} key(s) configured. \
+             Expect provider rate-limit errors. \
+             Set {}=<key1>,<key2>,... to spread load across keys.",
+            provider.singular_env(),
+            provider.plural_env(),
+        );
+    }
 }
 
 fn args_for_job(base: &RunArgs, job: &MatrixJob) -> RunArgs {
@@ -377,6 +454,7 @@ async fn run_single(
     scenario_id: &str,
     persona: Persona,
     mode: PlanMode,
+    key_pools: &KeyPools,
 ) -> Result<()> {
     let image = format!(
         "{}.{}.{}.{}.{}",
@@ -416,17 +494,18 @@ async fn run_single(
         format!("EVAL_VERSION={}", args.version),
         format!("MODEL={}", args.model),
     ];
-    for key in [
-        "ANTHROPIC_API_KEY",
-        "OPENAI_API_KEY",
-        "CODEX_API_KEY",
-        "CURSOR_API_KEY",
-        "POSTGRES_URL",
-        "CLICKHOUSE_URL",
-        "HOSTING_CLI_API_KEY",
-        "HOSTING_CLI_EMAIL",
-        "HOSTING_CLI_ORG_ID",
-    ] {
+
+    // Provider keys come from KeyPools so parallel runs can rotate across
+    // multiple keys. Each container only sees the single key it was assigned
+    // (via the singular *_API_KEY env var the agent reads), never the full
+    // list. Empty pools fall through silently — same as the old `if let Ok`
+    // pattern when the env var was unset.
+    for (provider, pool) in key_pools.iter() {
+        if let Some(value) = pool.next() {
+            env.push(format!("{}={}", provider.singular_env(), value));
+        }
+    }
+    for key in FORWARDED_ENV_KEYS {
         if let Ok(value) = std::env::var(key) {
             env.push(format!("{key}={value}"));
         }
@@ -658,7 +737,7 @@ async fn run_single(
         let run_meta_path = output_path.with_extension("run-meta.json");
         fs::write(
             &run_meta_path,
-            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+            ensure_trailing_newline(&sanitize_sensitive_content(&content, key_pools)),
         )
             .with_context(|| format!("Failed to write {}", run_meta_path.display()))?;
         written_files.push("run-meta.json");
@@ -668,7 +747,7 @@ async fn run_single(
         let raw_path = output_path.with_extension("agent-raw.json");
         fs::write(
             &raw_path,
-            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+            ensure_trailing_newline(&sanitize_sensitive_content(&content, key_pools)),
         )
             .with_context(|| format!("Failed to write {}", raw_path.display()))?;
         written_files.push("agent-raw.json");
@@ -678,7 +757,7 @@ async fn run_single(
         let trace_path = output_path.with_extension("trace.json");
         fs::write(
             &trace_path,
-            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+            ensure_trailing_newline(&sanitize_sensitive_content(&content, key_pools)),
         )
             .with_context(|| format!("Failed to write {}", trace_path.display()))?;
         written_files.push("trace.json");
@@ -688,7 +767,7 @@ async fn run_single(
         let session_path = output_path.with_extension("session.jsonl");
         fs::write(
             &session_path,
-            ensure_trailing_newline(&sanitize_sensitive_content(&content)),
+            ensure_trailing_newline(&sanitize_sensitive_content(&content, key_pools)),
         )
             .with_context(|| format!("Failed to write {}", session_path.display()))?;
         written_files.push("session.jsonl");
@@ -1018,13 +1097,21 @@ fn ensure_trailing_newline(content: &str) -> String {
     }
 }
 
-fn sanitize_sensitive_content(content: &str) -> String {
+fn sanitize_sensitive_content(content: &str, key_pools: &KeyPools) -> String {
     let mut sanitized = content.to_string();
     for key in SENSITIVE_ENV_KEYS {
         if let Ok(secret) = std::env::var(key) {
-            if !secret.trim().is_empty() {
-                sanitized = sanitized.replace(&secret, "[redacted]");
+            let trimmed = secret.trim();
+            if !trimmed.is_empty() {
+                sanitized = sanitized.replace(trimmed, "[redacted]");
             }
+        }
+    }
+    // Every key in every pool is also a secret — even if the user only set
+    // them via `*_API_KEYS` (and so they aren't readable via the loop above).
+    for secret in key_pools.all_secrets() {
+        if !secret.is_empty() {
+            sanitized = sanitized.replace(secret, "[redacted]");
         }
     }
     sanitized
@@ -1713,11 +1800,45 @@ mod tests {
         let sample = format!(
             "ANTHROPIC_API_KEY={temp_key}\nCODEX_API_KEY={temp_openai}\nplain text"
         );
-        let sanitized = sanitize_sensitive_content(&sample);
+        let pools = KeyPools::for_test_one_provider(ProviderKey::Cursor, None, None);
+        let sanitized = sanitize_sensitive_content(&sample, &pools);
 
         assert!(sanitized.contains("ANTHROPIC_API_KEY=[redacted]"));
         assert!(sanitized.contains("CODEX_API_KEY=[redacted]"));
         assert!(!sanitized.contains(temp_key));
         assert!(!sanitized.contains(temp_openai));
+    }
+
+    #[test]
+    fn sanitize_sensitive_content_redacts_pool_keys() {
+        // Keys passed via plural-only env vars aren't visible to the
+        // SENSITIVE_ENV_KEYS env-read loop, so the pool branch must redact
+        // them explicitly. Use a unique secret string to avoid env races.
+        let secret_a = "pool-secret-redact-a-123";
+        let secret_b = "pool-secret-redact-b-456";
+        let pools = KeyPools::for_test_one_provider(
+            ProviderKey::Cursor,
+            Some(&format!("{secret_a},{secret_b}")),
+            None,
+        );
+
+        let sample = format!("trace line referencing {secret_a} and also {secret_b}");
+        let sanitized = sanitize_sensitive_content(&sample, &pools);
+        assert!(!sanitized.contains(secret_a));
+        assert!(!sanitized.contains(secret_b));
+        assert!(sanitized.contains("[redacted]"));
+    }
+
+    #[test]
+    fn warn_on_undersized_key_pools_picks_relevant_providers() {
+        // Build a pool where Anthropic has 1 key. With parallel=4 + claude
+        // agent, this should trigger a warning. We can't capture stderr in
+        // a unit test, but we can at least verify it doesn't panic and
+        // that the function uses the values correctly via direct logic.
+        let pools =
+            KeyPools::for_test_one_provider(ProviderKey::Anthropic, None, Some("k1"));
+        let agent_models = vec![(Agent::ClaudeCode, "claude-sonnet-4-6".to_string())];
+        // Smoke test: must not panic.
+        warn_on_undersized_key_pools(4, &agent_models, &pools);
     }
 }

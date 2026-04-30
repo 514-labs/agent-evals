@@ -49,6 +49,21 @@ dec-bench build --scenario foo-bar-csv-ingest --agent codex
 dec-bench run --scenario foo-bar-csv-ingest --agent codex
 ```
 
+### Running with multiple keys
+
+To run a matrix in parallel (`--parallel > 1`), set the plural form
+(`ANTHROPIC_API_KEYS` / `OPENAI_API_KEYS` / `CURSOR_API_KEYS`) to a
+comma-separated list. The CLI assigns one key per container in round-robin
+order, so simultaneous runs do not share a single per-key rate limit:
+
+```bash
+export ANTHROPIC_API_KEYS=sk-ant-key1,sk-ant-key2
+dec-bench run --matrix --parallel 2
+```
+
+If only the singular key is set when `--parallel > 1`, the CLI prints a
+warning and proceeds — expect provider rate-limit errors.
+
 ## Evaluation Harnesses
 
 The harness determines the tooling environment available to the agent during evaluation. The same scenario across different harnesses measures whether tooling improves agent performance.
