@@ -1,0 +1,42 @@
+Based on the Moose documentation, here's the correct pattern for creating an OlapTable with specific column types:
+
+## OlapTable Pattern
+
+```typescript
+import { OlapTable } from "@514labs/moose-lib";
+
+// Define your interface with TypeScript types that map to ClickHouse types
+export interface InitialLoadOrders {
+  order_id: string;                    // String
+  order_ts: Date;                      // DateTime/DateTime64
+  customer_id: string;                 // String
+  amount_cents: number;                // Integer (UInt64/Int64)
+  status: string;                      // String or LowCardinality(String)
+  channel: string;                     // String or LowCardinality(String) 
+  country: string;                     // String or LowCardinality(String)
+  promo_code: string | null;           // Nullable(String)
+  source_object: string;               // String
+}
+
+// Create the OlapTable with orderByFields for performance
+export const InitialLoadOrdersTable = new OlapTable<InitialLoadOrders>("InitialLoadOrders", {
+  orderByFields: ["order_ts", "order_id"], // Put most-filtered columns first
+});
+```
+
+## Key Points:
+
+- **TypeScript → ClickHouse mapping:**
+  - `string` → `String` (or `LowCardinality(String)` for categorical data)
+  - `Date` → `DateTime` or `DateTime64`
+  - `number` → `UInt64`, `Int64`, etc.
+  - `string | null` → `Nullable(String)`
+
+- **orderByFields is critical** - Put your most commonly filtered columns first (typically timestamps, then IDs)
+
+- **Export from app/index.ts** - Moose only discovers exported primitives
+
+For your use case loading S3 data, you only need the `OlapTable` - no `Stream` or `IngestApi` since you're not using HTTP ingest.
+
+After defining this, run `moose ls` to confirm the table was registered, then use `moose query` or the ClickHouse `INSERT` statements to load your S3 data directly into the table.
+Found session JSONL at /root/.claude/projects/-/059ab570-7a46-4ea5-b517-16357b918ee0.jsonl

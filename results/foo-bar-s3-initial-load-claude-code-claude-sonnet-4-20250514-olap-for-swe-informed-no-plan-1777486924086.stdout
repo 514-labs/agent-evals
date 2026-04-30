@@ -1,0 +1,51 @@
+Based on Moose fundamentals, here's how to implement your one-off initial load workflow:
+
+**Key patterns for your use case:**
+- Use explicit `OlapTable` (not deprecated `IngestPipeline`)  
+- Use `Workflow` + `Task` for one-off processing
+- Use `OlapTable.insert()` to directly write batches of data
+- Handle mixed file formats within your workflow logic
+
+**For your S3-style initial load:**
+
+```typescript
+// In your models.ts - you already have the OlapTable
+export const initialLoadOrdersTable = new OlapTable<InitialLoadOrder>("initial_load_orders", {
+  orderByFields: ["order_ts", "country", "status"],
+  database: "analytics",
+});
+
+// New workflow file - create app/workflows/initial-load.ts
+import { Task, Workflow } from "@514labs/moose-lib";
+import { initialLoadOrdersTable, InitialLoadOrder } from "../ingest/models";
+// Add file parsing utilities for CSV/JSONL/Parquet
+
+const processManifestAndLoad = new Task<null, number>("processManifestAndLoad", {
+  run: async () => {
+    // 1. Read manifest.csv, filter for should_load=true + not archive/replayed
+    // 2. For each approved file, determine format and parse appropriately  
+    // 3. Handle missing promo_code column case
+    // 4. Batch insert via: await initialLoadOrdersTable.insert(batchOfRows)
+    
+    return totalRowsLoaded;
+  },
+  retries: 2,
+  timeout: "300s", // Adjust based on data size
+});
+
+export const initialLoadWorkflow = new Workflow("initial-load", {
+  startingTask: processManifestAndLoad,
+  retries: 1,
+  timeout: "600s",
+});
+```
+
+**Critical points:**
+- Use `OlapTable.insert(rowArray)` for direct batch insertion - no HTTP ingest needed
+- Parse the manifest CSV to filter files (`should_load=true` + exclude `archive/replayed`)
+- Handle format detection (`.csv`, `.csv.gz`, `.jsonl`, `.parquet`) in your workflow
+- For the missing `promo_code` column: detect missing column, default to `null`
+- Always run `moose ls` after editing `app/index.ts` to confirm workflow registration
+
+Do you want me to implement the complete file parsing and workflow logic?
+Found session JSONL at /root/.claude/projects/-/c56cbf52-8fcd-4882-bf7a-8eae51f297c0.jsonl

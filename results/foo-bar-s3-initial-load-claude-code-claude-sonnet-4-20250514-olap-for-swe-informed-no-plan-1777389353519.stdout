@@ -1,0 +1,49 @@
+Perfect! Based on the requirements, you need to create an `OlapTable` for the initial load orders data. Here's how to structure it:
+
+## TypeScript Interface and OlapTable Definition
+
+```typescript
+// Define the interface for the order data
+export interface InitialLoadOrder {
+  order_id: string;
+  order_ts: Date;  // Maps to DateTime64 in ClickHouse
+  customer_id: string;
+  amount_cents: number;  // Maps to integer in ClickHouse
+  status: string;  // Will be LowCardinality(String) in ClickHouse
+  channel: string;  // Will be LowCardinality(String) in ClickHouse
+  country: string;  // Will be LowCardinality(String) in ClickHouse
+  promo_code: string | null;  // Maps to Nullable(String) in ClickHouse
+  source_object: string;
+}
+
+// Create the OLAP table
+export const InitialLoadOrdersTable = new OlapTable<InitialLoadOrder>("InitialLoadOrders", {
+  orderByFields: ["order_ts", "status", "country"],
+});
+```
+
+## Key Points for Your Use Case:
+
+1. **No Stream or IngestApi needed**: Since this is a one-off initial load (not real-time ingestion), you only need the `OlapTable`. You'll load data directly via a `Workflow` or script.
+
+2. **Table naming**: The `OlapTable` name `"InitialLoadOrders"` will create a table that you can query as `InitialLoadOrders` in SQL (Moose handles the `analytics.initial_load_orders` mapping internally).
+
+3. **Order By Fields**: I chose `["order_ts", "status", "country"]` based on likely query patterns for analytics:
+   - Time-based filtering (most common)
+   - Status analysis (paid vs refunded vs failed)
+   - Geographic analysis
+
+4. **Data Types**: 
+   - ClickHouse will automatically map TypeScript types to appropriate ClickHouse types
+   - `string` fields for status/channel/country will be optimized as `LowCardinality(String)`
+   - `string | null` maps to `Nullable(String)`
+
+## Next Steps:
+
+Add this to your `app/index.ts`, then:
+1. Start `moose dev --dockerless` 
+2. Run `moose ls` to confirm the table was created
+3. Create a workflow to load the data from your S3 manifest files
+
+The table will be ready to receive your initial load data from the manifest files (`orders_2026_01.csv`, `orders_2026_02.csv`, `orders_2026_03.jsonl`).
+Found session JSONL at /root/.claude/projects/-/512708f6-eb7c-461f-8b57-0d98f4f1893b.jsonl

@@ -31,3 +31,5 @@ Expected validation:
 - no rows with a `source_object` containing `archive/replayed`
 
 Document how to rerun the load and how you verified the count against the manifest.
+
+Definition of done: implement this end-to-end in a single pass without pausing to ask for confirmation. Treat the task as complete only when the destination table is populated and you have run queries against it that prove every validation criterion above. Do not stop after writing a plan, declaring the schema, or sketching a workflow skeleton with TODO comments — keep going until the data is loaded and verified, or until you hit a concrete blocker you cannot resolve from the codebase or environment.

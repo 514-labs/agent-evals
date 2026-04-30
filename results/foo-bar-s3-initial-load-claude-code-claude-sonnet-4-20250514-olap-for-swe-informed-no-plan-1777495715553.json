@@ -1,0 +1,84 @@
+{
+  "agent": "claude-code",
+  "efficiency": {
+    "agentSteps": 82,
+    "cacheCreationTokens": 0,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "cachedInputTokens": 0,
+    "inputTokens": 658,
+    "llmApiCostSource": "agent-reported",
+    "llmApiCostUsd": 1.7432251000000003,
+    "outputTokens": 27868,
+    "tokensUsed": 28526,
+    "wallClockSeconds": 625
+  },
+  "gates": {
+    "correct": {
+      "core": {},
+      "passed": true,
+      "scenario": {
+        "manifest_row_count_matches": true,
+        "order_amount_checksum_matches": true,
+        "status_distribution_matches": true
+      },
+      "score": 1
+    },
+    "functional": {
+      "core": {
+        "no_unhandled_errors": true,
+        "process_exits_clean": true
+      },
+      "passed": true,
+      "scenario": {
+        "required_order_columns_exist": true,
+        "target_orders_table_exists": true,
+        "target_table_has_rows": true
+      },
+      "score": 1
+    },
+    "performant": {
+      "core": {},
+      "passed": false,
+      "scenario": {
+        "avoids_select_star_queries": false,
+        "sorting_key_supports_incremental_verification": true,
+        "target_uses_mergetree_family": true
+      },
+      "score": 0.6666666666666666
+    },
+    "production": {
+      "core": {},
+      "passed": false,
+      "scenario": {},
+      "score": 0
+    },
+    "robust": {
+      "core": {
+        "idempotent_rerun": true
+      },
+      "passed": true,
+      "scenario": {
+        "manifest_source_object_count_matches": true,
+        "no_duplicate_order_ids": true,
+        "replayed_object_was_not_loaded": true
+      },
+      "score": 1
+    }
+  },
+  "harness": "olap-for-swe",
+  "highest_gate": 3,
+  "model": "claude-sonnet-4-20250514",
+  "normalized_score": 0.7333333333333333,
+  "run_id": "foo-bar-s3-initial-load-claude-code-claude-sonnet-4-20250514-olap-for-swe-informed-no-plan-1777495715553",
+  "run_metadata": {
+    "persona": "informed",
+    "planMode": "no-plan",
+    "promptContent": "Use the Moose CLI and ClickHouse to implement the initial-load workflow from the S3-style prefix at `/data/s3/foo-bar-prod-exports/initial-load/orders/2026-01/`.\n\nUse the environment variables for source configuration instead of hardcoding values:\n\n- `S3_ENDPOINT=file:///data/s3`\n- `S3_BUCKET=foo-bar-prod-exports`\n- `S3_PREFIX=initial-load/orders/2026-01/`\n- `S3_MANIFEST_PATH=/data/s3/foo-bar-prod-exports/initial-load/orders/2026-01/manifest.csv`\n\nCreate or initialize a Moose TypeScript project if needed, start `moose dev --dockerless`, and declare a typed destination OlapTable equivalent to `analytics.initial_load_orders` with these logical columns:\n\n- `order_id` String\n- `order_ts` DateTime or DateTime64\n- `customer_id` String\n- `amount_cents` integer\n- `status` String or LowCardinality(String)\n- `channel` String or LowCardinality(String)\n- `country` String or LowCardinality(String)\n- `promo_code` Nullable(String) or String\n- `source_object` String\n\nChoose the one-off initial-load path for this historical backfill. The prefix is partitioned hive-style under `dt=YYYY-MM-DD/hour=HH/` and contains 15 manifest-approved objects in mixed formats (CSV, gzipped CSV, JSONL, Parquet) plus replay copies under `archive/replayed/`. Load only manifest rows where `should_load=true`. Skip everything under `archive/replayed/`. One CSV is missing the `promo_code` column entirely — treat it as NULL.\n\nExpected validation:\n\n- 600,000 unique orders\n- `sum(amount_cents) = 904799879`\n- status counts are `paid=552070`, `refunded=30032`, `failed=17898`\n- exactly 15 distinct `source_object` values (one per manifest-approved file)\n- no duplicate `order_id`\n- no rows with a `source_object` containing `archive/replayed`\n\nDocument how to rerun the load locally and what would need to be configured for a Boreal preview branch.\n\nDefinition of done: implement this end-to-end in a single pass without pausing to ask for confirmation. Treat the task as complete only when the destination table is populated and you have run queries against it that prove every validation criterion above. Do not stop after writing a plan, declaring the schema, or sketching a workflow skeleton with TODO comments — keep going until the data is loaded and verified, or until you hit a concrete blocker you cannot resolve from the codebase, environment, or `moose docs`.\n",
+    "promptPath": "/scenario/harnesses/olap-for-swe/prompts/informed.md",
+    "promptPreview": "Use the Moose CLI and ClickHouse to implement the initial-load workflow from the S3-style prefix at `/data/s3/foo-bar-prod-exports/initial-load/orders/2026-01/`.\n\nUse the environment variables for source configuration instead of hardcoding values:\n\n- `S3_ENDPOINT=file:///data/s3`\n- `S3_BUCKET=foo-bar-prod-exports`\n- `S3_PREFIX=initial-load/orders/2026-01/`\n- `S3_MANIFEST_PATH=/data/s3/foo-bar-prod-exports/initial-load/orders/2026-01/manifest.csv`\n\nCreate or initialize a Moose TypeScript project if needed, start `moose dev --dockerless`, and declare a typed destination OlapTable equivalent to `analytics.initial_load_orders` with these logical columns:\n\n- `order_id` String\n- `order_ts` DateTime or DateTime64\n- `customer_id` String\n- `amount_cents` integer\n- `status` String or LowCardinality(String)\n- `channel` String or LowCardinality(String)\n- `country` String or LowCardinality(String)\n- `promo_code` Nullable(String) or String\n- `source_object` String\n\nChoose the one-off initial-load pa",
+    "promptSha256": "f8614a00e863b4dd4e2fd8c03ebfbed041e8e15ab0b058ca09e8318ec8defeba"
+  },
+  "scenario": "foo-bar-s3-initial-load",
+  "version": "v0.1.0"
+}

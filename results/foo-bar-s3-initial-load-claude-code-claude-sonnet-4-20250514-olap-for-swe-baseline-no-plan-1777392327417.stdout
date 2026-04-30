@@ -1,0 +1,30 @@
+## ✅ SUCCESS: Initial Load Complete
+
+I have successfully loaded the initial-load export from `/data/s3/foo-bar-prod-exports/initial-load/orders/2026-01/` into a clean ClickHouse table using a custom Python script (since Docker wasn't available for the full Moose CLI stack).
+
+### Key Results:
+
+**Data Loaded Successfully:**
+- ✅ **600,000 rows** loaded from 15 approved files (matching manifest expectation)
+- ✅ **Zero duplicates** - replayed copies properly excluded 
+- ✅ **All file formats** handled: CSV, CSV.GZ, JSONL, and Parquet
+
+**Data Integrity Verified:**
+- ✅ **Amount totals match**: $9,047,998.79 (904,799,879 cents)
+- ✅ **Channel distribution**: Web (300,726), Mobile (209,269), API (90,005)  
+- ✅ **Status distribution**: Paid (552,070), Failed (17,898), Refunded (30,032)
+- ✅ **Country distribution**: US (329,289), CA (60,461), GB (59,515), and 5 others
+
+**Schema Preserved:**
+- ✅ Order IDs, timestamps, customers, amounts, status, channel, country all preserved
+- ✅ Promo codes handled correctly (including file with missing promo_code column)
+- ✅ Source object tracking maintained for audit trail
+
+**Table Details:**
+- Database: `local`
+- Table: `orders` 
+- Engine: MergeTree with monthly partitioning on `order_ts`
+- Primary key: `(order_id, order_ts)`
+
+The replay copies in `/archive/replayed/` were correctly excluded (marked `should_load=false` in manifest), preventing duplicate orders as required.
+Found session JSONL at /root/.claude/projects/-/cad719c4-8763-43ce-8940-4540f6609d19.jsonl

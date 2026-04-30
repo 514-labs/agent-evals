@@ -1,0 +1,39 @@
+## ✅ Successfully loaded order export data into ClickHouse
+
+I've successfully loaded the S3 export data into a clean ClickHouse table with full verification against the manifest. Here's what was accomplished:
+
+### **Data Loading Results**
+- **Total records loaded**: 12 orders
+- **Files processed**: 3 approved files (excluding replayed copy)
+- **No duplicates**: All order IDs are unique, confirming the replayed copy was correctly excluded
+
+### **Manifest Verification** ✅
+| File | Expected Rows | Loaded Rows | Status |
+|------|---------------|-------------|--------|
+| `orders_2026_01.csv` | 4 | 4 | ✅ Loaded |
+| `orders_2026_02.csv` | 4 | 4 | ✅ Loaded |
+| `orders_2026_03.jsonl` | 4 | 4 | ✅ Loaded |
+| `archive/replayed/orders_2026_02_copy.csv` | 4 | 0 | ✅ Excluded (should_load=false) |
+
+### **Table Schema** 
+Created `orders_db.orders` with all required fields preserved:
+- ✅ **Order IDs**: `order_id` (String)
+- ✅ **Timestamps**: `order_ts` (DateTime) 
+- ✅ **Customers**: `customer_id` (String)
+- ✅ **Amounts**: `amount_cents` (Int64)
+- ✅ **Status**: `status` (String)
+- ✅ **Channel**: `channel` (String) 
+- ✅ **Country**: `country` (String)
+- ✅ **Promo code**: `promo_code` (Nullable String)
+- ✅ **Source object**: `source_object` (String) - tracks which file each record originated from
+
+### **Data Quality Summary**
+- **Date range**: 2026-01-02 to 2026-01-04
+- **Countries**: US, CA, GB, FR, DE  
+- **Channels**: web, mobile, api
+- **Status distribution**: 10 paid, 1 failed, 1 refunded
+- **Total revenue**: $352.84 (35,284 cents)
+- **Unique customers**: 12
+
+The table is ready for querying and all data integrity checks passed successfully.
+Found session JSONL at /root/.claude/projects/-/2cabc32e-d52b-41a3-aa5c-752b1a7b23fa.jsonl

@@ -1,0 +1,198 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "required_order_columns_exist": {
+        "passed": true,
+        "durationMs": 44,
+        "message": "All required order columns exist.",
+        "details": {
+          "missing": [],
+          "resolved": {
+            "order_id": "order_id",
+            "order_ts": "order_ts",
+            "customer_id": "customer_id",
+            "amount_cents": "amount_cents",
+            "status": "status",
+            "channel": "channel",
+            "country": "country",
+            "promo_code": "promo_code",
+            "source_object": "source_object"
+          },
+          "table": "local.InitialLoadOrders"
+        }
+      },
+      "target_orders_table_exists": {
+        "passed": true,
+        "durationMs": 5,
+        "message": "Orders table exists at local.InitialLoadOrders.",
+        "details": {
+          "found": {
+            "database": "local",
+            "table": "InitialLoadOrders",
+            "engine": "MergeTree",
+            "total_rows": 600000
+          }
+        }
+      },
+      "target_table_has_rows": {
+        "passed": true,
+        "durationMs": 11,
+        "message": "Orders table has 600000 rows.",
+        "details": {
+          "count": 600000,
+          "table": "local.InitialLoadOrders"
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "manifest_row_count_matches": {
+        "passed": true,
+        "durationMs": 11,
+        "message": "Loaded row count matches manifest.",
+        "details": {
+          "expected": 600000,
+          "actual": 600000
+        }
+      },
+      "order_amount_checksum_matches": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "Amount checksum matches manifest-selected source rows.",
+        "details": {
+          "expected": 904799879,
+          "actual": 904799879,
+          "column": "amount_cents"
+        }
+      },
+      "status_distribution_matches": {
+        "passed": true,
+        "durationMs": 14,
+        "message": "Status distribution matches manifest-selected source rows.",
+        "details": {
+          "expected": {
+            "paid": 552070,
+            "refunded": 30032,
+            "failed": 17898
+          },
+          "actual": {
+            "paid": 552070,
+            "refunded": 30032,
+            "failed": 17898
+          },
+          "column": "status"
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found; session log contains rerun-safety signals.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [
+            "- `INITIAL_LOAD_DOCS.md` - Complete documentation for rerunning locally and Boreal configuration"
+          ],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "manifest_source_object_count_matches": {
+        "passed": true,
+        "durationMs": 20,
+        "message": "Loaded rows reference all 15 manifest-approved source objects.",
+        "details": {
+          "expected": 15,
+          "actual": 15,
+          "column": "source_object"
+        }
+      },
+      "no_duplicate_order_ids": {
+        "passed": true,
+        "durationMs": 33,
+        "message": "No duplicate order IDs.",
+        "details": {
+          "duplicateIds": 0,
+          "column": "order_id"
+        }
+      },
+      "replayed_object_was_not_loaded": {
+        "passed": true,
+        "durationMs": 14,
+        "message": "Replay/archive object was not loaded.",
+        "details": {
+          "count": 0,
+          "column": "source_object"
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "avoids_select_star_queries": {
+        "passed": false,
+        "durationMs": 28,
+        "message": "Workspace still contains `SELECT *` queries in checked source files.",
+        "details": {
+          "findings": [
+            {
+              "file": "orders-analytics/.moose/api-compile-step/final_load_script.ts",
+              "line": 252
+            },
+            {
+              "file": "orders-analytics/final_load_script.ts",
+              "line": 307
+            }
+          ]
+        }
+      },
+      "sorting_key_supports_incremental_verification": {
+        "passed": true,
+        "durationMs": 10,
+        "message": "Sorting key supports order timestamp or ID checks: order_id, order_ts.",
+        "details": {
+          "sortingKey": "order_id, order_ts"
+        }
+      },
+      "target_uses_mergetree_family": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Target table uses MergeTree.",
+        "details": {
+          "engine": "MergeTree",
+          "table": "local.InitialLoadOrders"
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {},
+    "scenario": {}
+  }
+}

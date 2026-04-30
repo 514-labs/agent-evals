@@ -1,0 +1,480 @@
+{
+  "functional": {
+    "core": {
+      "process_exits_clean": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Agent process exited cleanly.",
+        "details": {
+          "exitCode": 0
+        }
+      },
+      "no_unhandled_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No unhandled errors, tracebacks, or panics found in session log.",
+        "details": {
+          "sessionLogPath": "/output/session.log"
+        }
+      }
+    },
+    "scenario": {
+      "required_order_columns_exist": {
+        "passed": true,
+        "durationMs": 48,
+        "message": "All required order columns exist.",
+        "details": {
+          "missing": [],
+          "resolved": {
+            "order_id": "order_id",
+            "order_ts": "order_ts",
+            "customer_id": "customer_id",
+            "amount_cents": "amount_cents",
+            "status": "status",
+            "channel": "channel",
+            "country": "country",
+            "promo_code": "promo_code",
+            "source_object": "source_object"
+          },
+          "table": "default.Orders"
+        }
+      },
+      "target_orders_table_exists": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Orders table exists at default.Orders.",
+        "details": {
+          "found": {
+            "database": "default",
+            "table": "Orders",
+            "engine": "MergeTree",
+            "total_rows": 12
+          }
+        }
+      },
+      "target_table_has_rows": {
+        "passed": true,
+        "durationMs": 12,
+        "message": "Orders table has 12 rows.",
+        "details": {
+          "count": 12,
+          "table": "default.Orders"
+        }
+      }
+    }
+  },
+  "correct": {
+    "core": {},
+    "scenario": {
+      "manifest_row_count_matches": {
+        "passed": true,
+        "durationMs": 8,
+        "message": "Loaded row count matches manifest.",
+        "details": {
+          "expected": 12,
+          "actual": 12
+        }
+      },
+      "order_amount_checksum_matches": {
+        "passed": true,
+        "durationMs": 13,
+        "message": "Amount checksum matches manifest-selected source rows.",
+        "details": {
+          "expected": 35284,
+          "actual": 35284,
+          "column": "amount_cents"
+        }
+      },
+      "status_distribution_matches": {
+        "passed": true,
+        "durationMs": 14,
+        "message": "Status distribution matches manifest-selected source rows.",
+        "details": {
+          "expected": {
+            "paid": 10,
+            "refunded": 1,
+            "failed": 1
+          },
+          "actual": {
+            "paid": 10,
+            "refunded": 1,
+            "failed": 1
+          },
+          "column": "status"
+        }
+      }
+    }
+  },
+  "robust": {
+    "core": {
+      "idempotent_rerun": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No idempotency failure markers found in session log.",
+        "details": {
+          "mode": "session-log-heuristic",
+          "sessionLogPath": "/output/session.log",
+          "signalMarkers": [],
+          "failureMarkers": []
+        }
+      }
+    },
+    "scenario": {
+      "exactly_three_source_objects_loaded": {
+        "passed": true,
+        "durationMs": 13,
+        "message": "Loaded rows reference exactly three source objects.",
+        "details": {
+          "expected": 3,
+          "actual": 3,
+          "column": "source_object"
+        }
+      },
+      "no_duplicate_order_ids": {
+        "passed": true,
+        "durationMs": 15,
+        "message": "No duplicate order IDs.",
+        "details": {
+          "duplicateIds": 0,
+          "column": "order_id"
+        }
+      },
+      "replayed_object_was_not_loaded": {
+        "passed": true,
+        "durationMs": 13,
+        "message": "Replay/archive object was not loaded.",
+        "details": {
+          "count": 0,
+          "column": "source_object"
+        }
+      }
+    }
+  },
+  "performant": {
+    "core": {},
+    "scenario": {
+      "avoids_select_star_queries": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "Workspace avoids `SELECT *` queries in checked source files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "sorting_key_supports_incremental_verification": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Sorting key supports order timestamp or ID checks: order_ts, customer_id, country.",
+        "details": {
+          "sortingKey": "order_ts, customer_id, country"
+        }
+      },
+      "target_uses_mergetree_family": {
+        "passed": true,
+        "durationMs": 9,
+        "message": "Target table uses MergeTree.",
+        "details": {
+          "engine": "MergeTree",
+          "table": "default.Orders"
+        }
+      }
+    }
+  },
+  "production": {
+    "core": {
+      "uses_env_vars": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "Required data store environment variables are available.",
+        "details": {
+          "declaredServices": [
+            "clickhouse"
+          ],
+          "requiredEnvVars": [
+            "CLICKHOUSE_URL"
+          ],
+          "missingEnvVars": [],
+          "hasPostgresUrl": false,
+          "hasClickhouseUrl": true,
+          "hasRedpandaBroker": false
+        }
+      },
+      "no_secrets_in_code": {
+        "passed": true,
+        "durationMs": 6,
+        "message": "No hardcoded secrets detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "scannedFiles": 24,
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "output_line_count_reasonable": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Workspace output exceeds the hard 438-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "reasonable",
+          "totalLines": 608,
+          "maxExpectedLines": 350,
+          "maxLines": 438,
+          "scannedFiles": 16,
+          "largestFiles": [
+            {
+              "file": "orders-loader/load_orders_direct.ts",
+              "lineCount": 211
+            },
+            {
+              "file": "orders-loader/load_orders.ts",
+              "lineCount": 181
+            },
+            {
+              "file": "orders-loader/app/ingest/models.ts",
+              "lineCount": 43
+            },
+            {
+              "file": "orders-loader/package.json",
+              "lineCount": 37
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "lineCount": 27
+            }
+          ]
+        }
+      },
+      "output_line_count_disciplined": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Workspace output exceeds the target 350-line budget.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "mode": "disciplined",
+          "totalLines": 608,
+          "maxExpectedLines": 350,
+          "maxLines": 350,
+          "scannedFiles": 16,
+          "largestFiles": [
+            {
+              "file": "orders-loader/load_orders_direct.ts",
+              "lineCount": 211
+            },
+            {
+              "file": "orders-loader/load_orders.ts",
+              "lineCount": 181
+            },
+            {
+              "file": "orders-loader/app/ingest/models.ts",
+              "lineCount": 43
+            },
+            {
+              "file": "orders-loader/package.json",
+              "lineCount": 37
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "lineCount": 27
+            }
+          ]
+        }
+      },
+      "no_dead_code_markers": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No dead-code markers detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 0,
+          "findings": []
+        }
+      },
+      "files_are_reasonably_sized": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No workspace file exceeds 250 lines.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "tier": "tier-2",
+          "maxFileLines": 250,
+          "offenders": []
+        }
+      },
+      "no_debug_artifacts": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Debug artifacts detected in workspace files.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "totalFindings": 25,
+          "findings": [
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 5,
+              "kind": "console_log",
+              "excerpt": "console.log(\"Received Order event:\");"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 6,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Order ID: ${order.order_id}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 7,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Timestamp: ${order.order_ts}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 8,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Customer: ${order.customer_id}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 9,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Amount: $${(order.amount_cents / 100).toFixed(2)}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 10,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Status: ${order.status}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 11,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Channel: ${order.channel}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 12,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Country: ${order.country}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 13,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Promo: ${order.promo_code || \"None\"}`);"
+            },
+            {
+              "file": "orders-loader/app/ingest/transforms.ts",
+              "line": 14,
+              "kind": "console_log",
+              "excerpt": "console.log(`  Source: ${order.source_object}`);"
+            }
+          ]
+        }
+      },
+      "zero_compiler_errors": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No supported compiler target detected; compiler check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 350,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "zero_lint_errors": {
+        "passed": true,
+        "durationMs": 0,
+        "message": "No supported lint configuration detected; lint check skipped.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "thresholds": {
+            "maxExpectedLines": 350,
+            "maxFileLines": 250
+          }
+        }
+      },
+      "has_type_safety": {
+        "passed": false,
+        "durationMs": 1,
+        "message": "Type-safety escapes detected in TypeScript sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": [
+            {
+              "file": "orders-loader/load_orders_direct.ts",
+              "line": 46,
+              "kind": "explicit_any",
+              "excerpt": ".on('data', (data: any) => {"
+            },
+            {
+              "file": "orders-loader/load_orders.ts",
+              "line": 46,
+              "kind": "explicit_any",
+              "excerpt": ".on('data', (data: any) => {"
+            }
+          ]
+        }
+      },
+      "functions_are_focused": {
+        "passed": true,
+        "durationMs": 1,
+        "message": "No oversized functions detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": []
+        }
+      },
+      "no_deep_nesting": {
+        "passed": false,
+        "durationMs": 0,
+        "message": "Deeply nested control flow detected in workspace sources.",
+        "details": {
+          "workspaceRoot": "/workspace",
+          "findings": [
+            {
+              "file": "orders-loader/load_orders_direct.ts",
+              "kind": "deep_nesting",
+              "excerpt": "return `('${escapeString(record.order_id)}', '${formattedTimestamp}', '${escapeString(record.customer_id)}', ${record..."
+            },
+            {
+              "file": "orders-loader/load_orders.ts",
+              "kind": "deep_nesting",
+              "excerpt": "console.error(`Failed to ingest ${record.order_id}: ${response.status} ${response.statusText}`);"
+            }
+          ]
+        }
+      }
+    },
+    "scenario": {
+      "no_hardcoded_connection_strings": {
+        "passed": true,
+        "durationMs": 2,
+        "message": "No hardcoded connection strings found in workspace files.",
+        "details": {
+          "findings": []
+        }
+      },
+      "no_hardcoded_s3_secret_values": {
+        "passed": true,
+        "durationMs": 3,
+        "message": "Workspace does not hardcode seeded S3 secret values.",
+        "details": {
+          "findings": []
+        }
+      },
+      "no_leftover_tmp_tables": {
+        "passed": true,
+        "durationMs": 4,
+        "message": "No leftover temporary ClickHouse tables.",
+        "details": {
+          "count": 0
+        }
+      }
+    }
+  }
+}

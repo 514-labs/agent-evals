@@ -1,0 +1,39 @@
+## ✅ Order Data Load Completed Successfully
+
+I've successfully loaded all approved order files from the S3 export into a clean ClickHouse table. Here's the complete summary:
+
+### **Loading Results:**
+- **Total records loaded:** 600,000 orders (exactly matching manifest expectations)
+- **Files processed:** 15 approved files across multiple formats (CSV, CSV.gz, JSONL, Parquet)
+- **Duplicate prevention:** Successfully excluded 2 replayed files from `archive/replayed/` directory
+- **Schema handling:** Properly handled missing `promo_code` column in one file by adding NULL values
+
+### **Data Validation - All Passed ✅:**
+- ✅ **Total amount:** 904,799,879 cents (matches seed totals exactly)
+- ✅ **Channel distribution:** API: 90,005 | Mobile: 209,269 | Web: 300,726
+- ✅ **Country distribution:** US: 329,289 | CA: 60,461 | GB: 59,515 | DE: 42,437 | FR: 36,319 | BR: 29,982 | AU: 24,032 | JP: 17,965
+- ✅ **Status distribution:** Paid: 552,070 | Failed: 17,898 | Refunded: 30,032
+- ✅ **No duplicate order IDs** found
+- ✅ **All source objects** properly tracked for each loaded row
+
+### **Final Table Schema (`orders_db.orders`):**
+```sql
+order_id        String           -- Order identifiers
+order_ts        DateTime64(6)    -- Timestamps with microsecond precision  
+customer_id     String           -- Customer identifiers
+amount_cents    UInt32           -- Order amounts in cents
+status          String           -- Order status (paid/failed/refunded)
+channel         String           -- Sales channel (api/mobile/web)
+country         String           -- Country codes
+promo_code      Nullable(String) -- Promotional codes (nullable)
+source_object   String           -- Source file path for each row
+```
+
+### **Key Stats:**
+- **600,000 unique orders** from **50,000 unique customers**
+- **Average order value:** $15.08
+- **Date range:** January 2-5, 2026
+- **Promo code usage:** 167,727 orders with promo codes, 432,273 without
+
+The table is ready for use and all manifest requirements have been validated successfully.
+Found session JSONL at /root/.claude/projects/-/e0028962-911b-41b5-929c-529adce60118.jsonl
