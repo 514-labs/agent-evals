@@ -1,10 +1,17 @@
 Build an evolving analytics pipeline in three phases using MooseStack. Docs: https://docs.getmoose.dev/
 
-A Moose project has already been scaffolded at `/workspace/moose-project`, and `moose dev --dockerless` is already running at `http://localhost:4000`. The default ClickHouse database is `analytics`. `cd` into the project — the dev server hot-reloads on file changes.
+A Moose project has already been scaffolded at `/workspace/moose-project`, and `moose dev --dockerless --agent` is already running at `http://localhost:4000`. The default ClickHouse database is `analytics`. `cd` into the project — the dev server hot-reloads on file changes.
 
 **Important:**
-- Do NOT run `moose-tspc` or `moose build` manually — the dev server compiles automatically on file save. Check `moose.log` for errors.
-- Do NOT restart or `pkill` the dev server. `moose ls` shows empty output until you save a valid `app/index.ts` — this is normal. After saving, wait a few seconds for hot-reload, then verify with `moose ls`.
+- Do NOT run `moose-tspc` or `moose build` manually — the dev server compiles automatically on file save.
+- Do NOT restart or `pkill` the dev server. `moose ls` shows empty output until you save a valid `app/index.ts` — this is normal.
+- After saving a file, wait for hot-reload to finish before checking results. Use the helper:
+  ```
+  /opt/dec-bench/tools/moose/wait-for-output.sh moose.log "Infrastructure changes processed|error" 30
+  ```
+  This blocks until moose finishes applying changes (or errors), then returns the matching line. Use it instead of `sleep && tail`.
+- Schema migrations (including destructive changes and renames) are auto-applied — no prompts will block.
+- Check compilation errors with: `grep -i error moose.log | tail -5`
 
 **Phase 1 — Ingest and aggregate**
 
