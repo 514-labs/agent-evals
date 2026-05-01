@@ -1,6 +1,16 @@
-Build an evolving analytics pipeline in three phases using MooseStack. Docs: https://docs.getmoose.dev/
+Build an evolving analytics pipeline in four phases using MooseStack. Docs: https://docs.getmoose.dev/
 
-A Moose project has already been scaffolded at `/workspace/moose-project`, and `moose dev --dockerless --agent` is already running at `http://localhost:4000`. The default ClickHouse database is `analytics`. `cd` into the project — the dev server hot-reloads on file changes.
+A Moose project has already been scaffolded at `/workspace/moose-project` with dependencies installed. The default ClickHouse database is `analytics`. `cd` into the project and start the dev server:
+
+```bash
+cd /workspace/moose-project
+nohup moose dev --dockerless --agent > moose.log 2>&1 &
+```
+
+Then wait for it to become healthy (takes ~30s):
+```bash
+/opt/dec-bench/tools/moose/wait-for-output.sh moose.log "Next Steps" 120
+```
 
 **Important:**
 - Do NOT run `moose-tspc` or `moose build` manually — the dev server compiles automatically on file save.
@@ -10,7 +20,12 @@ A Moose project has already been scaffolded at `/workspace/moose-project`, and `
   /opt/dec-bench/tools/moose/wait-for-output.sh moose.log "Infrastructure changes processed|error" 30
   ```
   This blocks until moose finishes applying changes (or errors), then returns the matching line. Use it instead of `sleep && tail`.
-- Schema migrations (including destructive changes and renames) are auto-applied — no prompts will block.
+- The dev server runs in `--agent` mode, which means destructive schema changes (like dropping a column) will trigger a prompt via the MCP endpoint at `http://localhost:4000/mcp`. To approve a pending prompt, call `respond_to_prompt` with response "y":
+  ```bash
+  curl -s -X POST http://localhost:4000/mcp -H "Content-Type: application/json" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"respond_to_prompt","arguments":{"response":"y"}}}'
+  ```
+  If moose is blocking on a prompt, `wait-for-output.sh` will time out — check for a pending prompt and respond before retrying.
 - Check compilation errors with: `grep -i error moose.log | tail -5`
 
 **Phase 1 — Ingest and aggregate**
@@ -35,3 +50,11 @@ Stand up an HTTP server on port 3000 (or add Moose API routes) with:
 - `GET /api/top-products?limit=N` → JSON array of `{ product_id, total_revenue, purchase_count }` objects, ordered by total_revenue DESC, limited to N results (default 5).
 
 Both endpoints must return valid JSON under 200ms.
+
+**Phase 4 — Destructive schema change**
+
+The `device` column is no longer needed. Remove it from your Moose data model in `app/index.ts` (delete the `device` field from the Event interface) and save the file. Moose will detect the destructive column drop and apply it automatically — do NOT run the DDL yourself. Wait for the dev server to process the migration, then verify:
+
+1. `DESCRIBE TABLE analytics.events` no longer lists a `device` column.
+2. All 100 rows are still present (`SELECT count() FROM analytics.events` = 100).
+3. Both API endpoints from Phase 3 still return correct data.

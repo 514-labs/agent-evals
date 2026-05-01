@@ -115,6 +115,40 @@ export async function top_products_returns_correct_order(ctx: AssertionContext):
   };
 }
 
+export async function device_column_dropped(ctx: AssertionContext): Promise<AssertionResult> {
+  const found = await findEventsTable(ctx);
+  if (!found) {
+    return { passed: false, message: "Events table not found.", details: {} };
+  }
+  const deviceCol = await resolveColumn(ctx, found.database, found.table, "device");
+  const passed = deviceCol === null;
+  return {
+    passed,
+    message: passed
+      ? "device column has been removed from events table."
+      : `device column still exists as '${deviceCol}'.`,
+    details: { table: `${found.database}.${found.table}`, deviceCol },
+  };
+}
+
+export async function rows_intact_after_drop(ctx: AssertionContext): Promise<AssertionResult> {
+  const found = await findEventsTable(ctx);
+  if (!found) {
+    return { passed: false, message: "Events table not found.", details: {} };
+  }
+  const rows = await queryRows<{ n: number }>(
+    ctx,
+    `SELECT count() AS n FROM ${found.database}.${found.table}`,
+  );
+  const count = Number(rows[0]?.n ?? 0);
+  const passed = count === 100;
+  return {
+    passed,
+    message: passed ? "All 100 rows intact after column drop." : `Expected 100, got ${count}.`,
+    details: { expected: 100, actual: count },
+  };
+}
+
 export async function revenue_by_region_sums_match(ctx: AssertionContext): Promise<AssertionResult> {
   const found = await findEventsTable(ctx);
   if (!found) {
