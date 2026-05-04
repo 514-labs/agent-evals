@@ -90,8 +90,26 @@ dec-bench run --matrix --parallel auto
 
 This validates all agent/model/key combos upfront before any Docker work.
 
+For `--parallel > 1`, supply multiple provider keys via the plural env vars
+so each container gets its own key:
+
+```bash
+export ANTHROPIC_API_KEYS=sk-ant-key1,sk-ant-key2
+dec-bench run --matrix --parallel 2
+```
+
+With only the singular `*_API_KEY` set, the CLI warns and proceeds — expect
+rate-limit errors from the provider.
+
+**Heads up:** Anthropic (and most major providers) apply rate limits at the
+**organization** level, not the key level. Two keys from the same org share
+one rate-limit pool, so multi-key rotation only adds real capacity when the
+keys come from different organizations. Within one org, the only ways to
+get more capacity are a higher usage tier or lower `--parallel`.
+
 ## Common issues
 
 - **Build fails with Docker error**: start Docker Desktop and retry
 - **API key invalid**: the CLI checks keys against provider APIs — verify the key is correct and not expired
 - **Wrong agent/model combo**: the CLI rejects incompatible pairs (e.g. `--agent codex --model claude-sonnet-4-6`)
+- **Anthropic/OpenAI rate limits during a parallel matrix run**: rotation across same-org keys does not help — drop `--parallel`, raise your usage tier, or use keys from different organizations

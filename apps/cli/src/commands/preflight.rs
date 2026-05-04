@@ -7,7 +7,7 @@ use anyhow::{bail, Context, Result};
 use bollard::Docker;
 use bollard::API_DEFAULT_VERSION;
 
-use super::agent::{Agent, ProviderKey};
+use super::agent::{Agent, KeyPools, ProviderKey};
 
 pub fn resolve_repo_root() -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("Failed to determine current directory")?;
@@ -165,12 +165,16 @@ pub fn check_image_exists(image: &str) -> Result<()> {
 /// Call this at the **start** of `execute()` so problems surface before any
 /// Docker builds or container launches.
 ///
-/// Checks run in order: model compatibility → key presence →
-/// key validity (live API call). Earlier failures short-circuit so we don't
-/// spam users with redundant errors.
-pub async fn validate_agent_model_keys(pairs: &[(Agent, &str)]) -> Result<()> {
+/// Checks run in order: model compatibility → key presence (the provider's
+/// `KeyPool` must be non-empty) → key validity (live API call against every
+/// key in the relevant pools, in parallel). Earlier failures short-circuit so
+/// we don't spam users with redundant errors.
+pub async fn validate_agent_model_keys(
+    pairs: &[(Agent, &str)],
+    key_pools: &KeyPools,
+) -> Result<()> {
     let mut errors: Vec<String> = Vec::new();
-    let mut keys_to_validate: HashSet<&str> = HashSet::new();
+    let mut providers_to_validate: HashSet<ProviderKey> = HashSet::new();
 
     for (agent, model) in pairs {
         // 1. Model must be compatible with the agent
@@ -187,16 +191,23 @@ pub async fn validate_agent_model_keys(pairs: &[(Agent, &str)]) -> Result<()> {
             ));
         }
 
-        // 2. Required API key must be set and non-empty
-        for key in agent.required_keys() {
-            let is_set = std::env::var(key).is_ok_and(|v| !v.trim().is_empty());
-            if !is_set {
+        // 2. Required provider must have at least one key in its pool.
+        for key_name in agent.required_keys() {
+            let Some(provider) = ProviderKey::from_key_name(key_name) else {
+                continue;
+            };
+            let pool = key_pools.get(provider);
+            if pool.is_empty() {
                 errors.push(format!(
-                    "Missing {key} (required by agent '{agent}'). Set it before running:\n\n\
-                     \texport {key}=<your-key>"
+                    "Missing {} (required by agent '{agent}'). Set one of:\n\n\
+                     \texport {}=<your-key>\n\
+                     \texport {}=<key1>,<key2>,...",
+                    provider.singular_env(),
+                    provider.singular_env(),
+                    provider.plural_env(),
                 ));
             } else {
-                keys_to_validate.insert(key);
+                providers_to_validate.insert(provider);
             }
         }
     }
@@ -210,16 +221,25 @@ pub async fn validate_agent_model_keys(pairs: &[(Agent, &str)]) -> Result<()> {
         );
     }
 
-    // 3. Validate keys against their provider APIs (in parallel).
+    // 3. Validate every key in every relevant pool against the provider API
+    //    (in parallel). One bad key in a pool fails the whole run — a quietly
+    //    rotated-out key would otherwise surface as a flaky 401 mid-matrix.
     let mut key_errors: Vec<String> = Vec::new();
     let mut handles = Vec::new();
 
-    for key_name in keys_to_validate {
-        let value = std::env::var(key_name).unwrap(); // safe: checked above
-        let key_name = key_name.to_string();
-        handles.push(tokio::spawn(async move {
-            validate_api_key(&key_name, &value).await
-        }));
+    for provider in providers_to_validate {
+        let pool = key_pools.get(provider);
+        for (idx, value) in pool.keys().iter().enumerate() {
+            let label = if pool.len() > 1 {
+                format!("{}[{}]", provider.singular_env(), idx)
+            } else {
+                provider.singular_env().to_string()
+            };
+            let value = value.clone();
+            handles.push(tokio::spawn(async move {
+                validate_api_key_value(provider, &label, &value).await
+            }));
+        }
     }
     for handle in handles {
         if let Ok(Err(msg)) = handle.await {
@@ -248,13 +268,15 @@ fn format_errors(errors: &[String]) -> String {
 }
 
 /// Hit a lightweight provider endpoint to confirm the key authenticates.
-/// Returns `Ok(())` on success, `Err(message)` on auth failure.
-/// Skips validation (returns `Ok`) for unknown key names.
-async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<(), String> {
-    let Some(provider) = ProviderKey::from_key_name(key_name) else {
-        return Ok(());
-    };
-
+/// Returns `Ok(())` on success, `Err(message)` on auth failure. The `label`
+/// is used purely for the error message — it can be either the bare env var
+/// name (e.g. `ANTHROPIC_API_KEY`) or an indexed form for pools
+/// (e.g. `ANTHROPIC_API_KEY[2]`).
+async fn validate_api_key_value(
+    provider: ProviderKey,
+    label: &str,
+    value: &str,
+) -> std::result::Result<(), String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
@@ -277,27 +299,37 @@ async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<()
         Ok(resp) if resp.status().is_success() => Ok(()),
         Ok(resp) if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 => {
             Err(format!(
-                "{key_name} is set but invalid — got HTTP {} from {url}. \
+                "{label} is set but invalid — got HTTP {} from {url}. \
                  Check that the key is correct and has not expired.",
                 resp.status()
             ))
         }
         Ok(resp) => {
             tracing::warn!(
-                "{key_name} validation returned HTTP {} from {url} — skipping check",
+                "{label} validation returned HTTP {} from {url} — skipping check",
                 resp.status()
             );
             Ok(())
         }
         Err(e) if e.is_timeout() || e.is_connect() => {
-            tracing::warn!("{key_name} validation failed (network): {e} — skipping check");
+            tracing::warn!("{label} validation failed (network): {e} — skipping check");
             Ok(())
         }
         Err(e) => {
-            tracing::warn!("{key_name} validation failed: {e} — skipping check");
+            tracing::warn!("{label} validation failed: {e} — skipping check");
             Ok(())
         }
     }
+}
+
+/// Convenience wrapper used by tests and any caller that has a single key by
+/// env-var name. Skips silently for unknown names (e.g. POSTGRES_URL).
+#[cfg(test)]
+async fn validate_api_key(key_name: &str, value: &str) -> std::result::Result<(), String> {
+    let Some(provider) = ProviderKey::from_key_name(key_name) else {
+        return Ok(());
+    };
+    validate_api_key_value(provider, key_name, value).await
 }
 
 
@@ -360,9 +392,19 @@ mod tests {
         assert!(msg.contains("Test file not found"));
     }
 
+    fn pools_with(provider: ProviderKey, plural: Option<&str>, singular: Option<&str>) -> KeyPools {
+        // Build a KeyPools without touching the process env, so concurrent
+        // tests don't fight over `ANTHROPIC_API_KEY` etc. The pool for
+        // `provider` gets the supplied values; every other provider stays
+        // empty.
+        KeyPools::for_test_one_provider(provider, plural, singular)
+    }
+
     #[tokio::test]
     async fn incompatible_model_is_rejected() {
-        let result = validate_agent_model_keys(&[(Agent::ClaudeCode, "gpt-5.4")]).await;
+        let pools = pools_with(ProviderKey::Anthropic, None, Some("sk-test"));
+        let result =
+            validate_agent_model_keys(&[(Agent::ClaudeCode, "gpt-5.4")], &pools).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("not compatible"));
@@ -375,29 +417,42 @@ mod tests {
 
     #[tokio::test]
     async fn compatible_model_with_key_set() {
-        std::env::set_var("CURSOR_API_KEY", "sk-test-key");
-        let result = validate_agent_model_keys(&[(Agent::Cursor, "composer-2")]).await;
+        let pools = pools_with(ProviderKey::Cursor, None, Some("sk-test-key"));
+        let result =
+            validate_agent_model_keys(&[(Agent::Cursor, "composer-2")], &pools).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn missing_key_is_rejected() {
-        std::env::remove_var("ANTHROPIC_API_KEY");
-        let result = validate_agent_model_keys(&[(Agent::ClaudeCode, "claude-sonnet-4-6")]).await;
+        let pools = pools_with(ProviderKey::Cursor, None, None); // no anthropic key set
+        let result =
+            validate_agent_model_keys(&[(Agent::ClaudeCode, "claude-sonnet-4-6")], &pools).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("ANTHROPIC_API_KEY"));
+        assert!(msg.contains("ANTHROPIC_API_KEYS"));
     }
 
     #[tokio::test]
     async fn multiple_errors_reported_together() {
         // codex + claude model = wrong model AND missing key
-        std::env::remove_var("OPENAI_API_KEY");
-        let result = validate_agent_model_keys(&[(Agent::Codex, "claude-sonnet-4-6")]).await;
+        let pools = pools_with(ProviderKey::Cursor, None, None); // no openai key set
+        let result =
+            validate_agent_model_keys(&[(Agent::Codex, "claude-sonnet-4-6")], &pools).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("not compatible"));
         assert!(msg.contains("OPENAI_API_KEY"));
+    }
+
+    #[tokio::test]
+    async fn plural_only_satisfies_key_presence() {
+        let pools =
+            pools_with(ProviderKey::Cursor, Some("sk-a,sk-b,sk-c"), None);
+        let result =
+            validate_agent_model_keys(&[(Agent::Cursor, "composer-2")], &pools).await;
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
