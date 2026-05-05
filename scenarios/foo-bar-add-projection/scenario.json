@@ -1,0 +1,46 @@
+{
+  "id": "foo-bar-add-projection",
+  "title": "Foo Bar Add Projection",
+  "description": "A 3M-row Orders table is sorted by (customerId, orderTs), but a planted query filters by productSku and sorts by orderTs DESC — forcing a full scan. Add a ClickHouse projection (through Moose's typed OlapTable config on `moose-initialized`, or raw `ALTER TABLE … ADD PROJECTION` on `base-rt`) so the secondary access pattern is served from a re-sorted projection without disturbing the primary key.",
+  "lede": "In this scenario, an agent must add a ClickHouse projection to serve a secondary access pattern that is currently scanning the entire Orders table — measured both through Moose's typed config and through raw ClickHouse SQL.",
+  "tier": "tier-1",
+  "domain": "foo-bar",
+  "harnesses": [
+    "moose-initialized",
+    "base-rt"
+  ],
+  "tasks": [
+    {
+      "id": "add-projection",
+      "description": "Add a projection to the Orders table so that filtering by productSku and ordering by orderTs DESC runs at least 3x faster, then materialize it for the existing 3M rows.",
+      "category": "query-optimization"
+    }
+  ],
+  "infrastructure": {
+    "services": [
+      "clickhouse"
+    ],
+    "description": "ClickHouse with a 3M-row Orders table sorted by (customerId, orderTs). On `moose-initialized`, the table lives in `local.Orders` behind a Moose project at /workspace/moose-project (CH on :18123 with auth, brought up by `moose dev --dockerless`). On `base-rt`, the same table is created directly in `local.Orders` on supervised CH (:8123, no auth). Slow query at /workspace/queries/top_orders_by_sku.sql."
+  },
+  "tags": [
+    "clickhouse",
+    "projection",
+    "moose",
+    "query-optimization",
+    "performance",
+    "olap"
+  ],
+  "productionChecks": {
+    "maxExpectedLines": 300
+  },
+  "baselineMetrics": {
+    "queryLatencyMs": 80,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  },
+  "referenceMetrics": {
+    "queryLatencyMs": 10,
+    "storageBytes": 0,
+    "costPerQueryUsd": 0
+  }
+}
