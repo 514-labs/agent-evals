@@ -21,6 +21,7 @@ use tracing::{info, warn};
 
 use super::agent::{Agent, KeyPools, ProviderKey};
 use super::preflight;
+use super::snapshot::RunSnapshot;
 
 const SCENARIO_REGISTRY_DIR: &str = "apps/web/data/scenarios";
 const AGENT_STDOUT_START: &str = "__DEC_BENCH_AGENT_STDOUT_START__";
@@ -289,6 +290,14 @@ pub async fn execute(args: RunArgs) -> Result<()> {
             return Ok(());
         }
 
+        // 514-1515: Freeze the host paths the runner reads after agent phase
+        // exits, so a branch switch or rebase mid-run cannot shift assertions
+        // or eval-core source under in-flight cells. One snapshot per
+        // invocation, shared across matrix cells.
+        let scenario_ids: Vec<String> = jobs.iter().map(|j| j.scenario_id.clone()).collect();
+        let snapshot = Arc::new(RunSnapshot::create(&scenario_ids)?);
+        snapshot.print_summary();
+
         let parallel = resolve_parallelism(&args.parallel);
         let mut completed = 0_usize;
         let mut failed = 0_usize;
@@ -312,6 +321,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                     job.persona,
                     job.mode,
                     &key_pools,
+                    &snapshot,
                 )
                 .await
                 {
@@ -332,6 +342,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                 let docker = docker.clone();
                 let job_args = args_for_job(&args, &job);
                 let key_pools = key_pools.clone();
+                let snapshot = snapshot.clone();
                 let permit = semaphore
                     .clone()
                     .acquire_owned()
@@ -347,6 +358,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
                         job.persona,
                         job.mode,
                         &key_pools,
+                        &snapshot,
                     )
                     .await
                 });
@@ -390,6 +402,12 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
     preflight::check_docker()?;
     let docker = preflight::connect_docker()?;
+
+    // 514-1515: Snapshot host paths read after agent phase, so a branch
+    // switch or rebase mid-run cannot shift assertions or eval-core source.
+    let snapshot = Arc::new(RunSnapshot::create(&[scenario.to_string()])?);
+    snapshot.print_summary();
+
     info!(scenario, harness = %args.harness, "Starting eval run");
     run_single(
         &docker,
@@ -398,6 +416,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         args.persona.clone().unwrap_or(Persona::Baseline),
         args.mode.clone(),
         &key_pools,
+        &snapshot,
     )
     .await?;
 
@@ -461,6 +480,7 @@ async fn run_single(
     persona: Persona,
     mode: PlanMode,
     key_pools: &KeyPools,
+    snapshot: &Arc<RunSnapshot>,
 ) -> Result<()> {
     let image = format!(
         "{}.{}.{}.{}.{}",
@@ -577,30 +597,12 @@ async fn run_single(
     // scorer source on disk; we then docker-cp both in; phase 2 runs the
     // evaluator. The agent's exit code is preserved by run-evaluator.sh and
     // surfaced as phase 2's exit code.
-    let assertions_src = preflight::resolve_repo_path(&format!(
-        "scenarios/{scenario_id}/assertions"
-    ))
-    .with_context(|| {
-        format!(
-            "Could not locate assertions directory for scenario '{scenario_id}' — expected scenarios/{scenario_id}/assertions to exist on host."
-        )
-    })?;
-    if !assertions_src.exists() {
-        bail!(
-            "Assertions directory missing: {} — the host source must exist for two-phase orchestration.",
-            assertions_src.display()
-        );
-    }
-
-    let eval_core_src = preflight::resolve_repo_path("packages/eval-core/src").with_context(|| {
-        "Could not locate packages/eval-core/src — expected the assertion runner source to exist on host.".to_string()
-    })?;
-    if !eval_core_src.exists() {
-        bail!(
-            "eval-core source missing: {} — the host source must exist for two-phase orchestration.",
-            eval_core_src.display()
-        );
-    }
+    //
+    // 514-1515: Both paths come from the snapshot, not the live working tree.
+    // A branch switch or rebase after the run started will not shift what the
+    // evaluator phase sees.
+    let assertions_src = snapshot.assertions_dir(scenario_id)?;
+    let eval_core_src = snapshot.eval_core_src();
 
     let docker_for_run = docker.clone();
     let container_name_for_run = container_name.clone();
@@ -730,7 +732,17 @@ async fn run_single(
     fs::write(&stdout_path, output_stdout)
         .with_context(|| format!("Failed to write {}", stdout_path.display()))?;
 
-    let mut written_files: Vec<&str> = vec!["result.json", "stdout"];
+    // 514-1515: Persist the snapshot manifest so audit can later check what
+    // tree state was tested. Same content for every cell of a matrix run
+    // (they share one snapshot).
+    let snapshot_manifest_path = output_path.with_extension("snapshot.json");
+    fs::write(
+        &snapshot_manifest_path,
+        ensure_trailing_newline(&serde_json::to_string_pretty(&snapshot.manifest())?),
+    )
+    .with_context(|| format!("Failed to write {}", snapshot_manifest_path.display()))?;
+
+    let mut written_files: Vec<&str> = vec!["result.json", "stdout", "snapshot.json"];
 
     if !cleaned_stdout.trim().is_empty() {
         let infra_stdout_path = output_path.with_extension("infra.stdout");

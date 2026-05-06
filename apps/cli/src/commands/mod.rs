@@ -7,4 +7,5 @@ pub mod preflight;
 pub mod registry;
 pub mod results;
 pub mod run;
+pub mod snapshot;
 pub mod validate;
